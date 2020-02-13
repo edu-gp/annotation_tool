@@ -1,8 +1,7 @@
 import os
 import uuid
 
-from shared.storage import DiskStorage
-from shared.utils import load_jsonl, save_jsonl, mkf, mkd
+from shared.utils import load_json, save_json, mkf, mkd
 
 from inference.base import ITextCatModel
 from inference.pattern_model import PatternModel
@@ -56,16 +55,18 @@ class Task:
 
     @staticmethod
     def fetch(task_id):
-        db = DiskStorage()
-        data = db.read(f'task:{task_id}')
+        task_config_path = os.path.join(DEFAULT_TASK_STORAGE, task_id, 'config.json')
+        data = load_json(task_config_path)
         if data:
             return Task.from_json(data)
         else:
             return None
 
     def save(self):
-        db = DiskStorage()
-        db.write(f'task:{self.task_id}', self.to_json())
+        task_config_path = [DEFAULT_TASK_STORAGE, self.task_id, 'config.json']
+        mkf(*task_config_path)
+        task_config_path = os.path.join(*task_config_path)
+        save_json(task_config_path, self.to_json())
 
     # ------------------------------------------------------------
 
@@ -88,3 +89,6 @@ class Task:
                 pattern_model = model
                 break
         return pattern_model
+
+def fetch_all_tasks():
+    return os.listdir(DEFAULT_TASK_STORAGE)
