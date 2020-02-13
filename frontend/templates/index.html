@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1>{% block title %}Home{% endblock %}</h1>
+{% endblock %}
+
+{% block content %}
+  <h2>
+    Hi there
+  </h2>
+  <p>
+      Jobs waiting for you:
+      <ol>
+        {% for task_id in task_ids %}
+          <li><a href="{{ url_for('tasks.show', id=task_id) }}"">{{task_id}}</a></li>
+        {% endfor %}
+      </ol>
+  </p>
+{% endblock %}
