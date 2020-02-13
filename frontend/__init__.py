@@ -6,6 +6,8 @@ from flask import (
 
 from .auth import login_required
 
+from ar.data import fetch_tasks_for_user
+
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
@@ -38,13 +40,7 @@ def create_app(test_config=None):
         # ... find the user
         username = 'eddie'
 
-        import re
-        import glob
-        from db.task import DEFAULT_TASK_STORAGE
-        fnames = glob.glob(os.path.join(DEFAULT_TASK_STORAGE, '*', 'annotators', 'eddie.jsonl'))
-        task_ids = [re.match(f'^{DEFAULT_TASK_STORAGE}/(.*)/annotators.*$', f).groups()[0]
-                    for f in fnames]
-
+        task_ids = fetch_tasks_for_user(username)
         return render_template('index.html', task_ids=task_ids)
 
     @app.route('/secret')

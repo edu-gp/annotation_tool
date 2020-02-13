@@ -5,20 +5,30 @@ from spacy.matcher import Matcher
 from .base import ITextCatModel
 
 class PatternModel(ITextCatModel):
-    def __init__(self, patterns):
-        self.model_id = str(uuid.uuid4())
+    def __init__(self, patterns, model_id=None):
+        if model_id:
+            self.model_id = model_id
+        else:
+            self.model_id = str(uuid.uuid4())
         
-        nlp = spacy.load("en_core_web_sm")
-        matcher = Matcher(nlp.vocab)
-
-        for row in patterns:
-            matcher.add(row['label'], None, row['pattern'])
-            
-        self.matcher = matcher
-        self.nlp = nlp
         self.patterns = patterns
 
+        self._loaded = False
+
+    def _load():
+        if not self._loaded:
+            nlp = spacy.load("en_core_web_sm")
+            matcher = Matcher(nlp.vocab)
+
+            for row in patterns:
+                matcher.add(row['label'], None, row['pattern'])
+                
+            self.matcher = matcher
+            self.nlp = nlp
+            
     def predict(self, text_list:List[str], fancy=False) -> List:
+        self._load()
+
         res = []
 
         text_list = ['' if x is None else x
@@ -55,6 +65,4 @@ class PatternModel(ITextCatModel):
 
     @staticmethod
     def from_json(data):
-        model = PatternModel(data['patterns'])
-        model.model_id = data['model_id']
-        return model
+        return PatternModel(data['patterns'], model_id=data['model_id'])

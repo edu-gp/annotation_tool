@@ -4,7 +4,8 @@ import re
 import glob
 
 from shared.utils import load_json, save_json, mkf, mkd
-from db.task import Task, DIR_ANNO, DIR_AREQ, DEFAULT_TASK_STORAGE
+from db.task import Task, DIR_ANNO, DIR_AREQ
+from db import _task_dir
 
 from .utils import get_ar_id
 
@@ -52,8 +53,8 @@ def fetch_tasks_for_user(user_id):
     '''
     Return a list of task_id for which the user has annotation jobs to do.
     '''
-    fnames = glob.glob(os.path.join(DEFAULT_TASK_STORAGE, '*', DIR_AREQ, user_id))
-    task_ids = [re.match(f'^{DEFAULT_TASK_STORAGE}/(.*)/{DIR_AREQ}.*$', f).groups()[0]
+    fnames = glob.glob(os.path.join(_task_dir(), '*', DIR_AREQ, user_id))
+    task_ids = [re.match(f'^{_task_dir()}/(.*)/{DIR_AREQ}.*$', f).groups()[0]
                 for f in fnames]
     return task_ids
 
@@ -61,14 +62,14 @@ def fetch_all_ar(task_id, user_id):
     '''
     Return a list of ar_id for this task
     '''
-    _dir = os.path.join(DEFAULT_TASK_STORAGE, task_id, DIR_AREQ, user_id)
+    _dir = os.path.join(_task_dir(task_id), DIR_AREQ, user_id)
     return _get_all_ar_ids_in_dir(_dir, sort_by_ctime=True)
 
 def fetch_ar(task_id, user_id, ar_id):
     '''
     Return the details of a annotation request
     '''
-    fname = os.path.join(DEFAULT_TASK_STORAGE, task_id, DIR_AREQ, user_id, ar_id + '.json')
+    fname = os.path.join(_task_dir(task_id), DIR_AREQ, user_id, ar_id + '.json')
     return load_json(fname)
 
 def get_next_ar(task_id, user_id, ar_id):
@@ -104,7 +105,7 @@ def annotate_ar(task_id, user_id, ar_id, annotation):
     Annotate a annotation request
     '''
     if fetch_ar(task_id, user_id, ar_id) is not None:
-        path = [DEFAULT_TASK_STORAGE, task_id, DIR_ANNO, user_id, ar_id + '.json']
+        path = [_task_dir(task_id), DIR_ANNO, user_id, ar_id + '.json']
         mkf(*path)
         fname = os.path.join(*path)
         save_json(fname, annotation)
@@ -116,7 +117,7 @@ def fetch_annotation(task_id, user_id, ar_id):
     '''
     Return the details of an annotation to a annotation request
     '''
-    path = [DEFAULT_TASK_STORAGE, task_id, DIR_ANNO, user_id, ar_id + '.json']
+    path = [_task_dir(task_id), DIR_ANNO, user_id, ar_id + '.json']
     fname = os.path.join(*path)
     return load_json(fname)
 
@@ -124,7 +125,7 @@ def fetch_all_annotations(task_id, user_id):
     '''
     Return a list of ar_id for this task that has been annotated by this user.
     '''
-    _dir = os.path.join(DEFAULT_TASK_STORAGE, task_id, DIR_ANNO, user_id)
+    _dir = os.path.join(_task_dir(task_id), DIR_ANNO, user_id)
     return _get_all_ar_ids_in_dir(_dir)
 
 def _get_all_ar_ids_in_dir(_dir, sort_by_ctime=False):

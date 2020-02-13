@@ -10,17 +10,15 @@
   </h2>
 
   <ol>
-  {% for d in data %}
+  {% for ar_id in ars %}
     <li>
-        <a href={{url_for('tasks.annotate', id=task.task_id, line=loop.index0)}}>Example {{loop.index0}}</a>
+        <a href={{url_for('tasks.annotate', id=task.task_id, ar_id=ar_id)}}>Example {{loop.index0}} - {{ar_id}}</a>
         {% if has_annotation[loop.index0] %}
             <span class='good'>Done</span>
         {% else %}
             <span class='bad'>Need Label</span>
         {% endif %}
     </li>
-    
-    <!-- <div class="flash">{{ d }}</div> -->
   {% endfor %}
   </ol>
 

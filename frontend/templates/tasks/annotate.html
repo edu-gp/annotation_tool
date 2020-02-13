@@ -28,7 +28,9 @@
 
   <div id="react_container"></div>
 
-
+  {% if next_ar_id %}
+    <a href={{url_for('tasks.annotate', id=task.task_id, ar_id=next_ar_id)}}>Next</a>
+  {% endif %}
 
 <script>
 window.data = {{data | safe}};

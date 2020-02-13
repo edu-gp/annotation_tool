@@ -7,10 +7,7 @@ from inference.base import ITextCatModel
 from inference.pattern_model import PatternModel
 from inference.model_factory import ModelFactory
 
-DEFAULT_DATA_STORAGE = '__data'
-DEFAULT_TASK_STORAGE = '__tasks'
-mkd(DEFAULT_DATA_STORAGE)
-mkd(DEFAULT_TASK_STORAGE)
+from db import _data_dir, _task_dir
 
 DIR_AREQ = 'ar' # Annotation Requests
 DIR_ANNO = 'an' # Annotations
@@ -18,9 +15,9 @@ DIR_ANNO = 'an' # Annotations
 class Task:
     def __init__(self, name=None):
         self.task_id = str(uuid.uuid4())
-        self.data_filenames = []
         self.models = []
         self.annotators = [] # A list of user_id's
+        self._data_filenames = []
 
         self.name = name
         if self.name is None:
@@ -33,7 +30,7 @@ class Task:
         return {
             'name': self.name,
             'task_id': self.task_id,
-            'data_filenames': self.data_filenames,
+            'data_filenames': self._data_filenames,
             'models': [m.to_json() for m in self.models],
             'annotators': self.annotators,
         }
@@ -42,7 +39,7 @@ class Task:
     def from_json(data):
         task = Task(data.get('name'))
         task.task_id = data['task_id']
-        task.data_filenames = data['data_filenames']
+        task._data_filenames = data['data_filenames']
         task.models = [ModelFactory.from_json(m) for m in data['models']]
         task.annotators = data['annotators']
         return task
@@ -51,11 +48,11 @@ class Task:
 
     def get_dir(self):
         '''Where files for this task are stored'''
-        return os.path.join(DEFAULT_TASK_STORAGE, self.task_id)
+        return _task_dir(self.task_id)
 
     @staticmethod
     def fetch(task_id):
-        task_config_path = os.path.join(DEFAULT_TASK_STORAGE, task_id, 'config.json')
+        task_config_path = os.path.join(_task_dir(task_id), 'config.json')
         data = load_json(task_config_path)
         if data:
             return Task.from_json(data)
@@ -63,17 +60,24 @@ class Task:
             return None
 
     def save(self):
-        task_config_path = [DEFAULT_TASK_STORAGE, self.task_id, 'config.json']
+        task_config_path = [self.get_dir(), 'config.json']
         mkf(*task_config_path)
         task_config_path = os.path.join(*task_config_path)
         save_json(task_config_path, self.to_json())
 
+    @staticmethod
+    def fetch_all_tasks(id_only=True):
+        if id_only:
+            return os.listdir(_task_dir())
+        else:
+            assert "Not Implemented"
+
     # ------------------------------------------------------------
 
     def add_data(self, fname:str):
-        # TODO should only store fname, and access it via the "DEFAULT_DATA_STORAGE" as needed. True or False?
-        self.data_filenames.append(
-            os.path.join(DEFAULT_DATA_STORAGE, fname))
+        # TODO test
+        assert fname in os.listdir(_data_dir()), f"{fname} is not in {_data_dir}"
+        self._data_filenames.append(fname)
 
     def add_model(self, model:ITextCatModel):
         self.models.append(model)
@@ -90,5 +94,11 @@ class Task:
                 break
         return pattern_model
 
-def fetch_all_tasks():
-    return os.listdir(DEFAULT_TASK_STORAGE)
+    # ------------------------------------------------------------
+    
+    def get_full_data_fnames(self):
+        d = _data_dir()
+        return [os.path.join(d, fname) for fname in self._data_filenames]
+
+    def get_data_fnames(self):
+        return self._data_filenames

@@ -9,7 +9,7 @@ from collections import namedtuple
 
 import numpy as np
 from shared.utils import load_jsonl, save_jsonl, load_json, save_json, mkf, mkd
-from db.task import Task, DIR_ANNO, DIR_AREQ, DEFAULT_TASK_STORAGE
+from db.task import Task, DIR_ANNO, DIR_AREQ
 from inference.base import ITextCatModel
 from inference import get_predicted_cached
 
@@ -25,7 +25,7 @@ def generate_annotation_requests(task_id, n=100, overlap=2):
     task = Task.fetch(task_id)
 
     # TODO better to stream these?
-    examples = _get_predictions(task.data_filenames, task.models)
+    examples = _get_predictions(task.get_full_data_fnames(), task.models)
     top_examples = sorted(examples, key=lambda x: x.score, reverse=True)
 
     # Blacklist whatever users have labeled already
@@ -37,7 +37,7 @@ def generate_annotation_requests(task_id, n=100, overlap=2):
 
     # We will need random access for each line in each file.
     __cache_df = {}
-    for fname in task.data_filenames:
+    for fname in task.get_full_data_fnames():
         __cache_df[fname] = load_jsonl(fname)
     def get_dp(fname, line_number):
         '''Get Datapoint'''
