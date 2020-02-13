@@ -1,6 +1,7 @@
 from celery import Celery
 
-from ar import generate_annotation_requests_for_user as _generate_annotation_requests_for_user
+from ar import generate_annotation_requests as _generate_annotation_requests
+from ar.data import save_new_ar_for_user
 
 app = Celery(
     # module name
@@ -18,10 +19,12 @@ def hello():
     print("HI")
 
 @app.task
-def generate_annotation_requests_for_user(task_id, user_id, n):
-    print(f"Generate {n} tasks for user {user_id}, task_id={task_id}")
-    fname = _generate_annotation_requests_for_user(task_id, user_id, n)
-    print(f"Done: {fname}")
+def generate_annotation_requests(task_id, n, overlap):
+    print(f"Generate max={n} annotations per user with max overlap={overlap}, task_id={task_id}")
+    res = _generate_annotation_requests(task_id, n, overlap)
+    for user_id, annotation_requests in res.items():
+        save_new_ar_for_user(task_id, user_id, annotation_requests, clean_existing=True)
+    print(f"Done")
 
 app.conf.task_routes = {'*.ar_celery.*': {'queue': 'ar_celery'}}
 
