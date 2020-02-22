@@ -6,6 +6,7 @@ from flask import (
 
 from .auth import login_required
 
+from db.task import Task
 from ar.data import fetch_tasks_for_user
 
 def create_app(test_config=None):
@@ -41,7 +42,8 @@ def create_app(test_config=None):
         username = 'eddie'
 
         task_ids = fetch_tasks_for_user(username)
-        return render_template('index.html', task_ids=task_ids)
+        tasks = [Task.fetch(task_id) for task_id in task_ids]
+        return render_template('index.html', tasks=tasks)
 
     @app.route('/secret')
     @login_required

@@ -66,11 +66,12 @@ class Task:
         save_json(task_config_path, self.to_json())
 
     @staticmethod
-    def fetch_all_tasks(id_only=True):
+    def fetch_all_tasks(id_only=False):
+        task_ids = os.listdir(_task_dir())
         if id_only:
-            return os.listdir(_task_dir())
-        else:
-            assert "Not Implemented"
+            return task_ids
+        tasks = [Task.fetch(task_id) for task_id in task_ids]
+        return tasks
 
     # ------------------------------------------------------------
 
