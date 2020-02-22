@@ -1,7 +1,7 @@
 import os
 import uuid
 
-from shared.utils import load_json, save_json, mkf, mkd
+from shared.utils import load_jsonl, load_json, save_json, mkf, mkd
 
 from inference.base import ITextCatModel
 from inference.pattern_model import PatternModel
@@ -16,7 +16,9 @@ class Task:
     def __init__(self, name=None):
         self.task_id = str(uuid.uuid4())
         self.models = []
+        # TODO do not store, just look in filesystem
         self.annotators = [] # A list of user_id's
+        self.labels = []
         self._data_filenames = []
 
         self.name = name
@@ -24,7 +26,7 @@ class Task:
             self.name = 'No Name'
 
     def __str__(self):
-        return f'Task: {self.name}'
+        return self.name
 
     def to_json(self):
         return {
@@ -33,6 +35,7 @@ class Task:
             'data_filenames': self._data_filenames,
             'models': [m.to_json() for m in self.models],
             'annotators': self.annotators,
+            'labels': self.labels,
         }
 
     @staticmethod
@@ -42,6 +45,7 @@ class Task:
         task._data_filenames = data['data_filenames']
         task.models = [ModelFactory.from_json(m) for m in data['models']]
         task.annotators = data['annotators']
+        task.labels = data.get('labels', [])
         return task
 
     # ------------------------------------------------------------
@@ -67,7 +71,11 @@ class Task:
 
     @staticmethod
     def fetch_all_tasks(id_only=False):
-        task_ids = os.listdir(_task_dir())
+        task_ids:List[os.DirEntry] = sorted(
+            os.scandir(_task_dir()),
+            key=lambda d: d.stat().st_mtime,
+            reverse=True)
+        task_ids = [x.name for x in task_ids]
         if id_only:
             return task_ids
         tasks = [Task.fetch(task_id) for task_id in task_ids]
@@ -75,17 +83,26 @@ class Task:
 
     # ------------------------------------------------------------
 
-    def add_data(self, fname:str):
+    def _add_data(self, fname:str):
         # TODO test
         assert fname in os.listdir(_data_dir()), f"{fname} is not in {_data_dir}"
-        self._data_filenames.append(fname)
+        if fname not in self._data_filenames:
+            self._data_filenames.append(fname)
 
-    def add_model(self, model:ITextCatModel):
+    def _add_model(self, model:ITextCatModel):
+        assert isinstance(model, ITextCatModel)
+        # TODO should I also check at most 1 pattern model exists?
         self.models.append(model)
 
-    def add_annotator(self, user_id:str):
-        self.annotators.append(user_id)
+    def _add_annotator(self, user_id:str):
+        if user_id not in self.annotators:
+            self.annotators.append(user_id)
     
+    def _add_label(self, label:str):
+        # label = label.upper() # TODO Do I need to enforce this?
+        if label not in self.labels:
+            self.labels.append(label)
+
     def get_pattern_model(self):
         '''Return the first PatternModel, if one exists'''
         pattern_model = None
@@ -95,6 +112,36 @@ class Task:
                 break
         return pattern_model
 
+    def update_and_save(self,
+            name=None,
+            labels=None,
+            patterns_file=None,
+            annotators=None,
+            data_files=None):
+
+        if name:
+            self.name = name.strip()
+
+        if data_files:
+            for data in data_files:
+                self._add_data(data)
+
+        if patterns_file:
+            patterns = load_jsonl(patterns_file, to_df=False)
+            model = PatternModel(patterns)
+            self._add_model(model)
+        
+        if annotators:
+            for anno in annotators:
+                self._add_annotator(anno)
+
+        if labels:
+            for label in labels:
+                self._add_label(label)
+        
+        self.save()
+        return self
+
     # ------------------------------------------------------------
     
     def get_full_data_fnames(self):
@@ -103,3 +150,22 @@ class Task:
 
     def get_data_fnames(self):
         return self._data_filenames
+
+    # ------------------------------------------------------------
+
+    def jinjafy(self, field):
+        # A list of values, one on each line
+        if field == 'labels':
+            return '\n'.join(self.labels)
+        if field == 'annotators':
+            return '\n'.join(self.annotators)
+        return ''
+
+    @staticmethod
+    def parse_jinjafied(field, value):
+        # A list of values, one on each line
+        if field == 'labels' or field == 'annotators':
+            res = [x.strip() for x in value.split('\n')]
+            res = [x for x in res if len(x) > 0]
+            return res
+        return None

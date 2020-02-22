@@ -121,12 +121,25 @@ def fetch_annotation(task_id, user_id, ar_id):
     fname = os.path.join(*path)
     return load_json(fname)
 
-def fetch_all_annotations(task_id, user_id):
+def fetch_all_annotations(task_id, user_id=None):
     '''
     Return a list of ar_id for this task that has been annotated by this user.
     '''
-    _dir = os.path.join(_task_dir(task_id), DIR_ANNO, user_id)
-    return _get_all_ar_ids_in_dir(_dir)
+    if user_id is not None:
+        _dir = os.path.join(_task_dir(task_id), DIR_ANNO, user_id)
+        return _get_all_ar_ids_in_dir(_dir)
+    else:
+        task = Task.fetch(task_id)
+        n_per_user = {}
+        total = 0
+        for user in task.annotators:
+            n = len(fetch_all_annotations(task_id, user))
+            n_per_user[user] = n
+            total += n
+        return {
+            'total': total,
+            'users': n_per_user
+        }
 
 def _get_all_ar_ids_in_dir(_dir, sort_by_ctime=False):
     if os.path.isdir(_dir):

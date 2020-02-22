@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item">
+        <a href="{{ url_for('index') }}">Home</a>
+      </li>
+      <li class="breadcrumb-item active" aria-current="page">
+        Task
+      </li>
+    </ol>
+  </nav>
+{% endblock %}
+
+{% block content %}
+  <h1>{{task}}</h1>
+
+  <div class="card my-2">
+    <div class="card-body">
+      <h4>Basic Info</h4>
+      <ul>
+        <li>
+          Task ID: 
+          <span class="badge badge-light">{{task.task_id}}</span>
+        </li>
+        <li>
+          Models:
+          {% for model in task.models %}
+            <span class="badge badge-light">{{model}}</span>
+          {% endfor %}
+        </li>
+        <li>
+          Data:
+          {% for fname in task._data_filenames %}
+            <span class="badge badge-light">{{fname}}</span>
+          {% endfor %}
+        </li>
+        <li>
+          Annotators:
+          {% for annotator in task.annotators %}
+            <span class="badge badge-light">{{annotator}}</span>
+          {% endfor %}
+        </li>
+        <li>
+          Labels: 
+          {% for label in task.labels %}
+            <span class="badge badge-light">{{label}}</span>
+          {% endfor %}
+        </li>
+      </ul>
+
+      <a class="btn btn-sm btn-secondary" href="{{ url_for('tasks.edit', id=task.task_id) }}">Edit</a>
+
+    </div>
+  </div>
+
+  <div class="card my-2">
+    <div class="card-body">
+      <h4>Annotations</h4>
+      <p>
+        TODO: Show all annotators and how many labels / annotator. Do the same per label.
+      </p>
+      <pre>
+        {{annos}}
+      </pre>
+
+      <a class="btn btn-sm btn-secondary" href="#">Assign more annotation jobs to everyone</a>
+    </div>
+  </div>
+
+  <div class="card my-2">
+    <div class="card-body">
+      <h4>Models</h4>
+      <p>
+        TODO: Train new model + Inference on existing files + Request new labels
+      </p>
+
+      <a class="btn btn-sm btn-secondary" href="#">Train New Model</a>
+    </div>
+  </div>
+
+{% endblock %}

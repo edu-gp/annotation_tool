@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item">
+        <a href="{{ url_for('index') }}">Home</a>
+      </li>
+      <li class="breadcrumb-item">
+        <a href="{{ url_for('tasks.show', id=task.task_id) }}">Task</a> 
+      </li>
+      <li class="breadcrumb-item active" aria-current="page">
+        Edit
+      </li>
+    </ol>
+  </nav>
+{% endblock %}
+
+{% block content %}
+  <form action="{{ url_for('tasks.update', id=task.task_id) }}" method="POST">
+    
+    <div class="form-group">
+      <label for="name">Name</label>
+      <input type="text" class="form-control" name="name" id="name" value="{{ request.form['name'] | default(task.name) }}" required>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            
+            <div class="form-group">
+                <label for="labels">Labels (one per line)</label>
+                <textarea class="form-control" name="labels" id="labels" rows=5 required>
+                  {{- request.form['labels'] | default(task.jinjafy('labels')) -}}
+                </textarea>
+            </div>
+
+        </div>
+        <div class="col">
+            
+            <div class="form-group">
+                <label for="annotators">Annotators (one per line)</label>
+                <textarea class="form-control" name="annotators" id="annotators" rows=5 required>
+                  {{- request.form['annotators'] | default(task.jinjafy('annotators')) -}}
+                </textarea>
+            </div>
+
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Submit</button>
+  </form>
+{% endblock %}
