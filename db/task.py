@@ -1,7 +1,7 @@
 import os
 import uuid
 
-from shared.utils import load_jsonl, load_json, save_json, mkf, mkd
+from shared.utils import load_json, save_json, mkf, mkd
 
 from inference.base import ITextCatModel
 from inference.pattern_model import PatternModel
@@ -16,7 +16,6 @@ class Task:
     def __init__(self, name=None):
         self.task_id = str(uuid.uuid4())
         self.models = []
-        # TODO do not store, just look in filesystem
         self.annotators = [] # A list of user_id's
         self.labels = []
         self._data_filenames = []
@@ -127,8 +126,7 @@ class Task:
                 self._add_data(data)
 
         if patterns_file:
-            patterns = load_jsonl(patterns_file, to_df=False)
-            model = PatternModel(patterns)
+            model = PatternModel(patterns_file)
             self._add_model(model)
         
         if annotators:

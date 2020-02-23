@@ -11,7 +11,12 @@ from flask import (
 
 from db.utils import get_all_data_files
 from db.task import Task
-from ar.data import fetch_all_annotations
+from ar.data import compute_annotation_statistics
+
+from ar.ar_celery import generate_annotation_requests
+from ar.ar_celery import app as ar_celery_app
+
+from shared.celery_job_status import CeleryJobStatus
 
 bp = Blueprint('tasks', __name__, url_prefix='/tasks')
 
@@ -61,11 +66,33 @@ def create():
 
 @bp.route('/<string:id>', methods=['GET'])
 def show(id):
+    # Basic info
     task = Task.fetch(id)
-    annos = fetch_all_annotations(task.task_id)
-    return render_template('tasks/show.html',
+
+    # Annotations
+    annotation_statistics = compute_annotation_statistics(task.task_id)
+
+    status_assign_jobs_active = []
+    status_assign_jobs_stale = []
+    for cjs in CeleryJobStatus.fetch_all_by_context_id(f'assign:{task.task_id}'):
+        if cjs.is_stale():
+            status_assign_jobs_stale.append(cjs)
+        else:
+            status_assign_jobs_active.append(cjs)
+    
+    # TODO delete stale jobs on a queue, instead of here.
+    for cjs in status_assign_jobs_stale:
+        cjs.delete()
+
+    # Models
+    # TODO
+
+    return render_template(
+        'tasks/show.html',
         task=task,
-        annos=annos)
+        annotation_statistics=annotation_statistics,
+        status_assign_jobs=status_assign_jobs_active,
+    )
 
 @bp.route('/<string:id>/edit', methods=['GET'])
 def edit(id):
@@ -98,7 +125,12 @@ def update(id):
         return redirect(url_for('tasks.show', id=task.task_id))
 
 
-
+@bp.route('/<string:id>/assign', methods=['POST'])
+def assign(id):
+    async_result = generate_annotation_requests.delay(id, n=100, overlap=2)
+    celery_id = str(async_result)
+    CeleryJobStatus(celery_id, f'assign:{id}').save()
+    return redirect(url_for('tasks.show', id=id))
 
 
 

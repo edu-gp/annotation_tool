@@ -2,6 +2,7 @@ import os
 import shutil
 import re
 import glob
+from collections import defaultdict
 
 from shared.utils import load_json, save_json, mkf, mkd
 from db.task import Task, DIR_ANNO, DIR_AREQ
@@ -104,11 +105,16 @@ def annotate_ar(task_id, user_id, ar_id, annotation):
     '''
     Annotate a annotation request
     '''
-    if fetch_ar(task_id, user_id, ar_id) is not None:
+    ar = fetch_ar(task_id, user_id, ar_id)
+    if ar is not None:
         path = [_task_dir(task_id), DIR_ANNO, user_id, ar_id + '.json']
         mkf(*path)
         fname = os.path.join(*path)
-        save_json(fname, annotation)
+        anno = {
+            'req': ar,
+            'anno': annotation
+        }
+        save_json(fname, anno)
         return fname
     else:
         return None
@@ -118,28 +124,14 @@ def fetch_annotation(task_id, user_id, ar_id):
     Return the details of an annotation to a annotation request
     '''
     path = [_task_dir(task_id), DIR_ANNO, user_id, ar_id + '.json']
-    fname = os.path.join(*path)
-    return load_json(fname)
+    return load_json(os.path.join(*path))
 
-def fetch_all_annotations(task_id, user_id=None):
+def fetch_all_annotations(task_id, user_id):
     '''
     Return a list of ar_id for this task that has been annotated by this user.
     '''
-    if user_id is not None:
-        _dir = os.path.join(_task_dir(task_id), DIR_ANNO, user_id)
-        return _get_all_ar_ids_in_dir(_dir)
-    else:
-        task = Task.fetch(task_id)
-        n_per_user = {}
-        total = 0
-        for user in task.annotators:
-            n = len(fetch_all_annotations(task_id, user))
-            n_per_user[user] = n
-            total += n
-        return {
-            'total': total,
-            'users': n_per_user
-        }
+    _dir = os.path.join(_task_dir(task_id), DIR_ANNO, user_id)
+    return _get_all_ar_ids_in_dir(_dir)
 
 def _get_all_ar_ids_in_dir(_dir, sort_by_ctime=False):
     if os.path.isdir(_dir):
@@ -152,6 +144,49 @@ def _get_all_ar_ids_in_dir(_dir, sort_by_ctime=False):
         return ar_ids
     else:
         return []
+
+def compute_annotation_statistics(task_id):
+    # How many have been labeled & How many are left to be labeled.
+
+    n_annotations_per_label = defaultdict(lambda: defaultdict(int))
+    n_annotations_per_user = defaultdict(lambda: 0)
+    n_outstanding_requests_per_user = defaultdict(lambda: 0)
+
+    user_ids = set()
+    # Get all user_id's from annotated or requested
+    _path = os.path.join(_task_dir(task_id), DIR_ANNO)
+    if os.path.isdir(_path):
+        for dir_entry in os.scandir(_path):
+            if os.path.isdir(dir_entry.path):
+                user_ids.add(dir_entry.name)
+    _path = os.path.join(_task_dir(task_id), DIR_AREQ)
+    if os.path.isdir(_path):
+        for dir_entry in os.scandir(_path):
+            if os.path.isdir(dir_entry.path):
+                user_ids.add(dir_entry.name)
+    
+    for user_id in user_ids:
+        anno_ids = fetch_all_annotations(task_id, user_id)
+        n_annotations_per_user[user_id] = len(anno_ids)
+
+        # TODO: slow
+        for anno_id in anno_ids:
+            anno = fetch_annotation(task_id, user_id, anno_id)
+            for label, result in anno['anno']['labels'].items():
+                n_annotations_per_label[label][result] += 1
+    
+        # Only count the examples the user has not labeled yet.
+        ar_ids = fetch_all_ar(task_id, user_id)
+        n_outstanding_requests_per_user[user_id] = len(set(ar_ids) - set(anno_ids))
+
+    return {
+        'total_annotations': sum(n_annotations_per_user.values()),
+        'n_annotations_per_user': n_annotations_per_user,
+        'n_annotations_per_label': n_annotations_per_label,
+
+        'total_outstanding_requests': sum(n_outstanding_requests_per_user.values()),
+        'n_outstanding_requests_per_user': n_outstanding_requests_per_user,
+    }
 
 
 if __name__ == '__main__':
@@ -194,6 +229,15 @@ if __name__ == '__main__':
     basedir = save_new_ar_for_user(task_id, user_id, annotation_requests)
     assert len(annotation_requests) == len(os.listdir(basedir))
 
+    # Check we can compute stats properly
+    stats = compute_annotation_statistics(task_id)
+    assert stats['total_annotations'] == 0
+    assert sum(stats['n_annotations_per_user'].values()) == 0 # nothing annotated yet
+    assert sum(stats['n_annotations_per_label'].values()) == 0 # nothing annotated yet
+    assert stats['total_outstanding_requests'] == 3
+    assert stats['n_outstanding_requests_per_user'][user_id] == 3
+    # print(stats)
+
     user_task_ids = fetch_tasks_for_user(user_id)
     assert len(user_task_ids) > 0
     assert task_id in user_task_ids
@@ -214,20 +258,20 @@ if __name__ == '__main__':
     assert ar_detail['score'] == annotation_requests[0]['score']
 
     # Annotate an existing thing
-    my_anno = {'label': 'HEALTHCARE'}
+    my_anno = {'labels': {'HEALTHCARE': 1}}
     annotate_ar(task_id, user_id, all_ars[0], my_anno)
-    assert fetch_annotation(task_id, user_id, all_ars[0]) == my_anno
+    assert fetch_annotation(task_id, user_id, all_ars[0])['anno'] == my_anno
     assert len(fetch_all_annotations(task_id, user_id)) == 1
 
     # Annotate the same thing again updates the annotation
-    updated_anno = {'label': 'FINTECH'}
+    updated_anno = {'labels': {'FINTECH': 1, 'HEALTHCARE': 0}}
     annotate_ar(task_id, user_id, all_ars[0], updated_anno)
-    assert fetch_annotation(task_id, user_id, all_ars[0]) == updated_anno
+    assert fetch_annotation(task_id, user_id, all_ars[0])['anno'] == updated_anno
     assert len(fetch_all_annotations(task_id, user_id)) == 1
 
     # Annotate something that doesn't exist
     # (this might happen when master is updating - we'll try to avoid it)
-    annotate_ar(task_id, user_id, 'doesnotexist', {'label': 'HEALTHCARE'})
+    annotate_ar(task_id, user_id, 'doesnotexist', {'labels': {'HEALTHCARE': 1}})
     assert len(fetch_all_annotations(task_id, user_id)) == 1
 
     # Fetch next thing to be annotated
@@ -247,6 +291,30 @@ if __name__ == '__main__':
 
             'score': 0.9,
             'data': { 'text': 'blah', 'meta': {'foo': 'bar'}}
+        },
+        {
+            'ar_id': get_ar_id('a', 11),
+            'fname': 'a',
+            'line_number': 11,
+
+            'score': 0.9,
+            'data': { 'text': 'loremipsum', 'meta': {'foo': '123xyz'}}
+        },
+        {
+            'ar_id': get_ar_id('a', 12),
+            'fname': 'a',
+            'line_number': 12,
+
+            'score': 0.9,
+            'data': { 'text': 'loremipsum', 'meta': {'foo': '123xyz'}}
+        },
+        {
+            'ar_id': get_ar_id('a', 13),
+            'fname': 'a',
+            'line_number': 13,
+
+            'score': 0.9,
+            'data': { 'text': 'loremipsum', 'meta': {'foo': '123xyz'}}
         }
     ]
 
@@ -258,11 +326,27 @@ if __name__ == '__main__':
     assert len(fetch_all_annotations(task_id, user_id)) == 1
 
     # Annotate something thing in the new batch
-    my_anno = {'label': 'MACHINELEARNING'}
+    my_anno = {'labels': {'MACHINELEARNING': 1, 'FINTECH': 1, 'HEALTHCARE': 1}}
     all_ars = fetch_all_ar(task_id, user_id)
     annotate_ar(task_id, user_id, all_ars[0], my_anno)
-    assert fetch_annotation(task_id, user_id, all_ars[0]) == my_anno
+    assert fetch_annotation(task_id, user_id, all_ars[0])['anno'] == my_anno
     assert len(fetch_all_annotations(task_id, user_id)) == 2
 
-    # Nothing left to annotate
-    assert get_next_ar(task_id, user_id, all_ars[0]) == None
+    # TODO: Write the test. When there is 1 thing left in queue, get_next_ar should return None.
+    # assert get_next_ar(task_id, user_id, all_ars[-1]) == None
+
+    # Check we can compute stats properly
+    stats = compute_annotation_statistics(task_id)
+    # print(stats)
+    assert stats['total_annotations'] == 2
+    assert stats['n_annotations_per_user'][user_id] == 2
+    assert stats['n_annotations_per_label']['FINTECH'] == {1: 2}
+    assert stats['n_annotations_per_label']['HEALTHCARE'] == {0: 1, 1: 1}
+    assert stats['n_annotations_per_label']['MACHINELEARNING'] == {1: 1}
+    assert stats['total_outstanding_requests'] == 3
+    assert stats['n_outstanding_requests_per_user'][user_id] == 3
+    
+    assert sum(stats['n_outstanding_requests_per_user'].values()) == stats['total_outstanding_requests']
+
+    print(task_id)
+    print("Test Passed!")

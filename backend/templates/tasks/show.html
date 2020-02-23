@@ -58,14 +58,76 @@
   <div class="card my-2">
     <div class="card-body">
       <h4>Annotations</h4>
-      <p>
-        TODO: Show all annotators and how many labels / annotator. Do the same per label.
-      </p>
-      <pre>
-        {{annos}}
-      </pre>
 
-      <a class="btn btn-sm btn-secondary" href="#">Assign more annotation jobs to everyone</a>
+      <div class="row">
+        <div class="col">
+          <ul>
+            <li>
+              Total outstanding requests: {{annotation_statistics['total_outstanding_requests']}}
+            </li>
+            <li>
+              Outstanding requests for each annotator:
+                <ul>
+                  {% for k in annotation_statistics['n_outstanding_requests_per_user'] %}
+                    <li>
+                      {{k}}: {{annotation_statistics['n_outstanding_requests_per_user'][k]}}
+                    </li>
+                  {% endfor %}
+                </ul>
+            </li>
+          </ul>
+        </div>
+        <div class="col">
+          <ul>
+            <li>
+              Total Annotated: {{annotation_statistics['total_annotations']}}
+            </li>
+            <li>
+              Annotated per label:
+                <ul>
+                  {% for k in annotation_statistics['n_annotations_per_label'] %}
+                    <li>
+                      {{k}}: 
+                      {% for resp in annotation_statistics['n_annotations_per_label'][k] %}
+                        <span class='badge badge-info'>{{resp}}</span>x{{annotation_statistics['n_annotations_per_label'][k][resp]}}
+                      {% endfor %}
+                    </li>
+                  {% endfor %}
+                </ul>
+            </li>
+            <li>
+              Annotated by each annotator:
+                <ul>
+                  {% for k in annotation_statistics['n_annotations_per_user'] %}
+                    <li>
+                      {{k}}: {{annotation_statistics['n_annotations_per_user'][k]}}
+                    </li>
+                  {% endfor %}
+                </ul>
+            </li>
+          </ul>
+        </div>
+      </div>
+      
+      <!-- <code>
+        {{annotation_statistics}}
+      </code> -->
+
+      {% for status in status_assign_jobs %}
+        <div>
+          Active Job: <span class="badge badge-info">{{status}}</span> <br />
+          <i class='small'>Refresh page to see updates</i>
+        </div>
+      {% endfor %}
+      
+      {% if status_assign_jobs|length == 0 %}
+        <form action="{{ url_for('tasks.assign', id=task.task_id) }}" method="POST">
+          <button type="submit" class="btn btn-sm btn-secondary">Request more annotations from everyone</button>
+        </form>
+      {% endif %}
+
+      
+
     </div>
   </div>
 
@@ -76,7 +138,7 @@
         TODO: Train new model + Inference on existing files + Request new labels
       </p>
 
-      <a class="btn btn-sm btn-secondary" href="#">Train New Model</a>
+      <a class="btn btn-sm btn-secondary" href="#">Train new model</a>
     </div>
   </div>
 
