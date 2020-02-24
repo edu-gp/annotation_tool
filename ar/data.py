@@ -2,7 +2,7 @@ import os
 import shutil
 import re
 import glob
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 from shared.utils import load_json, save_json, mkf, mkd
 from db.task import Task, DIR_ANNO, DIR_AREQ
@@ -159,6 +159,24 @@ def _get_all_ar_ids_in_dir(_dir, sort_by_ctime=False):
     else:
         return []
 
+def _get_all_annotators_from_requested(task_id):
+    user_ids = []
+    _path = os.path.join(_task_dir(task_id), DIR_AREQ)
+    if os.path.isdir(_path):
+        for dir_entry in os.scandir(_path):
+            if os.path.isdir(dir_entry.path):
+                user_ids.append(dir_entry.name)
+    return user_ids
+
+def _get_all_annotators_from_annotated(task_id):
+    user_ids = []
+    _path = os.path.join(_task_dir(task_id), DIR_ANNO)
+    if os.path.isdir(_path):
+        for dir_entry in os.scandir(_path):
+            if os.path.isdir(dir_entry.path):
+                user_ids.append(dir_entry.name)
+    return user_ids
+
 def compute_annotation_statistics(task_id):
     # How many have been labeled & How many are left to be labeled.
 
@@ -166,18 +184,10 @@ def compute_annotation_statistics(task_id):
     n_annotations_per_user = defaultdict(lambda: 0)
     n_outstanding_requests_per_user = defaultdict(lambda: 0)
 
-    user_ids = set()
-    # Get all user_id's from annotated or requested
-    _path = os.path.join(_task_dir(task_id), DIR_ANNO)
-    if os.path.isdir(_path):
-        for dir_entry in os.scandir(_path):
-            if os.path.isdir(dir_entry.path):
-                user_ids.add(dir_entry.name)
-    _path = os.path.join(_task_dir(task_id), DIR_AREQ)
-    if os.path.isdir(_path):
-        for dir_entry in os.scandir(_path):
-            if os.path.isdir(dir_entry.path):
-                user_ids.add(dir_entry.name)
+    user_ids = set(
+        _get_all_annotators_from_requested(task_id) +
+        _get_all_annotators_from_annotated(task_id)
+    )
     
     for user_id in user_ids:
         anno_ids = fetch_all_annotations(task_id, user_id)
@@ -202,6 +212,72 @@ def compute_annotation_statistics(task_id):
         'n_outstanding_requests_per_user': n_outstanding_requests_per_user,
     }
 
+def _majority_label(labels):
+    '''
+    Get the majority of non-zero labels
+    Input: [1,1,0,0,0,0,-1,-1,1,1]
+    Output: 1
+    '''
+    labels = [x for x in labels if x != 0]
+    if len(labels) > 0:
+        return Counter(labels).most_common()[0][0]
+    else:
+        return None
+
+def export_labeled_examples(task_id):
+    # TODO Current interannotator agreement is majority vote.
+    # See Snorkel for some inspiration for the future.
+    
+    # labels will start off being:
+    # {
+    #   'ar_id_12345': {
+    #     'HEALTHCARE': [1, 1, -1, 1, 0, 0]
+    #   }
+    # }
+    # Then merged into:
+    # {
+    #   'ar_id_12345': {
+    #     'HEALTHCARE': 1
+    #   }
+    # }
+    # Finally we merge labels with text into:
+    # {'text': '...', 'labels': {'HEALTHCARE': 1}}
+
+    labels = defaultdict(lambda: defaultdict(list))
+    text = {}
+
+    for user_id in _get_all_annotators_from_annotated(task_id):
+        for ar_id in fetch_all_annotations(task_id, user_id):
+            anno = fetch_annotation(task_id, user_id, ar_id)
+            text[ar_id] = anno['req']['data']['text']
+            for label_key, label_value in anno['anno']['labels'].items():
+                labels[ar_id][label_key].append(label_value)
+
+    # print(text)
+    # print(labels)
+
+    new_labels = {}
+    for ar_id in labels:
+        new_labels[ar_id] = {
+            label_key: _majority_label(list_of_label_values)
+            for label_key, list_of_label_values in labels[ar_id].items()
+            if _majority_label(list_of_label_values) is not None
+        }
+    labels = new_labels
+
+    # print(new_labels)
+
+    final = []
+
+    for ar_id in labels:
+        final.append({
+            'text': text[ar_id],
+            'labels': labels[ar_id]
+        })
+
+    # print(final)
+
+    return final
 
 if __name__ == '__main__':
     '''Some basic integration test'''
@@ -340,7 +416,7 @@ if __name__ == '__main__':
     assert len(fetch_all_annotations(task_id, user_id)) == 1
 
     # Annotate something thing in the new batch
-    my_anno = {'labels': {'MACHINELEARNING': 1, 'FINTECH': 1, 'HEALTHCARE': 1}}
+    my_anno = {'labels': {'MACHINELEARNING': -1, 'FINTECH': 1, 'HEALTHCARE': -1}}
     all_ars = fetch_all_ar(task_id, user_id)
     annotate_ar(task_id, user_id, all_ars[0], my_anno)
     assert fetch_annotation(task_id, user_id, all_ars[0])['anno'] == my_anno
@@ -355,12 +431,26 @@ if __name__ == '__main__':
     assert stats['total_annotations'] == 2
     assert stats['n_annotations_per_user'][user_id] == 2
     assert stats['n_annotations_per_label']['FINTECH'] == {1: 2}
-    assert stats['n_annotations_per_label']['HEALTHCARE'] == {0: 1, 1: 1}
-    assert stats['n_annotations_per_label']['MACHINELEARNING'] == {1: 1}
+    assert stats['n_annotations_per_label']['HEALTHCARE'] == {0: 1, -1: 1}
+    assert stats['n_annotations_per_label']['MACHINELEARNING'] == {-1: 1}
     assert stats['total_outstanding_requests'] == 3
     assert stats['n_outstanding_requests_per_user'][user_id] == 3
     
     assert sum(stats['n_outstanding_requests_per_user'].values()) == stats['total_outstanding_requests']
+
+    # Try exporting
+    exported = export_labeled_examples(task_id)
+    assert exported == [
+        {'text': 'blah', 'labels': {'FINTECH': 1}},
+        {'text': 'blah', 'labels': {'MACHINELEARNING': -1, 'FINTECH': 1, 'HEALTHCARE': -1}}
+    ]
+
+    # Misc tests
+    assert _majority_label([]) == None
+    assert _majority_label([0,0]) == None
+    assert _majority_label([1,1,0,1]) == 1
+    assert _majority_label([1,-1,0,1]) == 1
+    assert _majority_label([-1,-1,0,1]) == -1
 
     print(task_id)
     print("Test Passed!")
