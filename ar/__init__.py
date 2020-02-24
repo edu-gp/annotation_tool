@@ -11,7 +11,8 @@ import numpy as np
 from shared.utils import load_jsonl, save_jsonl, load_json, save_json, mkf, mkd
 from db.task import Task, DIR_ANNO, DIR_AREQ
 from inference.base import ITextCatModel
-from inference import get_predicted_cached
+from inference import get_predicted
+from inference.random_model import RandomModel
 
 from .data import fetch_all_annotations
 from .utils import get_ar_id
@@ -24,14 +25,20 @@ def generate_annotation_requests(task_id, n=100, overlap=2):
     '''
     task = Task.fetch(task_id)
 
+    print("Get prediction from each model...")
     # TODO better to stream these?
-    examples = _get_predictions(task.get_full_data_fnames(), task.models)
-    top_examples = sorted(examples, key=lambda x: x.score, reverse=True)
+    # TODO deprecate task.models ; explicitly mix together pattern matching, rand, etc depending on what the model needs.
+    examples_model = _get_predictions(task.get_full_data_fnames(), task.models)
+    examples_rand  = _get_predictions(task.get_full_data_fnames(), [RandomModel()], cache=False)
+    
+    print("Shuffling together examples...")
+    ordered_examples = _shuffle_together_examples([examples_model, examples_rand], proportions=[0.7, 0.3])
 
     # Blacklist whatever users have labeled already
     blacklist_fn = _build_blacklist_fn(task)
 
-    assignments = _assign(top_examples, task.annotators, blacklist_fn=blacklist_fn, max_per_annotator=n, max_per_dp=overlap)
+    print("Assigning to annotators...")
+    assignments = _assign(ordered_examples, task.annotators, blacklist_fn=blacklist_fn, max_per_annotator=n, max_per_dp=overlap)
 
     # ---- Populate Cache ----
 
@@ -92,6 +99,7 @@ def generate_annotation_requests(task_id, n=100, overlap=2):
 
     # ---- Populate Annotation Requests per Annotator ----
 
+    print("Constructing requests...")
     annotation_requests = {}
     for user, list_of_examples in assignments.items():
 
@@ -100,6 +108,7 @@ def generate_annotation_requests(task_id, n=100, overlap=2):
 
         annotation_requests[user] = decorated_list_of_examples
 
+    print("Finished generating annotation requests.")
     return annotation_requests
 
 def _build_blacklist_fn(task:Task):
@@ -115,7 +124,7 @@ def _build_blacklist_fn(task:Task):
 
     return blacklist_fn
 
-def _get_predictions(data_filenames:List[str], models:List[ITextCatModel]):
+def _get_predictions(data_filenames:List[str], models:List[ITextCatModel], cache=True):
     '''
     Return the aggregated score from all models for all lines in each data_filenames
 
@@ -127,14 +136,15 @@ def _get_predictions(data_filenames:List[str], models:List[ITextCatModel]):
         preds = []
 
         for model in models:
-            res = get_predicted_cached(fname, model)
+            res = get_predicted(fname, model, cache=cache)
             preds.append( [x['score'] for x in res] )
 
-        # Get total score from all models.
-        total_scores = np.sum(preds, axis=0)
+        if len(preds) > 0:
+            # Get total score from all models.
+            total_scores = np.sum(preds, axis=0)
 
-        for line_number, score in enumerate(total_scores):
-            result.append( Pred(score, fname, line_number) )
+            for line_number, score in enumerate(total_scores):
+                result.append( Pred(score, fname, line_number) )
 
     return result
 
@@ -214,6 +224,56 @@ def _assign(datapoints:List, annotators:List, blacklist_fn=None, max_per_annotat
 
     return per_anno_queue
 
+def _shuffle_together_examples(list_of_examples:List[List[Pred]], proportions:List[float]):
+    '''
+    Randomly shuffle together lists of Pred, such that at any length, the proportion of elements
+    from each list is approximately `proportions`.
+    '''
+
+    # Sort each list from top to bottom
+    list_of_examples = [sorted(x, key=lambda pred: pred.score, reverse=True) for x in list_of_examples]
+
+    res = []
+    seen = set()
+    list_idx = [0 for _ in range(len(list_of_examples))] # Current index into each list
+
+    proportions = np.array(proportions)
+    proportions = proportions / np.sum(proportions)
+
+    # O(total_n)
+    total_n = sum([len(x) for x in list_of_examples])
+
+    for _ in range(total_n):
+        which_list = np.argmax(np.random.multinomial(1, proportions, size=1), axis=1)[0]
+        ls = list_of_examples[which_list]
+        idx = list_idx[which_list]
+        
+        if idx < len(ls):
+            pred = ls[idx]
+            list_idx[which_list] += 1
+            
+            if list_idx[which_list] == len(ls):
+                # We've exhausted one list, reshuffle the proportions
+                proportions[which_list] = 0
+
+                if np.isclose(np.sum(proportions), 0):
+                    # We're done! Nothing more to sample.
+                    # print("Done")
+                    # break # No need to explicitly break...
+                    pass
+                else:
+                    # Normalize
+                    proportions = proportions / np.sum(proportions)
+
+            if (pred.fname, pred.line_number) not in seen:
+                seen.add( (pred.fname, pred.line_number) )
+                # TODO keep track of source of pred as well, for easier debugging
+                res.append(pred)
+
+    # assert np.isclose(np.sum(proportions), 0) # Should be always true, but not needed...
+    return res
+
+
 if __name__ == '__main__':
     # Round robin
     datapoints = ['a', 'b', 'c']
@@ -265,3 +325,20 @@ if __name__ == '__main__':
         'u2': ['a', 'b', 'c']
     }
     assert per_anno_queue == expected, per_anno_queue
+
+    list_of_examples = [
+        [
+            Pred(0.31, 'a', 1),
+            Pred(0.34, 'a', 2),
+            Pred(0.32, 'a', 3),
+            Pred(0.39, 'a', 4),
+        ],
+        [
+            Pred(0.51, 'a', 1),
+            Pred(0.54, 'a', 2),
+            Pred(0.53, 'a', 3),
+            Pred(0.59, 'a', 4),
+            Pred(0.53, 'a', 5),
+        ]
+    ]
+    print(_shuffle_together_examples(list_of_examples, proportions=[0.8, 0.2]))
