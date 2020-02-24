@@ -37,10 +37,7 @@ def create_app(test_config=None):
     @app.route('/')
     @login_required
     def index():
-        user_id = session.get('user_id')
-        # ... find the user
-        username = 'eddie'
-
+        username = g.user['username']
         task_ids = fetch_tasks_for_user(username)
         tasks = [Task.fetch(task_id) for task_id in task_ids]
         return render_template('index.html', tasks=tasks)

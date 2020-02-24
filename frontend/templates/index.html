@@ -1,15 +1,11 @@
 {% extends 'base.html' %}
 
-{% block header %}
-  <h1>{% block title %}Home{% endblock %}</h1>
-{% endblock %}
-
 {% block content %}
   <h2>
-    Hi there
+    Hi {% if g.user %} {{g.user['username']}} {% endif %}
   </h2>
   <p>
-      Jobs waiting for you:
+      You're requested to annotate:
       <ol>
         {% for task in tasks %}
           <li><a href="{{ url_for('tasks.show', id=task.task_id) }}"">{{task}}</a></li>

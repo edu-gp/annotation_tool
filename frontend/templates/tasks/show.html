@@ -1,7 +1,16 @@
 {% extends 'base.html' %}
 
 {% block header %}
-  <h1><a href="{{ url_for('index') }}">Home</a> > {% block title %}Task{% endblock %}</h1>
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item">
+        <a href="{{ url_for('index') }}">Home</a>
+      </li>
+      <li class="breadcrumb-item active" aria-current="page">
+        Task
+      </li>
+    </ol>
+  </nav>
 {% endblock %}
 
 {% block content %}
@@ -12,12 +21,12 @@
   <ol>
   {% for ar_id in ars %}
     <li>
-        <a href={{url_for('tasks.annotate', id=task.task_id, ar_id=ar_id)}}>Example {{loop.index0}} - {{ar_id}}</a>
         {% if has_annotation[loop.index0] %}
-            <span class='good'>Done</span>
+            <span class='badge badge-info'>Done</span>
         {% else %}
-            <span class='bad'>Need Label</span>
+            <span class='badge badge-danger'>TODO</span>
         {% endif %}
+        <a href={{url_for('tasks.annotate', id=task.task_id, ar_id=ar_id)}}>{{ar_id}}</a>
     </li>
   {% endfor %}
   </ol>

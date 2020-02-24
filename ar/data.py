@@ -71,7 +71,10 @@ def fetch_ar(task_id, user_id, ar_id):
     Return the details of a annotation request
     '''
     fname = os.path.join(_task_dir(task_id), DIR_AREQ, user_id, ar_id + '.json')
-    return load_json(fname)
+    if os.path.isfile(fname):
+        return load_json(fname)
+    else:
+        return None
 
 def get_next_ar(task_id, user_id, ar_id):
     '''
@@ -101,6 +104,14 @@ def get_next_ar(task_id, user_id, ar_id):
 
     return None
 
+def build_empty_annotation(ar):
+    return {
+        'req': ar,
+        'anno': {
+            'labels': {}
+        }
+    }
+
 def annotate_ar(task_id, user_id, ar_id, annotation):
     '''
     Annotate a annotation request
@@ -123,8 +134,11 @@ def fetch_annotation(task_id, user_id, ar_id):
     '''
     Return the details of an annotation to a annotation request
     '''
-    path = [_task_dir(task_id), DIR_ANNO, user_id, ar_id + '.json']
-    return load_json(os.path.join(*path))
+    fname = os.path.join(_task_dir(task_id), DIR_ANNO, user_id, ar_id + '.json')
+    if os.path.isfile(fname):
+        return load_json(fname)
+    else:
+        return None
 
 def fetch_all_annotations(task_id, user_id):
     '''
