@@ -1,4 +1,3 @@
-import uuid
 from typing import List
 import spacy
 from spacy.matcher import Matcher
@@ -9,15 +8,13 @@ from db import _data_dir
 import os
 
 class PatternModel(ITextCatModel):
-    def __init__(self, patterns_file, model_id=None):
-        if model_id:
-            self.model_id = model_id
-        else:
-            self.model_id = str(uuid.uuid4())
-        
+    def __init__(self, task_id, patterns_file):
+        self.model_id = 'patterns-{task_id}'
         self.patterns_file = patterns_file
-
         self._loaded = False
+
+    def __str__(self):
+        return f'PatternModel <{self.patterns_file}>'
 
     def _load_patterns(self):
         return load_jsonl(os.path.join(_data_dir(), self.patterns_file), to_df=False)

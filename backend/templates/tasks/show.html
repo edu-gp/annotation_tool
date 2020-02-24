@@ -25,7 +25,14 @@
           <span class="badge badge-light">{{task.task_id}}</span>
         </li>
         <li>
+          Pattern Model:
+          {% if task.get_pattern_model() %}
+            <span class="badge badge-light">{{ task.get_pattern_model() }}</span>
+          {% endif %}
+        </li>
+        <li>
           Models:
+          <!-- TODO -->
           {% for model in task.models %}
             <span class="badge badge-light">{{model}}</span>
           {% endfor %}

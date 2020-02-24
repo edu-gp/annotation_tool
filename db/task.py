@@ -5,7 +5,6 @@ from shared.utils import load_json, save_json, mkf, mkd
 
 from inference.base import ITextCatModel
 from inference.pattern_model import PatternModel
-from inference.model_factory import ModelFactory
 
 from db import _data_dir, _task_dir
 
@@ -15,7 +14,6 @@ DIR_ANNO = 'an' # Annotations
 class Task:
     def __init__(self, name=None):
         self.task_id = str(uuid.uuid4())
-        self.models = []
         self.annotators = [] # A list of user_id's
         self.labels = []
         self._data_filenames = []
@@ -23,6 +21,10 @@ class Task:
         self.name = name
         if self.name is None:
             self.name = 'No Name'
+
+        # Set self.patterns_file first, then call get_pattern_model
+        self.patterns_file = None
+        self._pattern_model = None
 
     def __str__(self):
         return self.name
@@ -32,9 +34,9 @@ class Task:
             'name': self.name,
             'task_id': self.task_id,
             'data_filenames': self._data_filenames,
-            'models': [m.to_json() for m in self.models],
             'annotators': self.annotators,
             'labels': self.labels,
+            'patterns_file': self.patterns_file,
         }
 
     @staticmethod
@@ -42,9 +44,9 @@ class Task:
         task = Task(data.get('name'))
         task.task_id = data['task_id']
         task._data_filenames = data['data_filenames']
-        task.models = [ModelFactory.from_json(m) for m in data['models']]
         task.annotators = data['annotators']
         task.labels = data.get('labels', [])
+        task.patterns_file = data.get('patterns_file', None)
         return task
 
     # ------------------------------------------------------------
@@ -88,11 +90,6 @@ class Task:
         if fname not in self._data_filenames:
             self._data_filenames.append(fname)
 
-    def _add_model(self, model:ITextCatModel):
-        assert isinstance(model, ITextCatModel)
-        # TODO should I also check at most 1 pattern model exists?
-        self.models.append(model)
-
     def _add_annotator(self, user_id:str):
         if user_id not in self.annotators:
             self.annotators.append(user_id)
@@ -103,13 +100,11 @@ class Task:
             self.labels.append(label)
 
     def get_pattern_model(self):
-        '''Return the first PatternModel, if one exists'''
-        pattern_model = None
-        for model in self.models:
-            if isinstance(model, PatternModel):
-                pattern_model = model
-                break
-        return pattern_model
+        '''Return a PatternModel, if it exists'''
+        if self._pattern_model is None:
+            if self.patterns_file is not None:
+                self._pattern_model = PatternModel(self.task_id, self.patterns_file)
+        return self._pattern_model
 
     def update_and_save(self,
             name=None,
@@ -124,10 +119,6 @@ class Task:
         if data_files:
             for data in data_files:
                 self._add_data(data)
-
-        if patterns_file:
-            model = PatternModel(patterns_file)
-            self._add_model(model)
         
         if annotators:
             for anno in annotators:
@@ -136,6 +127,10 @@ class Task:
         if labels:
             for label in labels:
                 self._add_label(label)
+
+        if patterns_file is not None:
+            # TODO: Note this style means there's no way to delete the patterns model
+            self.patterns_file = patterns_file
         
         self.save()
         return self

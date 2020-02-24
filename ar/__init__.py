@@ -27,12 +27,26 @@ def generate_annotation_requests(task_id, n=100, overlap=2):
 
     print("Get prediction from each model...")
     # TODO better to stream these?
-    # TODO deprecate task.models ; explicitly mix together pattern matching, rand, etc depending on what the model needs.
-    examples_model = _get_predictions(task.get_full_data_fnames(), task.models)
-    examples_rand  = _get_predictions(task.get_full_data_fnames(), [RandomModel()], cache=False)
+
+    _examples = []
+    _proportions = []
+
+    # Random Examples
+    _examples.append(
+        _get_predictions(task.get_full_data_fnames(), [RandomModel()], cache=False)
+    )
+    _proportions.append(1)
+
+    # Pattern-driven Examples
+    _patterns_model = task.get_pattern_model()
+    if _patterns_model:
+        _examples.append(
+            _get_predictions(task.get_full_data_fnames(), [_patterns_model], cache=True)
+        )
+        _proportions.append(3) # [1,3] -> [0.25, 0.75]
     
     print("Shuffling together examples...")
-    ordered_examples = _shuffle_together_examples([examples_model, examples_rand], proportions=[0.7, 0.3])
+    ordered_examples = _shuffle_together_examples(_examples, proportions=_proportions)
 
     # Blacklist whatever users have labeled already
     blacklist_fn = _build_blacklist_fn(task)
