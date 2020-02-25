@@ -270,10 +270,11 @@ def export_labeled_examples(task_id, outfile=None):
     final = []
 
     for ar_id in labels:
-        final.append({
-            'text': text[ar_id],
-            'labels': labels[ar_id]
-        })
+        if len(labels[ar_id]) > 0:
+            final.append({
+                'text': text[ar_id],
+                'labels': labels[ar_id]
+            })
 
     # print(final)
 
@@ -286,6 +287,7 @@ if __name__ == '__main__':
     '''Some basic integration test'''
 
     task = Task('just testing ar')
+    task.task_id = '__testing_'+task.task_id
     task.save()
 
     task_id = task.task_id
@@ -441,7 +443,13 @@ if __name__ == '__main__':
     
     assert sum(stats['n_outstanding_requests_per_user'].values()) == stats['total_outstanding_requests']
 
+    # Annotate one thing that we're unsure of
+    my_anno = {'labels': {'MACHINELEARNING': 0}}
+    all_ars = fetch_all_ar(task_id, user_id)
+    annotate_ar(task_id, user_id, all_ars[1], my_anno)
+
     # Try exporting
+    # (+ Make sure it didn't include the unsure annotation we just made)
     exported = export_labeled_examples(task_id)
     assert exported == [
         {'text': 'blah', 'labels': {'FINTECH': 1}},

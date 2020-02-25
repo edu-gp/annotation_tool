@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 import os
 import uuid
 
@@ -173,8 +173,11 @@ class Task:
         mvs = ModelViewer.fetch_all_for_task(self.task_id)
         return mvs[::-1] # Reverse list so latest is first
 
-    def get_active_nlp_model(self) -> NLPModel:
+    def get_active_nlp_model(self) -> Optional[NLPModel]:
+        # TODO logic to get active model will change.
         models = self.get_model_viewers()
-        version = models[0].version # TODO logic to get active model will change.
-
-        return NLPModel(self.task_id, version)
+        if len(models) > 0:
+            version = models[0].version
+            return NLPModel(self.task_id, version)
+        else:
+            return None
