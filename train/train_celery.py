@@ -1,13 +1,11 @@
 import os
 import time
 import json
-from pathlib import Path
 
 from celery import Celery
 
 from ar.data import export_labeled_examples
-from shared.utils import save_json, mkd
-from db import _task_dir
+from shared.utils import save_json
 from db.task import Task
 
 from .transformers_textcat import train, evaluate_model, load_model
@@ -15,6 +13,12 @@ from .transformers_textcat import run_inference as _run_inference
 from .inference_results import InferenceResults
 from .utils import (
     _parse_labels, BINARY_CLASSIFICATION, MULTILABEL_CLASSIFICATION
+)
+from .paths import (
+    _get_latest_model_version, _get_version_dir, _get_inference_dir,
+    _get_inference_fname, _get_inference_density_plot_fname,
+    _get_model_output_dir, _get_config_fname, _get_exported_data_fname,
+    _get_data_parser_fname, _get_metrics_fname
 )
 
 app = Celery(
@@ -32,50 +36,21 @@ app = Celery(
 # - Celery doesn't allow tasks to spin up other processes - I have to run it in Threads mode
 # - When a model is training, even cold shutdown doesn't work
 
-def _get_latest_model_version(task_id):
-    _dir = os.path.join(_task_dir(task_id), 'models')
-    if os.path.isdir(_dir):
-        versions = []
-        for dirname in os.listdir(_dir):
-            try:
-                versions.append(int(dirname))
-            except:
-                pass
-        return max(versions)
-    else:
-        return 0
-
-def _get_model_dir(task_id, version):
-    return mkd(_task_dir(task_id), 'models', str(version))
-
-def _get_inference_dir(task_id, version):
-    return mkd(_task_dir(task_id), 'models', str(version), 'inference')
-
-def _get_inference_fname(task_id, version, data_fname):
-    stem = Path(data_fname).stem
-    return os.path.join(_get_inference_dir(task_id, version), f'{stem}.pred')
-    return inf_fname
-
-def _get_inference_density_plot_fname(task_id, version, data_fname, class_name):
-    stem = Path(data_fname).stem
-    return os.path.join(_get_inference_dir(task_id, version),
-                        f'{stem}.pred.{class_name}.histogram.png')
-
 @app.task
 def train_model(task_id):
 
     task = Task.fetch(task_id)
 
     version = _get_latest_model_version(task.task_id) + 1
-    model_dir = _get_model_dir(task.task_id, version)
+    version_dir = _get_version_dir(task.task_id, version)
     print(f"Training model version={version} for task={task.task_id}")
-    print(f"Storing results in {model_dir}")
+    print(f"Storing results in {version_dir}")
 
-    model_output_dir = os.path.join(model_dir, 'model')
-    config_fname = os.path.join(model_dir, 'config.json')
-    data_fname = os.path.join(model_dir, 'data.jsonl')
-    data_parser_fname = os.path.join(model_dir, 'data_parser.json')
-    metrics_fname = os.path.join(model_dir, 'metrics.json')
+    model_output_dir = _get_model_output_dir(version_dir)
+    config_fname = _get_config_fname(version_dir)
+    data_fname = _get_exported_data_fname(version_dir)
+    data_parser_fname = _get_data_parser_fname(version_dir)
+    metrics_fname = _get_metrics_fname(version_dir)
 
     # Save config
     config = {
@@ -138,9 +113,10 @@ def train_model(task_id):
         import seaborn as sns
         import matplotlib.pyplot as plt
 
-        def _plot(outname, data):
+        def _plot(outname, data, title):
             print("Creating density plot:", outname)
             sns_plot = sns.distplot(data)
+            plt.title(title)
             sns_plot.figure.savefig(outname)
             plt.clf()
 
@@ -148,20 +124,19 @@ def train_model(task_id):
             # Plot positive class for binary classification
             class_name = class_order[0]
             outname = _get_inference_density_plot_fname(task_id, version, fname, class_name)
-            _plot(outname, inference_results.get_prob_for_class(1))
+            _plot(outname, inference_results.get_prob_for_class(1), f'{class_name} : {fname}')
         elif problem_type == MULTILABEL_CLASSIFICATION:
             # Plot all classes for multilabel classification
             for i, class_name in enumerate(class_order):
                 outname = _get_inference_density_plot_fname(task_id, version, fname, class_name)
-                _plot(outname, inference_results.get_prob_for_class(i))
+                _plot(outname, inference_results.get_prob_for_class(i), f'{class_name} : {fname}')
 
     print("Done")
 
-app.conf.task_routes = {'*.train_celery.*': {'queue': 'train_server'}}
+app.conf.task_routes = {'*.train_celery.*': {'queue': 'train_celery'}}
 
 '''
-celery --app=train_server.train_celery worker -Q train_server -c 1 -l info --max-tasks-per-child 1 -P threads -n train_celery
-celery --app=train_server.train_celery beat -l info
+celery --app=train.train_celery worker -Q train_celery -c 1 -l info --max-tasks-per-child 1 -P threads -n train_celery
 '''
 
 if __name__ == '__main__':

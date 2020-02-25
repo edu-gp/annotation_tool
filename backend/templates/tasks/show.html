@@ -18,7 +18,11 @@
 
   <div class="card my-2">
     <div class="card-body">
-      <h4>Basic Info</h4>
+      <h4>
+        Basic Info
+        <a class="btn btn-sm btn-secondary float-right" href="{{ url_for('tasks.edit', id=task.task_id) }}">Edit</a>
+      </h4>
+
       <ul>
         <li>
           Task ID: 
@@ -31,11 +35,8 @@
           {% endif %}
         </li>
         <li>
-          Models:
-          <!-- TODO -->
-          {% for model in task.models %}
-            <span class="badge badge-light">{{model}}</span>
-          {% endfor %}
+          NLP Model:
+          <span class="badge badge-light">{{ active_model }}</span>
         </li>
         <li>
           Data:
@@ -57,14 +58,28 @@
         </li>
       </ul>
 
-      <a class="btn btn-sm btn-secondary" href="{{ url_for('tasks.edit', id=task.task_id) }}">Edit</a>
-
     </div>
   </div>
 
   <div class="card my-2">
     <div class="card-body">
-      <h4>Annotations</h4>
+      <h4>
+        Annotations
+
+        {% if status_assign_jobs|length == 0 %}
+          <form class='float-right' action="{{ url_for('tasks.assign', id=task.task_id) }}" method="POST">
+            <button type="submit" class="btn btn-sm btn-secondary">Request more annotations from everyone</button>
+          </form>
+        {% endif %}
+      </h4>
+
+      {% for status in status_assign_jobs %}
+        <div>
+          Active Job: <span class="badge badge-info">{{status}}</span> <br />
+          <i class='small'>Refresh page to see updates</i>
+        </div>
+        <br />
+      {% endfor %}
 
       <div class="row">
         <div class="col">
@@ -120,32 +135,66 @@
         {{annotation_statistics}}
       </code> -->
 
-      {% for status in status_assign_jobs %}
-        <div>
-          Active Job: <span class="badge badge-info">{{status}}</span> <br />
-          <i class='small'>Refresh page to see updates</i>
-        </div>
-      {% endfor %}
-      
-      {% if status_assign_jobs|length == 0 %}
-        <form action="{{ url_for('tasks.assign', id=task.task_id) }}" method="POST">
-          <button type="submit" class="btn btn-sm btn-secondary">Request more annotations from everyone</button>
-        </form>
-      {% endif %}
-
-      
-
     </div>
   </div>
 
   <div class="card my-2">
     <div class="card-body">
-      <h4>Models</h4>
-      <p>
-        TODO: Train new model + Inference on existing files + Request new labels
-      </p>
+      <h4>
+        Models
+        <form class='float-right' action="{{ url_for('tasks.train', id=task.task_id) }}" method="POST">
+          <button type="submit" class="btn btn-sm btn-secondary">Train new model</button>
+        </form>
+      </h4>
 
-      <a class="btn btn-sm btn-secondary" href="#">Train new model</a>
+      {% for mv in model_viewers %}
+      <div class="card">
+        <div class="card-body">
+          <h5>{{mv}}</h5>
+          
+          {% set metrics = mv.get_metrics() %}
+
+          <div class="row">
+            <div class="col">
+              {% for url in mv.get_plots() %}
+                <!-- Note: This uses the insecure way to get a file  -->
+                <img style="max-width: 400px" src="/file?f={{url}}" />
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="row" style="font-size: 0.8em">
+            <div class="col-lg-3 col-md-6 col-sm-6">
+              <h6>Train</h6>
+              <pre>
+                {{- metrics['train']|to_pretty_json -}}
+              </pre>
+            </div>
+            <div class="col-lg-3 col-md-6 col-sm-6">
+              <h6>Test</h6>
+              <pre>
+                {{- metrics['test']|to_pretty_json -}}
+              </pre>
+            </div>
+          </div>
+
+          <div class="row" style="font-size: 0.2em">
+            <div class="col">
+              Config:
+              <pre>
+                {{- mv.get_config()|to_pretty_json -}}
+              </pre>
+              Data Parser:
+              <pre>
+                {{- mv.get_data_parser()|to_pretty_json -}}
+              </pre>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      {% endfor %}
+
     </div>
   </div>
 

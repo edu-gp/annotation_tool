@@ -25,6 +25,17 @@ def create_app(test_config=None):
     except OSError:
         pass
 
+    # Register custom filters
+    # from backend import custom_jinja_filters
+    import json
+    @app.template_filter('to_pretty_json')
+    def to_pretty_json(value):
+        try:
+            return json.dumps(value, sort_keys=False,
+                            indent=4, separators=(',', ': '))
+        except Exception as e:
+            return str(e)
+
     @app.route('/ok')
     def hello():
         return 'ok'
@@ -32,6 +43,20 @@ def create_app(test_config=None):
     @app.route('/')
     def index():
         return redirect(url_for('tasks.index'))
+
+    # TODO insecure way to access local files
+    from flask import request, send_file
+    from db import DEFAULT_TASK_STORAGE
+    @app.route('/file', methods=['GET'])
+    def get_file():
+        '''
+        localhost:5000/tasks/file?f=/tmp/output.png
+        '''
+        path = request.args.get('f')
+        if path.startswith(DEFAULT_TASK_STORAGE + '/'):
+            print("Send file:", path)
+            return send_file(os.path.join(os.getcwd(), path))
+        return 'undefined action'
 
     from . import tasks
     app.register_blueprint(tasks.bp)

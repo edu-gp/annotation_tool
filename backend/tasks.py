@@ -16,6 +16,9 @@ from ar.data import compute_annotation_statistics
 from ar.ar_celery import generate_annotation_requests
 from ar.ar_celery import app as ar_celery_app
 
+from train.train_celery import train_model
+from train.model_viewer import ModelViewer
+
 from shared.celery_job_status import CeleryJobStatus
 
 bp = Blueprint('tasks', __name__, url_prefix='/tasks')
@@ -85,13 +88,18 @@ def show(id):
         cjs.delete()
 
     # Models
-    # TODO
+    model_viewers = ModelViewer.fetch_all_for_task(task.task_id)
+    # Reverse list so latest is first
+    model_viewers = model_viewers[::-1]
+    active_model = model_viewers[0]
 
     return render_template(
         'tasks/show.html',
         task=task,
         annotation_statistics=annotation_statistics,
         status_assign_jobs=status_assign_jobs_active,
+        model_viewers=model_viewers,
+        active_model=active_model,
     )
 
 @bp.route('/<string:id>/edit', methods=['GET'])
@@ -132,6 +140,14 @@ def assign(id):
     CeleryJobStatus(celery_id, f'assign:{id}').save()
     return redirect(url_for('tasks.show', id=id))
 
+
+@bp.route('/<string:id>/train', methods=['POST'])
+def train(id):
+    async_result = train_model.delay(id)
+    # TODO
+    # celery_id = str(async_result)
+    # CeleryJobStatus(celery_id, f'assign:{id}').save()
+    return redirect(url_for('tasks.show', id=id))
 
 
 # ----- FORM PARSING -----
