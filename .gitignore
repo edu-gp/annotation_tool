@@ -26,3 +26,5 @@ __data
 __infcache
 __tasks
 dump.rdb
+
+cache_dir
