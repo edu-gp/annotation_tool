@@ -1,3 +1,13 @@
+from shared.utils import load_jsonl
+
+def load_original_data_text(datafname):
+    text = load_jsonl(datafname)['text']
+    text = text.fillna('')
+    text = list(text)
+    return text
+
+
+
 BINARY_CLASSIFICATION = 'binary'
 MULTILABEL_CLASSIFICATION = 'multilabel'
 

@@ -1,3 +1,4 @@
+from typing import List
 import os
 import uuid
 
@@ -7,6 +8,9 @@ from inference.base import ITextCatModel
 from inference.pattern_model import PatternModel
 
 from db import _data_dir, _task_dir
+
+from train.model_viewer import ModelViewer
+from inference.nlp_model import NLPModel
 
 DIR_AREQ = 'ar' # Annotation Requests
 DIR_ANNO = 'an' # Annotations
@@ -162,3 +166,15 @@ class Task:
             res = [x for x in res if len(x) > 0]
             return res
         return None
+
+    # ------------------------------------------------------------
+
+    def get_model_viewers(self) -> List[ModelViewer]:
+        mvs = ModelViewer.fetch_all_for_task(self.task_id)
+        return mvs[::-1] # Reverse list so latest is first
+
+    def get_active_nlp_model(self) -> NLPModel:
+        models = self.get_model_viewers()
+        version = models[0].version # TODO logic to get active model will change.
+
+        return NLPModel(self.task_id, version)

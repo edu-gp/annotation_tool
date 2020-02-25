@@ -39,11 +39,19 @@ def generate_annotation_requests(task_id, n=100, overlap=2):
 
     # Pattern-driven Examples
     _patterns_model = task.get_pattern_model()
-    if _patterns_model:
+    if _patterns_model is not None:
         _examples.append(
             _get_predictions(task.get_full_data_fnames(), [_patterns_model], cache=True)
         )
         _proportions.append(3) # [1,3] -> [0.25, 0.75]
+
+    # NLP-driven Examples
+    _nlp_model = task.get_active_nlp_model()
+    if _nlp_model is not None:
+        _examples.append(
+            _get_predictions(task.get_full_data_fnames(), [_nlp_model], cache=False) #cache=True) # TODO
+        )
+        _proportions.append(12) # [1,3,12] -> [0.0625, 0.1875, 0.75]
     
     print("Shuffling together examples...")
     ordered_examples = _shuffle_together_examples(_examples, proportions=_proportions)

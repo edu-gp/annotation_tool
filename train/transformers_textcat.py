@@ -2,10 +2,10 @@ import pandas as pd
 import numpy as np
 import json
 from simpletransformers.classification import ClassificationModel
-from shared.utils import load_jsonl
 from scipy.special import softmax
 
 from .inference_results import InferenceResults
+from .utils import load_original_data_text
 
 USE_CUDA = False # TODO detect CUDA
 
@@ -96,18 +96,11 @@ def load_model(model_output_dir):
         use_cuda=USE_CUDA
     )
 
-
 def run_inference(model, input_fname, output_fname):
     '''
     Input is a jsonl, like the original data we want to label
     '''
-
-    text = load_jsonl(input_fname)['text']
-    text = text.fillna('')
-    text = list(text)
-
+    text = load_original_data_text(input_fname)
     preds, raw = model.predict(text)
-
     InferenceResults(raw).save(output_fname)
-
     return InferenceResults

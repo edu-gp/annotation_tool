@@ -18,6 +18,7 @@ from ar.ar_celery import app as ar_celery_app
 
 from train.train_celery import train_model
 from train.model_viewer import ModelViewer
+from inference.nlp_model import NLPModel
 
 from shared.celery_job_status import CeleryJobStatus
 
@@ -88,10 +89,8 @@ def show(id):
         cjs.delete()
 
     # Models
-    model_viewers = ModelViewer.fetch_all_for_task(task.task_id)
-    # Reverse list so latest is first
-    model_viewers = model_viewers[::-1]
-    active_model = model_viewers[0]
+    model_viewers: List[ModelViewer] = task.get_model_viewers()
+    active_model: NLPModel = task.get_active_nlp_model()
 
     return render_template(
         'tasks/show.html',

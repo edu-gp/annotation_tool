@@ -11,7 +11,7 @@ def _predict(data_fname, model):
     return res
 
 def get_predicted(data_fname, model:ITextCatModel, cache=True):
-    print(f"get_predicted (cache={cache}) get: {data_fname}")
+    print(f"get_predicted model={model} data_fname={data_fname} (cache={cache})")
 
     if not cache:
         return _predict(data_fname, model)

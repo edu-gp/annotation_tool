@@ -23,6 +23,8 @@
         <a class="btn btn-sm btn-secondary float-right" href="{{ url_for('tasks.edit', id=task.task_id) }}">Edit</a>
       </h4>
 
+      <br />
+
       <ul>
         <li>
           Task ID: 
@@ -71,16 +73,19 @@
             <button type="submit" class="btn btn-sm btn-secondary">Request more annotations from everyone</button>
           </form>
         {% endif %}
+
+        {% for status in status_assign_jobs %}
+          <div class='float-right'>
+            <h6>
+              Active Job: <span class="badge badge-info">{{status}}</span> <br />
+              <i class='small'>Refresh page to see updates</i>
+            </h6>
+          </div>
+        {% endfor %}
       </h4>
 
-      {% for status in status_assign_jobs %}
-        <div>
-          Active Job: <span class="badge badge-info">{{status}}</span> <br />
-          <i class='small'>Refresh page to see updates</i>
-        </div>
-        <br />
-      {% endfor %}
-
+      <br />
+      
       <div class="row">
         <div class="col">
           <ul>
@@ -146,6 +151,8 @@
           <button type="submit" class="btn btn-sm btn-secondary">Train new model</button>
         </form>
       </h4>
+
+      <br />
 
       {% for mv in model_viewers %}
       <div class="card">

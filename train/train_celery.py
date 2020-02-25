@@ -59,7 +59,7 @@ def train_model(task_id):
         'random_state': 42,
         'train_config': {
             'model_output_dir': model_output_dir,
-            'num_train_epochs': 1, # TODO testing
+            'num_train_epochs': 5,
         }
     }
     save_json(config_fname, config)
