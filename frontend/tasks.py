@@ -60,8 +60,8 @@ def show(id):
 def annotate(id, ar_id):
     user_id = g.user['username']
 
-    import time
-    st = time.time()
+    # import time
+    # st = time.time()
 
     task = Task.fetch(id)
     ar = fetch_ar(id, user_id, ar_id)
@@ -75,11 +75,12 @@ def annotate(id, ar_id):
     anno['suggested_labels'] = task.labels
     anno['task_id'] = task.task_id
 
-    et = time.time()
-    print("Load time", et-st)
+    # et = time.time()
+    # print("Load time", et-st)
 
     return render_template('tasks/annotate.html',
         task=task,
+        anno=anno,
         # You can pass more than one to render multiple examples
         # TODO XXX left off here - make this work in the frontend
         # 0. Create a test kitchen sink page.

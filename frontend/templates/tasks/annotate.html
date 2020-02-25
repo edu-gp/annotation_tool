@@ -40,11 +40,34 @@
     {{task}}
   </h2>
 
-  <div id="react_container"></div>
+  <div class="row">
+    <div class="col">
+      <!-- <a class="btn btn-light float-right" href="#">Next</a> -->
+    </div>
+    <div class="col">
+      {% if next_ar_id %}
+      <a style="display:block" class="btn btn-light m-auto" href={{url_for('tasks.annotate', id=task.task_id, ar_id=next_ar_id)}}>Skip</a>
+      <!-- <div class="row">
+        <a class="btn btn-light m-auto" href={{url_for('tasks.annotate', id=task.task_id, ar_id=next_ar_id)}}>Skip</a>
+      </div> -->
+      {% endif %}
+    </div>
+    <div class="col">
+      <!-- <a class="btn btn-light float-right" href="#">Next</a> -->
+    </div>
+  </div>
 
-  {% if next_ar_id %}
-    <a href={{url_for('tasks.annotate', id=task.task_id, ar_id=next_ar_id)}}>Next</a>
-  {% endif %}
+  <div class="row my-4">
+    <div class="col">
+
+      <h6 style="text-align: center;">
+        ar_id={{anno['req']['ar_id']}}
+      </h6>
+
+      <div id="react_container"></div>
+
+    </div>
+  </div>
 
 <script>
 window.data = {{data | safe}};
