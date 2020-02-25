@@ -4,7 +4,7 @@ import re
 import glob
 from collections import defaultdict, Counter
 
-from shared.utils import load_json, save_json, mkf, mkd
+from shared.utils import save_jsonl, load_json, save_json, mkf, mkd
 from db.task import Task, DIR_ANNO, DIR_AREQ
 from db import _task_dir
 
@@ -224,7 +224,7 @@ def _majority_label(labels):
     else:
         return None
 
-def export_labeled_examples(task_id):
+def export_labeled_examples(task_id, outfile=None):
     # TODO Current interannotator agreement is majority vote.
     # See Snorkel for some inspiration for the future.
     
@@ -276,6 +276,9 @@ def export_labeled_examples(task_id):
         })
 
     # print(final)
+
+    if outfile is not None:
+        save_jsonl(outfile, final)
 
     return final
 
@@ -416,7 +419,7 @@ if __name__ == '__main__':
     assert len(fetch_all_annotations(task_id, user_id)) == 1
 
     # Annotate something thing in the new batch
-    my_anno = {'labels': {'MACHINELEARNING': -1, 'FINTECH': 1, 'HEALTHCARE': -1}}
+    my_anno = {'labels': {'MACHINELEARNING': 0, 'FINTECH': 1, 'HEALTHCARE': -1}}
     all_ars = fetch_all_ar(task_id, user_id)
     annotate_ar(task_id, user_id, all_ars[0], my_anno)
     assert fetch_annotation(task_id, user_id, all_ars[0])['anno'] == my_anno
@@ -432,7 +435,7 @@ if __name__ == '__main__':
     assert stats['n_annotations_per_user'][user_id] == 2
     assert stats['n_annotations_per_label']['FINTECH'] == {1: 2}
     assert stats['n_annotations_per_label']['HEALTHCARE'] == {0: 1, -1: 1}
-    assert stats['n_annotations_per_label']['MACHINELEARNING'] == {-1: 1}
+    assert stats['n_annotations_per_label']['MACHINELEARNING'] == {0: 1}
     assert stats['total_outstanding_requests'] == 3
     assert stats['n_outstanding_requests_per_user'][user_id] == 3
     
@@ -442,7 +445,7 @@ if __name__ == '__main__':
     exported = export_labeled_examples(task_id)
     assert exported == [
         {'text': 'blah', 'labels': {'FINTECH': 1}},
-        {'text': 'blah', 'labels': {'MACHINELEARNING': -1, 'FINTECH': 1, 'HEALTHCARE': -1}}
+        {'text': 'blah', 'labels': {'FINTECH': 1, 'HEALTHCARE': -1}}
     ]
 
     # Misc tests
