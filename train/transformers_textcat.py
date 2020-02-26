@@ -7,7 +7,8 @@ from scipy.special import softmax
 from .inference_results import InferenceResults
 from .utils import load_original_data_text
 
-USE_CUDA = False # TODO detect CUDA
+import torch
+USE_CUDA = torch.cuda.is_available()
 
 # TODO multilabel classification
 
