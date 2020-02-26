@@ -138,8 +138,3 @@ app.conf.task_routes = {'*.train_celery.*': {'queue': 'train_celery'}}
 '''
 celery --app=train.train_celery worker -Q train_celery -c 1 -l info --max-tasks-per-child 1 -P threads -n train_celery
 '''
-
-if __name__ == '__main__':
-    # TODO fake a binary classification model
-    task_id = 'cdff2935-744c-45de-a9cf-bff4a9c6264f'
-    train_model(task_id)

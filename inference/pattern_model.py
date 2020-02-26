@@ -8,6 +8,7 @@ from db import _data_dir
 import os
 
 class PatternModel(ITextCatModel):
+    # TODO does it make sense for PatternModel to require a task_id?
     def __init__(self, task_id, patterns_file):
         self.model_id = 'patterns-{task_id}'
         self.patterns_file = patterns_file

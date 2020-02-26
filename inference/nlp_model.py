@@ -62,13 +62,3 @@ def _get_uncertainty(pred, eps=1e-6):
     # Return entropy as the uncertainty value
     pred = np.array(pred)
     return float(-np.sum(pred * np.log(pred + eps)))
-
-if __name__ == '__main__':
-    assert _get_uncertainty([0.5, 0.5]) > _get_uncertainty([0.4, 0.6])
-    assert _get_uncertainty([0.3, 0.7]) > _get_uncertainty([0.9, 0.1])
-    assert _get_uncertainty([0.3, 0.3, 0.4]) > _get_uncertainty([0.1, 0.1, 0.8])
-
-    model = NLPModel('cdff2935-744c-45de-a9cf-bff4a9c6264f', 3)
-
-    text = "Provider of a real-time search and analytics platform designed to analyze bulk databases for facilitating and automating business operations. The company's platform combines a dashboard that utilizes artificial intelligence and heuristics to analyze and integrate real-time and retrospective data, provide timely and secure information specifically tailored for custom business operations, lets its users perform real-time search, real time analytics and receive real-time notifications and insight generated reports, enabling organizations in need of real-time data and information from diverse sources to make key strategic or tactical time sensitive decisions by analyzing up-to-date information, thereby making decisions based on live information."
-    print(model.predict([text]))

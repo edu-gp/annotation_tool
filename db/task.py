@@ -1,5 +1,6 @@
 from typing import List, Optional
 import os
+import shutil
 import uuid
 
 from shared.utils import load_json, save_json, mkf, mkd
@@ -85,6 +86,14 @@ class Task:
             return task_ids
         tasks = [Task.fetch(task_id) for task_id in task_ids]
         return tasks
+
+    def delete(self):
+        '''
+        Use with caution! This deletes all the labels and models.
+        '''
+        _dir = self.get_dir()
+        if os.path.isdir(_dir):
+            shutil.rmtree(_dir)
 
     # ------------------------------------------------------------
 

@@ -66,38 +66,3 @@ def _parse_labels(data):
                 y.append(_y)
 
     return y, problem_type, class_order
-
-
-if __name__ == '__main__':
-    data = [ 
-        {
-            'labels': {
-                'LABEL_1': 1,
-                'LABEL_2': -1,
-            }
-        },
-    ]
-
-    assert _parse_labels(data) == ([[1, 0]], MULTILABEL_CLASSIFICATION, ['LABEL_1', 'LABEL_2'])
-
-
-    data = [ 
-        {
-            'labels': {
-                'LABEL_1': 1,
-            }
-        },
-        {
-            'labels': {
-                'LABEL_1': -1,
-            }
-        },
-    ]
-
-    assert _parse_labels(data) == ([1, 0], BINARY_CLASSIFICATION, ['LABEL_1'])
-
-
-    data = []
-
-    assert _parse_labels(data) == ([], None, [])
-

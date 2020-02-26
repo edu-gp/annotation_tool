@@ -257,110 +257,44 @@ def _shuffle_together_examples(list_of_examples:List[List[Pred]], proportions:Li
 
     res = []
     seen = set()
-    list_idx = [0 for _ in range(len(list_of_examples))] # Current index into each list
+    ls_idx = [0 for _ in range(len(list_of_examples))] # Current index into each list
 
+    # Normalize proportions
     proportions = np.array(proportions)
     proportions = proportions / np.sum(proportions)
 
-    # O(total_n)
+    # Note this is "worst case" O(total_n = total number of items in all lists)
+    # Where "worst case" means if we have a bug in the loop.
+    # We can actually expect this to run in O(number of unique filename:linenum pairs)
+     
     total_n = sum([len(x) for x in list_of_examples])
 
     for _ in range(total_n):
         which_list = np.argmax(np.random.multinomial(1, proportions, size=1), axis=1)[0]
         ls = list_of_examples[which_list]
-        idx = list_idx[which_list]
-        
-        if idx < len(ls):
-            pred = ls[idx]
-            list_idx[which_list] += 1
-            
-            if list_idx[which_list] == len(ls):
-                # We've exhausted one list, reshuffle the proportions
-                proportions[which_list] = 0
 
-                if np.isclose(np.sum(proportions), 0):
-                    # We're done! Nothing more to sample.
-                    # print("Done")
-                    # break # No need to explicitly break...
-                    pass
-                else:
-                    # Normalize
-                    proportions = proportions / np.sum(proportions)
+        # Try our best to add 1 element from ls to res.
+        while ls_idx[which_list] < len(ls):
+            pred = ls[ls_idx[which_list]]
+            ls_idx[which_list] += 1
 
             if (pred.fname, pred.line_number) not in seen:
+                # We've found an element from ls that can be added to res!
+                # TODO keep track of which list the pred comes from; for easier debugging
                 seen.add( (pred.fname, pred.line_number) )
-                # TODO keep track of source of pred as well, for easier debugging
                 res.append(pred)
+                break
+
+        if ls_idx[which_list] == len(ls):
+            # We've exhausted the selected list. Time to reshuffle the proportions.
+            proportions[which_list] = 0
+
+            if np.isclose(np.sum(proportions), 0):
+                # We're done! Nothing more to sample.
+                break
+            else:
+                # Normalize
+                proportions = proportions / np.sum(proportions)
 
     # assert np.isclose(np.sum(proportions), 0) # Should be always true, but not needed...
     return res
-
-
-if __name__ == '__main__':
-    # Round robin
-    datapoints = ['a', 'b', 'c']
-    annotators = ['u1', 'u2']
-    per_anno_queue = _assign(datapoints, annotators, max_per_annotator=2, max_per_dp=1)
-    expected = {
-        'u1': ['a', 'c'],
-        'u2': ['b']
-    }
-    assert per_anno_queue == expected, per_anno_queue
-
-    # Unlimited budget
-    datapoints = ['a', 'b', 'c']
-    annotators = ['u1', 'u2']
-    per_anno_queue = _assign(datapoints, annotators, max_per_annotator=999, max_per_dp=999)
-    expected = {
-        'u1': ['a', 'b', 'c'],
-        'u2': ['a', 'b', 'c']
-    }
-    assert per_anno_queue == expected, per_anno_queue
-
-    # Limited by max_per_annotator
-    datapoints = ['a', 'b', 'c']
-    annotators = ['u1', 'u2']
-    per_anno_queue = _assign(datapoints, annotators, max_per_annotator=2, max_per_dp=2)
-    expected = {
-        'u1': ['a', 'b'],
-        'u2': ['a', 'b']
-    }
-    assert per_anno_queue == expected, per_anno_queue
-
-    # Limited by max_per_dp
-    datapoints = ['a', 'b', 'c']
-    annotators = ['u1', 'u2']
-    per_anno_queue = _assign(datapoints, annotators, max_per_annotator=2, max_per_dp=1)
-    expected = {
-        'u1': ['a', 'c'],
-        'u2': ['b']
-    }
-    assert per_anno_queue == expected, per_anno_queue
-
-    # Blacklist
-    datapoints = ['a', 'b', 'c']
-    annotators = ['u1', 'u2']
-    blacklist_fn = lambda dp, anno : (dp == 'a' and anno == 'u1')
-    per_anno_queue = _assign(datapoints, annotators, max_per_annotator=999, max_per_dp=999, blacklist_fn=blacklist_fn)
-    expected = {
-        'u1': ['b', 'c'],
-        'u2': ['a', 'b', 'c']
-    }
-    assert per_anno_queue == expected, per_anno_queue
-
-    list_of_examples = [
-        [
-            Pred(0.31, 'a', 1),
-            Pred(0.34, 'a', 2),
-            Pred(0.32, 'a', 3),
-            Pred(0.39, 'a', 4),
-        ],
-        [
-            Pred(0.51, 'a', 1),
-            Pred(0.54, 'a', 2),
-            Pred(0.53, 'a', 3),
-            Pred(0.59, 'a', 4),
-            Pred(0.53, 'a', 5),
-        ]
-    ]
-    print(_shuffle_together_examples(list_of_examples, proportions=[0.8, 0.2]))
