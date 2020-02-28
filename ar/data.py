@@ -2,6 +2,7 @@ import os
 import shutil
 import re
 import glob
+import time
 from collections import defaultdict, Counter
 
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd
@@ -46,6 +47,14 @@ def save_new_ar_for_user(task_id, user_id, annotation_requests, clean_existing=T
         path = basedir + [f"{req['ar_id']}.json"]
         fname = os.path.join(*path)
         save_json(fname, req)
+
+        # TODO this is SUPER hacky. I want to maintain order of the annotations
+        # because it would allow the most important datapoints to come first.
+        # However, on some OS, file modified time granularity is not good enough.
+        # So I space out all the saves a little bit.
+        # This means saving annotations for each user (for 100 tasks) takes a full second!
+        # This is a temporary fix.
+        time.sleep(1/100.)
 
     # Return the dir holding all the AR's.
     return _basedir

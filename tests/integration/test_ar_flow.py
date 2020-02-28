@@ -190,7 +190,6 @@ class TestARFlow:
         # Try exporting
         # (+ Make sure it didn't include the unsure annotation we just made)
         exported = export_labeled_examples(task_id)
-        assert exported == [
-            {'text': 'blah', 'labels': {'FINTECH': 1}},
-            {'text': 'blah', 'labels': {'FINTECH': 1, 'HEALTHCARE': -1}}
-        ]
+        assert len(exported) == 2
+        assert {'text': 'blah', 'labels': {'FINTECH': 1}} in exported
+        assert {'text': 'blah', 'labels': {'FINTECH': 1, 'HEALTHCARE': -1}} in exported
