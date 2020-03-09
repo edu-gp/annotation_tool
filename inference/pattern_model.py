@@ -10,7 +10,7 @@ import os
 class PatternModel(ITextCatModel):
     # TODO does it make sense for PatternModel to require a task_id?
     def __init__(self, task_id, patterns_file):
-        self.model_id = 'patterns-{task_id}'
+        self.model_id = f'patterns-{task_id}'
         self.patterns_file = patterns_file
         self._loaded = False
 
@@ -29,12 +29,12 @@ class PatternModel(ITextCatModel):
 
             for row in patterns:
                 matcher.add(row['label'], None, row['pattern'])
-            
+
             self.matcher = matcher
             self.nlp = nlp
 
             self._loaded = True
-            
+
     def predict(self, text_list:List[str], fancy=False) -> List:
         self._load()
 
