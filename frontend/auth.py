@@ -6,21 +6,29 @@ from flask import (
 #from werkzeug.security import check_password_hash, generate_password_hash
 #from main_server.db import get_db
 
+from shared.frontend_user_password import get_frontend_user_password
+
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 @bp.route('/login', methods=('GET', 'POST'))
 def login():
-    if request.method == 'POST':
+    if request.method == 'GET':
+        # This came from a sign-in link. Try to sign in this user immediately.
+        username = request.args.get('username')
+        password = request.args.get('password')
+    elif request.method == 'POST':
         username = request.form['username']
-        # password = request.form['password']
+        password = request.form['password']
+
+    if username is not None and password is not None:
+        error = None
+
         # db = get_db()
         # error = None
         # user = db.execute(
         #     'SELECT * FROM user WHERE username = ?', (username,)
         # ).fetchone()
 
-        # # TODO
-        # error = None
         # user = DUMMY_USER
         
         # if user is None:
@@ -28,19 +36,16 @@ def login():
         # elif not check_password_hash(user['password'], password):
         #     error = 'Incorrect password.'
 
-        # if error is None:
-        #     session.clear()
-        #     session['user_id'] = user['id'] # TODO
-        #     return redirect(url_for('index'))
+        if get_frontend_user_password(username) != password:
+            error = 'Incorrect password.'
 
-        # flash(error)
+        if error is None:
+            session.clear()
+            session['user_id'] = username
+            session['username'] = username
+            return redirect(url_for('index'))
 
-        # NOTE: Temporary way to sign in users.
-        session.clear()
-        session['user_id'] = username
-        session['username'] = username
-
-        return redirect(url_for('index'))
+        flash(error)
 
     return render_template('auth/login.html')
 

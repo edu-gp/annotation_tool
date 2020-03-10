@@ -53,7 +53,7 @@ def create_app(test_config=None):
 
     # TODO insecure way to access local files
     from flask import request, send_file
-    from db import DEFAULT_TASK_STORAGE
+    from db import _task_dir
     @app.route('/file', methods=['GET'])
     @auth.login_required
     def get_file():
@@ -61,10 +61,9 @@ def create_app(test_config=None):
         localhost:5000/tasks/file?f=/tmp/output.png
         '''
         path = request.args.get('f')
-        if path.startswith(DEFAULT_TASK_STORAGE + '/'):
-            print("Send file:", path)
-            return send_file(os.path.join(os.getcwd(), path))
-        return 'undefined action'
+        path = os.path.join(_task_dir(), path)
+        print("Send file:", path)
+        return send_file(path)
 
     from . import tasks
     app.register_blueprint(tasks.bp)

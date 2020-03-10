@@ -16,6 +16,11 @@ from ar.data import (
 
 # TODO test the actual saving and deleting of Task
 
+# TODO
+# monkeypatch.setenv('ANNOTATION_TOOL_TASKS_DIR', '/tmp/__tasks')
+# monkeypatch.setenv('ANNOTATION_TOOL_DATA_DIR', '/tmp/__data')
+# monkeypatch.setenv('ANNOTATION_TOOL_INFERENCE_CACHE_DIR', '/tmp/__infcache')
+
 class TestARFlow:
     def setup_method(self, test_method):
         task = Task('just testing ar')

@@ -3,7 +3,7 @@ from pathlib import Path
 from inference.base import ITextCatModel
 from shared.utils import load_jsonl, save_jsonl, mkf, mkd
 
-DEFAULT_INFERENCE_CACHE_STORAGE = '__infcache'
+from shared.config import Config
 
 def _predict(data_fname, model):
     df = load_jsonl(data_fname)
@@ -18,7 +18,7 @@ def get_predicted(data_fname, model:ITextCatModel, cache=True):
     else:
         stem = Path(data_fname).stem
         fname = f'{stem}__inferred_by__{model.model_id}.jsonl'
-        path = [DEFAULT_INFERENCE_CACHE_STORAGE, fname]
+        path = [Config.get_inference_cache_dir(), fname]
         fname = os.path.join(*path)
 
         if not os.path.isfile(fname):

@@ -1,16 +1,17 @@
 import os
 from shared.utils import mkd
-
-DEFAULT_DATA_STORAGE = '__data'
-DEFAULT_TASK_STORAGE = '__tasks'
-mkd(DEFAULT_DATA_STORAGE)
-mkd(DEFAULT_TASK_STORAGE)
+from shared.config import Config
 
 def _data_dir():
-    return DEFAULT_DATA_STORAGE
+    d = Config.get_data_dir()
+    mkd(d)
+    return d
 
 def _task_dir(task_id=None):
+    d = Config.get_tasks_dir()
+    mkd(d)
+
     if task_id:
-        return os.path.join(DEFAULT_TASK_STORAGE, task_id)
+        return os.path.join(d, task_id)
     else:
-        return DEFAULT_TASK_STORAGE
+        return d

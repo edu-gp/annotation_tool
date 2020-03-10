@@ -21,6 +21,7 @@ from train.model_viewer import ModelViewer
 from inference.nlp_model import NLPModel
 
 from shared.celery_job_status import CeleryJobStatus
+from shared.frontend_user_password import generate_frontend_user_login_link
 
 from .auth import auth
 
@@ -83,6 +84,7 @@ def show(id):
     # Basic info
     task = Task.fetch(id)
 
+    # -------------------------------------------------------------------------
     # Annotations
     annotation_statistics = compute_annotation_statistics(task.task_id)
 
@@ -98,6 +100,13 @@ def show(id):
     for cjs in status_assign_jobs_stale:
         cjs.delete()
 
+    # Annotator login links
+    annotator_login_links = [
+        (username, generate_frontend_user_login_link(username))
+        for username in task.annotators
+    ]
+
+    # -------------------------------------------------------------------------
     # Models
     model_viewers: List[ModelViewer] = task.get_model_viewers()
     active_model: NLPModel = task.get_active_nlp_model()
@@ -109,6 +118,7 @@ def show(id):
         status_assign_jobs=status_assign_jobs_active,
         model_viewers=model_viewers,
         active_model=active_model,
+        annotator_login_links=annotator_login_links,
     )
 
 @bp.route('/<string:id>/edit', methods=['GET'])
