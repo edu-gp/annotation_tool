@@ -1,3 +1,4 @@
+import os
 from os import environ
 
 class Config:
@@ -18,10 +19,19 @@ class Config:
         return environ['ANNOTATION_TOOL_FRONTEND_SERVER']
 
     def get_tasks_dir():
-        return environ.get('ANNOTATION_TOOL_TASKS_DIR', '__tasks')
+        d = environ.get('ANNOTATION_TOOL_TASKS_DIR')
+        if d is None:
+            d = os.path.join(os.getcwd(), '__tasks')
+        return d
 
     def get_data_dir():
-        return environ.get('ANNOTATION_TOOL_DATA_DIR', '__data')
+        d = environ.get('ANNOTATION_TOOL_DATA_DIR')
+        if d is None:
+            d = os.path.join(os.getcwd(), '__data')
+        return d
 
     def get_inference_cache_dir():
-        return environ.get('ANNOTATION_TOOL_INFERENCE_CACHE_DIR', '__infcache')
+        d = environ.get('ANNOTATION_TOOL_INFERENCE_CACHE_DIR')
+        if d is None:
+            d = os.path.join(os.getcwd(), '__infcache')
+        return d

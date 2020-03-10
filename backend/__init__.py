@@ -61,9 +61,10 @@ def create_app(test_config=None):
         localhost:5000/tasks/file?f=/tmp/output.png
         '''
         path = request.args.get('f')
-        path = os.path.join(_task_dir(), path)
-        print("Send file:", path)
-        return send_file(path)
+        if path.startswith(_task_dir()):
+            return send_file(path)
+        else:
+            raise Exception(f"Not allowed to send {path}")
 
     from . import tasks
     app.register_blueprint(tasks.bp)
