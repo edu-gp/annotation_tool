@@ -28,3 +28,7 @@ __tasks
 dump.rdb
 
 cache_dir
+
+runs
+
+.env

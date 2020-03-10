@@ -22,7 +22,17 @@ from inference.nlp_model import NLPModel
 
 from shared.celery_job_status import CeleryJobStatus
 
+from .auth import auth
+
 bp = Blueprint('tasks', __name__, url_prefix='/tasks')
+
+@auth.login_required
+def _before_request():
+    print("Before Request")
+    """ Auth required for all routes in this module """
+    pass
+
+bp.before_request(_before_request)
 
 @bp.route('/')
 def index():

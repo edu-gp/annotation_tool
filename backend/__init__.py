@@ -4,6 +4,8 @@ from flask import (
     Flask, render_template, g, redirect, url_for, session
 )
 
+from .auth import auth
+
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
@@ -25,8 +27,9 @@ def create_app(test_config=None):
     except OSError:
         pass
 
-    # Register custom filters
-    # from backend import custom_jinja_filters
+    # -------------------------------------------------------------------------
+    # Register custom Jinja Filters
+    
     import json
     @app.template_filter('to_pretty_json')
     def to_pretty_json(value):
@@ -36,11 +39,15 @@ def create_app(test_config=None):
         except Exception as e:
             return str(e)
 
+    # -------------------------------------------------------------------------
+    # Routes
+
     @app.route('/ok')
     def hello():
         return 'ok'
 
     @app.route('/')
+    @auth.login_required
     def index():
         return redirect(url_for('tasks.index'))
 
@@ -48,6 +55,7 @@ def create_app(test_config=None):
     from flask import request, send_file
     from db import DEFAULT_TASK_STORAGE
     @app.route('/file', methods=['GET'])
+    @auth.login_required
     def get_file():
         '''
         localhost:5000/tasks/file?f=/tmp/output.png
