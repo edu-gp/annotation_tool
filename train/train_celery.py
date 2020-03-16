@@ -60,6 +60,7 @@ def train_model(task_id):
         'train_config': {
             'model_output_dir': model_output_dir,
             'num_train_epochs': 5,
+            'sliding_window': True,
         }
     }
     save_json(config_fname, config)

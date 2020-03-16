@@ -1,11 +1,11 @@
 from numpy import save, load
-from scipy.special import softmax
 from .paths import _get_inference_fname
+from .utils import raw_to_pos_prob
 
 class InferenceResults:
     def __init__(self, raw):
         self.raw = raw
-        self.probs = softmax(self.raw, axis=1)
+        self.probs = raw_to_pos_prob(self.raw)
 
     def save(self, inf_fname):
         save(inf_fname + '.npy', self.raw)

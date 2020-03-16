@@ -2,10 +2,9 @@ import pandas as pd
 import numpy as np
 import json
 from simpletransformers.classification import ClassificationModel
-from scipy.special import softmax
 
 from .inference_results import InferenceResults
-from .utils import load_original_data_text
+from .utils import load_original_data_text, raw_to_pos_prob
 
 import torch
 USE_CUDA = torch.cuda.is_available()
@@ -27,6 +26,9 @@ def train(X_train, y_train, config):
             'roberta', 'roberta-base',
             use_cuda=USE_CUDA,
             args={
+                # https://github.com/ThilinaRajapakse/simpletransformers/#sliding-window-for-long-sequences
+                'sliding_window': config.get('sliding_window', False),
+
                 'reprocess_input_data': True,
                 'overwrite_output_dir': True,
 
@@ -68,11 +70,7 @@ def evaluate_model(model, X_test, y_test):
     # Evaluate the model
     result, model_outputs, wrong_predictions = model.eval_model(test_df)
 
-    # model_outputs are raw outputs. To convert them to prob use a softmax.
-    from scipy.special import softmax
-    probs = softmax(model_outputs, axis=1)
-    probs_pos_class = probs[:,1]
-    # Note: assert probs.sum(axis=1) is very close to 1.
+    probs_pos_class = raw_to_pos_prob(model_outputs)
 
     preds = [int(x > 0.5) for x in probs_pos_class]
 
