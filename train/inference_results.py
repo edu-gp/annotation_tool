@@ -12,7 +12,7 @@ class InferenceResults:
 
     @staticmethod
     def load(inf_fname):
-        return InferenceResults(load(inf_fname + '.npy'))
+        return InferenceResults(load(inf_fname + '.npy', allow_pickle=True))
 
     @staticmethod
     def load_from_task_version_fname(task_id, version, datafname):
