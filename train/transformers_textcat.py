@@ -9,12 +9,11 @@ from .utils import load_original_data_text, raw_to_pos_prob
 import torch
 USE_CUDA = torch.cuda.is_available()
 
-# TODO multilabel classification
-
 def get_class_weights(X, y):
-    # TODO is this the best way?
     from sklearn.utils.class_weight import compute_class_weight
     class_weights = compute_class_weight('balanced', np.unique(y), y)
+    # Normalize class weights
+    class_weights = class_weights / class_weights.max()
     print('class_weights:', class_weights)
     return class_weights
 
