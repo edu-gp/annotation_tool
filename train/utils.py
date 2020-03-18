@@ -72,7 +72,7 @@ import numpy as np
 from scipy.special import softmax
 
 def raw_to_pos_prob(raw):
-    """Raw model output to positive probability"""
+    """Raw model output to positive class probability"""
     probs_pos_class = []
     for out in raw:
         out = np.array(out)

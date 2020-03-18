@@ -126,12 +126,15 @@ def train_model(task_id):
             # Plot positive class for binary classification
             class_name = class_order[0]
             outname = _get_inference_density_plot_fname(task_id, version, fname, class_name)
-            _plot(outname, inference_results.get_prob_for_class(1), f'{class_name} : {fname}')
-        elif problem_type == MULTILABEL_CLASSIFICATION:
-            # Plot all classes for multilabel classification
-            for i, class_name in enumerate(class_order):
-                outname = _get_inference_density_plot_fname(task_id, version, fname, class_name)
-                _plot(outname, inference_results.get_prob_for_class(i), f'{class_name} : {fname}')
+            _plot(outname, inference_results.probs, f'{class_name} : {fname}')
+
+        # TODO: We don't fully support MULTILABEL_CLASSIFICATION at the moment.
+        # elif problem_type == MULTILABEL_CLASSIFICATION:
+        #     # Plot all classes for multilabel classification
+        #     for i, class_name in enumerate(class_order):
+        #         outname = _get_inference_density_plot_fname(task_id, version, fname, class_name)
+        #         # TODO get_prob_for_class is deprecated
+        #         _plot(outname, inference_results.get_prob_for_class(i), f'{class_name} : {fname}')
 
     print("Done")
 
