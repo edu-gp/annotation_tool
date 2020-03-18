@@ -45,6 +45,9 @@ def train(X_train, y_train, config):
 
                 # Bug in the library, need to specify it here and in the .train_model kwargs
                 'output_dir': config.get('model_output_dir'),
+
+                # Note: 512 requires 16g of GPU mem. You can try 256 for 8g.
+                'max_seq_length': config.get('max_seq_length', 512),
             }
     )
     # You can set class weights by using the optional weight argument

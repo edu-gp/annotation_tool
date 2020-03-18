@@ -61,6 +61,7 @@ def train_model(task_id):
             'model_output_dir': model_output_dir,
             'num_train_epochs': 5,
             'sliding_window': True,
+            'max_seq_length': 512,
         }
     }
     save_json(config_fname, config)
