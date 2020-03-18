@@ -116,7 +116,14 @@
                     <li>
                       {{k}}: 
                       {% for resp in annotation_statistics['n_annotations_per_label'][k] %}
-                        <span class='badge badge-info'>{{resp}}</span>x{{annotation_statistics['n_annotations_per_label'][k][resp]}}
+                        {% set n = annotation_statistics['n_annotations_per_label'][k][resp] %}
+                        {% if resp == 1 %}
+                          <span class='badge badge-pill badge-success'>{{resp}}</span>x{{n}}
+                        {% elif resp == -1 %}
+                          <span class='badge badge-pill badge-danger'>{{resp}}</span>x{{n}}
+                        {% else %}
+                          <span class='badge badge-pill badge-info'>{{resp}}</span>x{{n}}
+                        {% endif %}
                       {% endfor %}
                     </li>
                   {% endfor %}
