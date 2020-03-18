@@ -69,16 +69,17 @@ def evaluate_model(model, X_test, y_test):
         print("No test data given. Skipping evaluation.")
         return
 
-    test_df  = pd.DataFrame(zip(X_test, y_test))
     # Evaluate the model
-    result, model_outputs, wrong_predictions = model.eval_model(test_df)
-
-    probs_pos_class = raw_to_pos_prob(model_outputs)
-
-    preds = [int(x > 0.5) for x in probs_pos_class]
+    # test_df  = pd.DataFrame(zip(X_test, y_test))
+    # _, model_outputs, _ = model.eval_model(test_df)
+    
+    _, raw = model.predict(X_test)
 
     from sklearn import metrics
+    probs_pos_class = raw_to_pos_prob(raw)
     roc_auc = metrics.roc_auc_score(y_test, probs_pos_class)
+
+    preds = [int(x > 0.5) for x in probs_pos_class]
     precision, recall, fscore, support = metrics.precision_recall_fscore_support(y_test, preds)
 
     result = {
