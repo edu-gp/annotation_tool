@@ -17,39 +17,49 @@ def get_class_weights(X, y):
     print('class_weights:', class_weights)
     return class_weights
 
+def build_model(config, model_dir=None, weight=None):
+    """
+    Inputs:
+        config: train_config, see train_celery.py
+        model_dir: a trained model's output dir, None if model has not been trained yet
+        weight: class weights
+    """
+    return ClassificationModel(
+        'roberta', model_dir or 'roberta-base',
+        use_cuda=USE_CUDA,
+        args={
+            # https://github.com/ThilinaRajapakse/simpletransformers/#sliding-window-for-long-sequences
+            'sliding_window': config.get('sliding_window', False),
+
+            'reprocess_input_data': True,
+            'overwrite_output_dir': True,
+
+            'use_cached_eval_features': False,
+            'no_cache': True,
+
+            'num_train_epochs': config['num_train_epochs'],
+            'weight': weight,
+
+            # TODO I don't need checkpoints yet - disable this to save disk space
+            'save_eval_checkpoints': False,
+            'save_model_every_epoch': False,
+            'save_steps': 999999,
+
+            # Bug in the library, need to specify it here and in the .train_model kwargs
+            'output_dir': config.get('model_output_dir'),
+
+            # Note: 512 requires 16g of GPU mem. You can try 256 for 8g.
+            'max_seq_length': config.get('max_seq_length', 512),
+        }
+    )
+
 # TODO validation data + early stopping
 def train(X_train, y_train, config):
     train_df = pd.DataFrame(zip(X_train, y_train))
 
-    model = ClassificationModel(
-            'roberta', 'roberta-base',
-            use_cuda=USE_CUDA,
-            args={
-                # https://github.com/ThilinaRajapakse/simpletransformers/#sliding-window-for-long-sequences
-                'sliding_window': config.get('sliding_window', False),
+    weight = get_class_weights(X_train, y_train)
 
-                'reprocess_input_data': True,
-                'overwrite_output_dir': True,
-
-                'use_cached_eval_features': False,
-                'no_cache': True,
-
-                'num_train_epochs': config['num_train_epochs'],
-                'weight': get_class_weights(X_train, y_train),
-
-                # TODO I don't need checkpoints yet - disable this to save disk space
-                'save_eval_checkpoints': False,
-                'save_model_every_epoch': False,
-                'save_steps': 999999,
-
-                # Bug in the library, need to specify it here and in the .train_model kwargs
-                'output_dir': config.get('model_output_dir'),
-
-                # Note: 512 requires 16g of GPU mem. You can try 256 for 8g.
-                'max_seq_length': config.get('max_seq_length', 512),
-            }
-    )
-    # You can set class weights by using the optional weight argument
+    model = build_model(config, weight=weight)
 
     # Train the model
     model.train_model(
@@ -59,7 +69,6 @@ def train(X_train, y_train, config):
 
     return model
 
-# TODO take in model as a string (directory of output)
 def evaluate_model(model, X_test, y_test):
     '''
     Designed for binary classification models
@@ -90,13 +99,6 @@ def evaluate_model(model, X_test, y_test):
     
     print(result)
     return result
-
-
-def load_model(model_output_dir):
-    return ClassificationModel(
-        'roberta', model_output_dir,
-        use_cuda=USE_CUDA
-    )
 
 def run_inference(model, input_fname, output_fname):
     '''

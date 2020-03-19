@@ -5,10 +5,10 @@ import json
 from celery import Celery
 
 from ar.data import export_labeled_examples
-from shared.utils import save_json
+from shared.utils import save_json, load_json, load_jsonl
 from db.task import Task
 
-from .transformers_textcat import train, evaluate_model, load_model
+from .transformers_textcat import train, evaluate_model, build_model
 from .transformers_textcat import run_inference as _run_inference
 from .inference_results import InferenceResults
 from .utils import (
@@ -38,7 +38,6 @@ app = Celery(
 
 @app.task
 def train_model(task_id):
-
     task = Task.fetch(task_id)
 
     version = _get_latest_model_version(task.task_id) + 1
@@ -104,6 +103,41 @@ def train_model(task_id):
         'test': test_result,
     })
 
+    # Note: It appears inference can be faster if it's allowed to use all the GPU memory,
+    # however the only way to clear all GPU memory is to end this task. So we call inference
+    # asynchronously so this task can end.
+    post_training_inference.delay(task_id, version)
+
+
+@app.task
+def post_training_inference(task_id, version):
+    """
+    Inputs:
+        task_id: -
+        version: The model version
+    
+    Note: This only works for binary classification models
+    """
+    task = Task.fetch(task_id)
+
+    # version = _get_latest_model_version(task.task_id) + 1
+    version_dir = _get_version_dir(task.task_id, version)
+    print(f"Post training inference model version={version} for task={task.task_id}")
+
+    model_output_dir = _get_model_output_dir(version_dir)
+    config_fname = _get_config_fname(version_dir)
+    data_fname = _get_exported_data_fname(version_dir)
+
+    # Save config
+    config = load_json(config_fname)
+
+    # Load exported labeled examples
+    data = load_jsonl(data_fname, to_df=False)
+
+    _, problem_type, class_order = _parse_labels(data)
+  
+    model = build_model(config['train_config'], model_dir=model_output_dir)
+
     # Inference
     print("Run inference on all data filenames...")
     for fname in task.get_full_data_fnames():
@@ -127,7 +161,8 @@ def train_model(task_id):
             class_name = class_order[0]
             outname = _get_inference_density_plot_fname(task_id, version, fname, class_name)
             _plot(outname, inference_results.probs, f'{class_name} : {fname}')
-
+        else:
+            raise Exception("post_training_inference only supports binary classification")
         # TODO: We don't fully support MULTILABEL_CLASSIFICATION at the moment.
         # elif problem_type == MULTILABEL_CLASSIFICATION:
         #     # Plot all classes for multilabel classification
@@ -136,7 +171,6 @@ def train_model(task_id):
         #         # TODO get_prob_for_class is deprecated
         #         _plot(outname, inference_results.get_prob_for_class(i), f'{class_name} : {fname}')
 
-    print("Done")
 
 app.conf.task_routes = {'*.train_celery.*': {'queue': 'train_celery'}}
 
