@@ -21,6 +21,7 @@ class PatternModel(ITextCatModel):
         self._loaded = False
 
     def __str__(self):
+        # Note: This is also used as a cache key.
         return f'PatternModel <{len(self.spacy_patterns)} patterns>'
 
     def _load(self):

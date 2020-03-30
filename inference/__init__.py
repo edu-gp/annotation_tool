@@ -16,13 +16,16 @@ def get_predicted(data_fname, model:ITextCatModel, cache=True):
     if not cache:
         return _predict(data_fname, model)
     else:
+        # Get cache filename
         stem = Path(data_fname).stem
-        fname = f'{stem}__inferred_by__{model.model_id}.jsonl'
+        fname = f'{stem}__inferred_by__{model}.jsonl'
         path = [Config.get_inference_cache_dir(), fname]
         fname = os.path.join(*path)
 
         if not os.path.isfile(fname):
             res = _predict(data_fname, model)
+
+            # Save results to cache
             mkf(*path)
             save_jsonl(fname, res)
 

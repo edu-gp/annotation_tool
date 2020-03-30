@@ -13,6 +13,7 @@ class NLPModel(ITextCatModel):
         self._cache = None
 
     def __str__(self):
+        # Note: This is also used as a cache key.
         return f"NLPModel v{self.version}"
 
     def _iter_files_and_inferred(self):
