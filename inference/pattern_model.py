@@ -8,26 +8,27 @@ from db import _data_dir
 import os
 
 class PatternModel(ITextCatModel):
-    # TODO does it make sense for PatternModel to require a task_id?
-    def __init__(self, task_id, patterns_file):
-        self.model_id = f'patterns-{task_id}'
-        self.patterns_file = patterns_file
+    def __init__(self, spacy_patterns):
+        """
+        Inputs:
+            spacy_patterns: A list of json patterns Spacy understands.
+                e.g. [
+                    {"label": "POSITIVE_CLASS", "pattern": [{"lower": "hello"}]},
+                    {"label": "POSITIVE_CLASS", "pattern": [{"lower": "world"}]}
+                ]
+        """
+        self.spacy_patterns = spacy_patterns or []
         self._loaded = False
 
     def __str__(self):
-        return f'PatternModel <{self.patterns_file}>'
-
-    def _load_patterns(self):
-        return load_jsonl(os.path.join(_data_dir(), self.patterns_file), to_df=False)
+        return f'PatternModel <{len(self.spacy_patterns)} patterns>'
 
     def _load(self):
         if not self._loaded:
             nlp = spacy.load("en_core_web_sm")
             matcher = Matcher(nlp.vocab)
 
-            patterns = self._load_patterns()
-
-            for row in patterns:
+            for row in self.spacy_patterns:
                 matcher.add(row['label'], None, row['pattern'])
 
             self.matcher = matcher
@@ -64,14 +65,3 @@ class PatternModel(ITextCatModel):
                 })
 
         return res
-
-    def to_json(self):
-        return {
-            'type': 'PatternModel',
-            'model_id': self.model_id,
-            'patterns_file': self.patterns_file
-        }
-
-    @staticmethod
-    def from_json(data):
-        return PatternModel(data['patterns_file'], model_id=data['model_id'])

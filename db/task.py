@@ -3,7 +3,7 @@ import os
 import shutil
 import uuid
 
-from shared.utils import load_json, save_json, mkf, mkd
+from shared.utils import load_json, save_json, mkf, mkd, load_jsonl
 
 from inference.base import ITextCatModel
 from inference.pattern_model import PatternModel
@@ -16,6 +16,12 @@ from inference.nlp_model import NLPModel
 DIR_AREQ = 'ar' # Annotation Requests
 DIR_ANNO = 'an' # Annotations
 
+def _convert_to_spacy_patterns(patterns:List[str]):
+    return [
+        {"label": "POSITIVE_CLASS", "pattern": [{"lower": x.lower()}]}
+        for x in patterns
+    ]
+
 class Task:
     def __init__(self, name=None):
         self.task_id = str(uuid.uuid4())
@@ -27,8 +33,12 @@ class Task:
         if self.name is None:
             self.name = 'No Name'
 
-        # Set self.patterns_file first, then call get_pattern_model
+        # Access PatternModel via get_pattern_model,
+        # after setting self.patterns_file first...
+        # TODO deprecate patterns_file in favor or patterns.
         self.patterns_file = None
+        self.patterns = []
+        # This is a cache of the PatternModel instance.
         self._pattern_model = None
 
     def __str__(self):
@@ -42,6 +52,7 @@ class Task:
             'annotators': self.annotators,
             'labels': self.labels,
             'patterns_file': self.patterns_file,
+            'patterns': self.patterns,
         }
 
     @staticmethod
@@ -52,6 +63,7 @@ class Task:
         task.annotators = data['annotators']
         task.labels = data.get('labels', [])
         task.patterns_file = data.get('patterns_file', None)
+        task.patterns = data.get('patterns', [])
         return task
 
     # ------------------------------------------------------------
@@ -115,14 +127,24 @@ class Task:
     def get_pattern_model(self):
         '''Return a PatternModel, if it exists'''
         if self._pattern_model is None:
+            patterns = []
+
             if self.patterns_file is not None:
-                self._pattern_model = PatternModel(self.task_id, self.patterns_file)
+                patterns += load_jsonl(os.path.join(_data_dir(), self.patterns_file), to_df=False)
+
+            if self.patterns is not None:
+                patterns += _convert_to_spacy_patterns(self.patterns)
+            
+            if len(patterns) > 0:
+                self._pattern_model = PatternModel(patterns)
+
         return self._pattern_model
 
-    def update_and_save(self,
+    def update(self,
             name=None,
             labels=None,
             patterns_file=None,
+            patterns=None,
             annotators=None,
             data_files=None):
 
@@ -145,6 +167,13 @@ class Task:
             # TODO: Note this style means there's no way to delete the patterns model
             self.patterns_file = patterns_file
         
+        if patterns is not None:
+            self.patterns = patterns
+
+        return self
+
+    def update_and_save(self, **kwargs):
+        self.update(**kwargs)
         self.save()
         return self
 
@@ -165,12 +194,14 @@ class Task:
             return '\n'.join(self.labels)
         if field == 'annotators':
             return '\n'.join(self.annotators)
+        if field == 'patterns':
+            return '\n'.join(self.patterns)
         return ''
 
     @staticmethod
     def parse_jinjafied(field, value):
         # A list of values, one on each line
-        if field == 'labels' or field == 'annotators':
+        if field == 'labels' or field == 'annotators' or field == 'patterns':
             res = [x.strip() for x in value.split('\n')]
             res = [x for x in res if len(x) > 0]
             return res

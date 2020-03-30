@@ -34,6 +34,11 @@
           Pattern Model:
           {% if task.get_pattern_model() %}
             <span class="badge badge-light">{{ task.get_pattern_model() }}</span>
+            <span class="badge badge-light">
+              {% if task.patterns_file %}
+                {{task.patterns_file}}
+              {% endif %}
+            </span>
           {% endif %}
         </li>
         <li>

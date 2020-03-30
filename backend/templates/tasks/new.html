@@ -41,16 +41,27 @@
 
     <div class="form-group">
         <label for="patterns">Would you like to use patterns to bootstrap samples? (Optional)</label>
-        <small class="form-text text-muted mt-0 mb-2">If so, select the patterns file.</small>
-        {% for fname in fnames %}
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" name="patterns" value="{{fname}}" id="patterns_{{fname}}"
-                    {{'checked' if fname in request.form.getlist('patterns') else ''}}>
-                <label class="form-check-label" for="patterns_{{fname}}">
-                    {{fname}}
-                </label>
-            </div>
-        {% endfor %}
+
+        <div class="row">
+          <div class="col-6">
+            <small class="form-text text-muted mt-0 mb-2">Write one pattern one per line.</small>
+            <textarea class="form-control" name="patterns" id="patterns" rows=10>
+                {{- request.form['patterns'] -}}
+            </textarea>
+          </div>
+          <div class="col-6">
+            <small class="form-text text-muted mt-0 mb-2">If so, select the patterns file.</small>
+            {% for fname in fnames %}
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="patterns_file" value="{{fname}}" id="patterns_{{fname}}"
+                        {{'checked' if fname in request.form.getlist('patterns_file') else ''}}>
+                    <label class="form-check-label" for="patterns_{{fname}}">
+                        {{fname}}
+                    </label>
+                </div>
+            {% endfor %}
+          </div>
+        </div>
     </div>
     
     <div class="form-group">
