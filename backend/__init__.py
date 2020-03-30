@@ -69,6 +69,29 @@ def create_app(test_config=None):
     from . import tasks
     app.register_blueprint(tasks.bp)
 
+    # --- Admin Routes ---
+
+    import subprocess
+    from flask import make_response
+    
+    @app.route('/admin/ar_logs')
+    @auth.login_required
+    def admin_view_ar_logs():
+        completed_process = subprocess.run(["supervisorctl", "tail", "-3200", "ar_celery", "stderr"], capture_output=True)
+        output = completed_process.stdout.decode()
+        response = make_response(output, 200)
+        response.content_type = "text/plain"
+        return response
+    
+    @app.route('/admin/train_logs')
+    @auth.login_required
+    def admin_view_train_logs():
+        completed_process = subprocess.run(["supervisorctl", "tail", "-3200", "train_celery", "stderr"], capture_output=True)
+        output = completed_process.stdout.decode()
+        response = make_response(output, 200)
+        response.content_type = "text/plain"
+        return response
+    
     return app
 
 '''

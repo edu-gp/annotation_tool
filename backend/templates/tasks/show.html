@@ -18,214 +18,250 @@
 
   <div class="card my-2">
     <div class="card-body">
-      <h4>
-        Basic Info
-        <a class="btn btn-sm btn-secondary float-right" href="{{ url_for('tasks.edit', id=task.task_id) }}">Edit</a>
-      </h4>
 
-      <br />
-
-      <ul>
-        <li>
-          Task ID: 
-          <span class="badge badge-light">{{task.task_id}}</span>
-        </li>
-        <li>
-          Pattern Model:
-          {% if task.get_pattern_model() %}
-            <span class="badge badge-light">{{ task.get_pattern_model() }}</span>
-            <span class="badge badge-light">
-              {% if task.patterns_file %}
-                {{task.patterns_file}}
+      <div class="row">
+        <div class="col-9">
+          <h4>
+            Basic Info
+          </h4>
+    
+          <br />
+    
+          <ul>
+            <li>
+              Task ID: 
+              <span class="badge badge-light">{{task.task_id}}</span>
+            </li>
+            <li>
+              Pattern Model:
+              {% if task.get_pattern_model() %}
+                <span class="badge badge-light">{{ task.get_pattern_model() }}</span>
+                <span class="badge badge-light">
+                  {% if task.patterns_file %}
+                    {{task.patterns_file}}
+                  {% endif %}
+                </span>
               {% endif %}
-            </span>
-          {% endif %}
-        </li>
-        <li>
-          NLP Model:
-          <span class="badge badge-light">{{ active_model }}</span>
-        </li>
-        <li>
-          Data:
-          {% for fname in task._data_filenames %}
-            <span class="badge badge-light">{{fname}}</span>
-          {% endfor %}
-        </li>
-        <li>
-          Annotators:
-          {% for annotator in task.annotators %}
-            <span class="badge badge-light">{{annotator}}</span>
-          {% endfor %}
-        </li>
-        <li>
-          Labels: 
-          {% for label in task.labels %}
-            <span class="badge badge-light">{{label}}</span>
-          {% endfor %}
-        </li>
-      </ul>
+            </li>
+            <li>
+              NLP Model:
+              <span class="badge badge-light">{{ active_model }}</span>
+            </li>
+            <li>
+              Data:
+              {% for fname in task._data_filenames %}
+                <span class="badge badge-light">{{fname}}</span>
+              {% endfor %}
+            </li>
+            <li>
+              Annotators:
+              {% for annotator in task.annotators %}
+                <span class="badge badge-light">{{annotator}}</span>
+              {% endfor %}
+            </li>
+            <li>
+              Labels: 
+              {% for label in task.labels %}
+                <span class="badge badge-light">{{label}}</span>
+              {% endfor %}
+            </li>
+          </ul>
+        </div>
+        <div class="col">
+          <a class="btn btn-sm btn-secondary" href="{{ url_for('tasks.edit', id=task.task_id) }}">Edit</a>
+        </div>
+      </div>
+      
 
     </div>
   </div>
 
   <div class="card my-2">
     <div class="card-body">
-      <h4>
-        Annotations
-
-        {% if status_assign_jobs|length == 0 %}
-          <form class='float-right' action="{{ url_for('tasks.assign', id=task.task_id) }}" method="POST">
-            <button type="submit" class="btn btn-sm btn-secondary">Request more annotations from everyone</button>
-          </form>
-        {% endif %}
-
-        {% for status in status_assign_jobs %}
-          <div class='float-right'>
-            <h6>
-              Active Job: <span class="badge badge-info">{{status}}</span> <br />
-              <i class='small'>Refresh page to see updates</i>
-            </h6>
-          </div>
-        {% endfor %}
-      </h4>
-
-      <br />
-      
       <div class="row">
-        <div class="col">
-          <ul>
-            <li>
-              Total outstanding requests: {{annotation_statistics['total_outstanding_requests']}}
-            </li>
-            <li>
-              Outstanding requests for each annotator:
-                <ul>
-                  {% for k in annotation_statistics['n_outstanding_requests_per_user'] %}
-                    <li>
-                      {{k}}: {{annotation_statistics['n_outstanding_requests_per_user'][k]}}
-                    </li>
-                  {% endfor %}
-                </ul>
-            </li>
-          </ul>
-        </div>
-        <div class="col">
-          <ul>
-            <li>
-              Total Annotated: {{annotation_statistics['total_annotations']}}
-            </li>
-            <li>
-              Annotated per label:
-                <ul>
-                  {% for k in annotation_statistics['n_annotations_per_label'] %}
-                    <li>
-                      {{k}}: 
-                      {% for resp in annotation_statistics['n_annotations_per_label'][k] %}
-                        {% set n = annotation_statistics['n_annotations_per_label'][k][resp] %}
-                        {% if resp == 1 %}
-                          <span class='badge badge-pill badge-success'>{{resp}}</span>x{{n}}
-                        {% elif resp == -1 %}
-                          <span class='badge badge-pill badge-danger'>{{resp}}</span>x{{n}}
-                        {% else %}
-                          <span class='badge badge-pill badge-info'>{{resp}}</span>x{{n}}
-                        {% endif %}
-                      {% endfor %}
-                    </li>
-                  {% endfor %}
-                </ul>
-            </li>
-            <li>
-              Annotated by each annotator:
-                <ul>
-                  {% for k in annotation_statistics['n_annotations_per_user'] %}
-                    <li>
-                      {{k}}: {{annotation_statistics['n_annotations_per_user'][k]}}
-                    </li>
-                  {% endfor %}
-                </ul>
-            </li>
-          </ul>
-        </div>
-      </div>
-      
-      <div class="row">
-        <div class="col">
-          <h6>Annotator Login Links</h6>
-          <ul>
-          {% for user, link in annotator_login_links %}
-            <li>
-              <b>{{user}}</b>: <span onclick="selectText(this.id)" id="{{link}}">{{link}}</span>
-            </li>
-          {% endfor %}
-          </ul>
-        </div>
-      </div>
-      
-      <!-- <code>
-        {{annotation_statistics}}
-      </code> -->
-
-    </div>
-  </div>
-
-  <div class="card my-2">
-    <div class="card-body">
-      <h4>
-        Models
-        <form class='float-right' action="{{ url_for('tasks.train', id=task.task_id) }}" method="POST">
-          <button type="submit" class="btn btn-sm btn-secondary">Train new model</button>
-        </form>
-      </h4>
-
-      <br />
-
-      {% for mv in model_viewers %}
-      <div class="card">
-        <div class="card-body">
-          <h5>{{mv}}</h5>
+        <div class="col-9">
+          <h4>
+            Annotations
+          </h4>
+    
+          <br />
           
-          {% set metrics = mv.get_metrics() %}
-
           <div class="row">
             <div class="col">
-              {% for url in mv.get_plots() %}
-                <!-- Note: This uses the insecure way to get a file  -->
-                <img style="max-width: 400px" src="/file?f={{url}}" />
-              {% endfor %}
+              <ul>
+                <li>
+                  Total outstanding requests: {{annotation_statistics['total_outstanding_requests']}}
+                </li>
+                <li>
+                  Outstanding requests for each annotator:
+                    <ul>
+                      {% for k in annotation_statistics['n_outstanding_requests_per_user'] %}
+                        <li>
+                          {{k}}: {{annotation_statistics['n_outstanding_requests_per_user'][k]}}
+                        </li>
+                      {% endfor %}
+                    </ul>
+                </li>
+              </ul>
             </div>
-          </div>
-
-          <div class="row" style="font-size: 0.8em">
-            <div class="col-lg-3 col-md-6 col-sm-6">
-              <h6>Train</h6>
-              <pre>
-                {{- metrics['train']|to_pretty_json -}}
-              </pre>
-            </div>
-            <div class="col-lg-3 col-md-6 col-sm-6">
-              <h6>Test</h6>
-              <pre>
-                {{- metrics['test']|to_pretty_json -}}
-              </pre>
-            </div>
-          </div>
-
-          <div class="row" style="font-size: 0.2em">
             <div class="col">
-              Config:
-              <pre>
-                {{- mv.get_config()|to_pretty_json -}}
-              </pre>
-              Data Parser:
-              <pre>
-                {{- mv.get_data_parser()|to_pretty_json -}}
-              </pre>
+              <ul>
+                <li>
+                  Total Annotated: {{annotation_statistics['total_annotations']}}
+                </li>
+                <li>
+                  Annotated per label:
+                    <ul>
+                      {% for k in annotation_statistics['n_annotations_per_label'] %}
+                        <li>
+                          {{k}}: 
+                          {% for resp in annotation_statistics['n_annotations_per_label'][k] %}
+                            {% set n = annotation_statistics['n_annotations_per_label'][k][resp] %}
+                            {% if resp == 1 %}
+                              <span class='badge badge-pill badge-success'>{{resp}}</span>x{{n}}
+                            {% elif resp == -1 %}
+                              <span class='badge badge-pill badge-danger'>{{resp}}</span>x{{n}}
+                            {% else %}
+                              <span class='badge badge-pill badge-info'>{{resp}}</span>x{{n}}
+                            {% endif %}
+                          {% endfor %}
+                        </li>
+                      {% endfor %}
+                    </ul>
+                </li>
+                <li>
+                  Annotated by each annotator:
+                    <ul>
+                      {% for k in annotation_statistics['n_annotations_per_user'] %}
+                        <li>
+                          {{k}}: {{annotation_statistics['n_annotations_per_user'][k]}}
+                        </li>
+                      {% endfor %}
+                    </ul>
+                </li>
+              </ul>
             </div>
           </div>
+          
+          <div class="row">
+            <div class="col">
+              <h6>Annotator Login Links</h6>
+              <ul>
+              {% for user, link in annotator_login_links %}
+                <li>
+                  <b>{{user}}</b>: <span onclick="selectText(this.id)" id="{{link}}">{{link}}</span>
+                </li>
+              {% endfor %}
+              </ul>
+            </div>
+          </div>
+          
+          <!-- <code>
+            {{annotation_statistics}}
+          </code> -->
+        </div>
+        <div class="col">
+          <div>
+            <form action="{{ url_for('tasks.assign', id=task.task_id) }}" method="POST">
+              <button type="submit" class="btn btn-sm btn-secondary">Request More Annotations</button>
+            </form>
+          </div>
 
+          <p>
+            <a href="{{ url_for('admin_view_ar_logs') }}" target="_blank">View Annotation Worker Logs</a>
+          </p>
+          
+          {% if status_assign_jobs is defined and status_assign_jobs | length > 0 %}
+            <ul>
+              {% for status in status_assign_jobs %}
+                <li>
+                  <h6>
+                    Active Job: <span class="badge badge-info">{{status}}</span> <br />
+                    <i class='small'>Refresh page to see updates</i>
+                  </h6>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            No Recent Jobs
+          {% endif %}
         </div>
       </div>
-      {% endfor %}
+      
+
+    </div>
+  </div>
+
+  <div class="card my-2">
+    <div class="card-body">
+
+      <div class="row">
+        <div class="col-9">
+          <h4>
+            Models
+          </h4>
+
+          {% for mv in model_viewers %}
+            <div class="card">
+              <div class="card-body">
+                <h5>{{mv}}</h5>
+                
+                {% set metrics = mv.get_metrics() %}
+
+                <div class="row">
+                  <div class="col">
+                    {% for url in mv.get_plots() %}
+                      <!-- Note: This uses the insecure way to get a file  -->
+                      <img style="max-width: 400px" src="/file?f={{url}}" />
+                    {% endfor %}
+                  </div>
+                </div>
+
+                <div class="row" style="font-size: 0.8em">
+                  <div class="col-lg-3 col-md-6 col-sm-6">
+                    <h6>Train</h6>
+                    <pre>
+                      {{- metrics['train']|to_pretty_json -}}
+                    </pre>
+                  </div>
+                  <div class="col-lg-3 col-md-6 col-sm-6">
+                    <h6>Test</h6>
+                    <pre>
+                      {{- metrics['test']|to_pretty_json -}}
+                    </pre>
+                  </div>
+                </div>
+
+                <div class="row" style="font-size: 0.2em">
+                  <div class="col">
+                    Config:
+                    <pre>
+                      {{- mv.get_config()|to_pretty_json -}}
+                    </pre>
+                    Data Parser:
+                    <pre>
+                      {{- mv.get_data_parser()|to_pretty_json -}}
+                    </pre>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+        <div class="col">
+          <form action="{{ url_for('tasks.train', id=task.task_id) }}" method="POST">
+            <button type="submit" class="btn btn-sm btn-secondary">Train new model</button>
+          </form>
+          <p>
+            <a href="{{ url_for('admin_view_train_logs') }}" target="_blank">View Train Worker Logs</a>
+          </p>
+        </div>
+      </div>
+      
+      
+
+      
 
     </div>
   </div>
