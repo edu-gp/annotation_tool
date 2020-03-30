@@ -44,13 +44,13 @@
 
         <div class="row">
           <div class="col-6">
-            <small class="form-text text-muted mt-0 mb-2">Write one pattern one per line.</small>
+            <small class="form-text text-muted mt-0 mb-2">Write one pattern (word or phrase) per line.</small>
             <textarea class="form-control" name="patterns" id="patterns" rows=10>
                 {{- request.form['patterns'] -}}
             </textarea>
           </div>
           <div class="col-6">
-            <small class="form-text text-muted mt-0 mb-2">If so, select the patterns file.</small>
+            <small class="form-text text-muted mt-0 mb-2">Or, select the patterns file.</small>
             {% for fname in fnames %}
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" name="patterns_file" value="{{fname}}" id="patterns_{{fname}}"
