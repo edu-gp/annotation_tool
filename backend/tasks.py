@@ -56,7 +56,8 @@ def create():
         name = parse_name(form)
         labels = parse_labels(form)
         annotators = parse_annotators(form)
-        patterns_file = parse_patterns(form, all_files)
+        patterns_file = parse_patterns_file(form, all_files)
+        patterns = parse_patterns(form)
         data_files = parse_data(form, all_files)
     except Exception as e:
         error = str(e)
@@ -71,6 +72,7 @@ def create():
             labels=labels,
             annotators=annotators,
             patterns_file=patterns_file,
+            patterns=patterns,
             data_files=data_files
         )
         return redirect(url_for('tasks.show', id=task.task_id))
@@ -137,6 +139,7 @@ def update(id):
         name = parse_name(form)
         labels = parse_labels(form)
         annotators = parse_annotators(form)
+        patterns = parse_patterns(form)
     except Exception as e:
         error = str(e)
     
@@ -148,6 +151,7 @@ def update(id):
             name=name,
             labels=labels,
             annotators=annotators,
+            patterns=patterns,
         )
         return redirect(url_for('tasks.show', id=task.task_id))
 
@@ -212,15 +216,26 @@ def parse_data(form, all_files):
         assert fname in all_files, f"Data file '{fname}' does not exist"
     return data
 
-def parse_patterns(form, all_files):
-    patterns = form.getlist('patterns')
-    assert isinstance(patterns, list), "Patterns is not a list"
+def parse_patterns_file(form, all_files):
+    selections = form.getlist('patterns_file')
+    assert isinstance(selections, list), "Pattern file selections is not a list"
 
-    if len(patterns) > 0:
-        assert len(patterns) == 1, "Only 1 pattern file should be selected"
-        patterns_file = patterns[0]
+    if len(selections) > 0:
+        assert len(selections) == 1, "Only 1 pattern file should be selected"
+        patterns_file = selections[0]
         assert patterns_file in all_files, "Pattern file does not exist"
         return patterns_file
     else:
         # Note a patterns file is optional
         return None
+
+def parse_patterns(form):
+    patterns = form['patterns']
+
+    try:
+        patterns = Task.parse_jinjafied('patterns', patterns)
+    except Exception as e:
+        raise Exception(f'Unable to load Patterns: {e}')
+
+    assert isinstance(patterns, list), 'Patterns must be a list'
+    return patterns

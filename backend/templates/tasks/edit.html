@@ -27,24 +27,40 @@
     <div class="row">
         <div class="col">
             
-            <div class="form-group">
-                <label for="labels">Labels (one per line)</label>
-                <textarea class="form-control" name="labels" id="labels" rows=5 required>
-                  {{- request.form['labels'] | default(task.jinjafy('labels')) -}}
-                </textarea>
-            </div>
-
-        </div>
-        <div class="col">
-            
-            <div class="form-group">
+          <div class="row">
+            <div class="col">
+              <div class="form-group">
                 <label for="annotators">Annotators (one per line)</label>
                 <textarea class="form-control" name="annotators" id="annotators" rows=5 required>
                   {{- request.form['annotators'] | default(task.jinjafy('annotators')) -}}
                 </textarea>
+              </div>
             </div>
+          </div>
+
+          <div class="row">
+            <div class="col">
+              <div class="form-group">
+                <label for="labels">Labels (one per line)</label>
+                <textarea class="form-control" name="labels" id="labels" rows=5 required>
+                  {{- request.form['labels'] | default(task.jinjafy('labels')) -}}
+                </textarea>
+              </div>
+            </div>
+          </div>
+            
+        </div>
+        <div class="col">
+
+          <div class="form-group">
+            <label for="labels">Patterns (one per line)</label>
+            <textarea class="form-control" name="patterns" id="patterns" rows=15 required>
+              {{- request.form['patterns'] | default(task.jinjafy('patterns')) -}}
+            </textarea>
+          </div>
 
         </div>
+        
     </div>
 
     <button type="submit" class="btn btn-primary">Save</button>
