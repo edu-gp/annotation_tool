@@ -56,11 +56,20 @@ def train_model(task_id):
         'created_at': time.time(),
         'test_size': 0.3,
         'random_state': 42,
+        # TODO: Rename "train_config" to "model_config", or something more generic.
+        # since train_config also includes config for inference...
+        # NOTE: Env vars are used as global defaults. Eventually let user pass in
+        # custom configs.
         'train_config': {
             'model_output_dir': model_output_dir,
-            'num_train_epochs': 5,
-            'sliding_window': True,
-            'max_seq_length': 512,
+            'num_train_epochs': os.environ.get("TRANSFORMER_TRAIN_EPOCHS", 5),
+            'sliding_window': os.environ.get("TRANSFORMER_SLIDING_WINDOW", True),
+            'max_seq_length': os.environ.get("TRANSFORMER_MAX_SEQ_LENGTH", 512),
+            'train_batch_size': os.environ.get("TRANSFORMER_TRAIN_BATCH_SIZE", 8),
+            # NOTE: Specifying a large batch size during inference makes the
+            # process take up unnessesarily large amounts of memory.
+            # We'll only toggle this on at inference time.
+            # 'eval_batch_size': os.environ.get("TRANSFORMER_EVAL_BATCH_SIZE", 8),
         }
     }
     save_json(config_fname, config)
@@ -130,6 +139,9 @@ def post_training_inference(task_id, version):
 
     # Save config
     config = load_json(config_fname)
+
+    # You can set TRANSFORMER_EVAL_BATCH_SIZE to a larger number for faster inference.
+    config['train_config']['eval_batch_size'] = os.environ.get("TRANSFORMER_EVAL_BATCH_SIZE", 8)
 
     # Load exported labeled examples
     data = load_jsonl(data_fname, to_df=False)

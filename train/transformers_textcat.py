@@ -34,13 +34,14 @@ def build_model(config, model_dir=None, weight=None):
             'reprocess_input_data': True,
             'overwrite_output_dir': True,
 
+            # Disable tokenizer cache
             'use_cached_eval_features': False,
             'no_cache': True,
 
             'num_train_epochs': config['num_train_epochs'],
             'weight': weight,
 
-            # TODO I don't need checkpoints yet - disable this to save disk space
+            # Disable checkpoints to save disk space.
             'save_eval_checkpoints': False,
             'save_model_every_epoch': False,
             'save_steps': 999999,
@@ -50,6 +51,9 @@ def build_model(config, model_dir=None, weight=None):
 
             # Note: 512 requires 16g of GPU mem. You can try 256 for 8g.
             'max_seq_length': config.get('max_seq_length', 512),
+
+            'train_batch_size': config.get('train_batch_size', 8),
+            'eval_batch_size': config.get('eval_batch_size', 8),
         }
     )
 
