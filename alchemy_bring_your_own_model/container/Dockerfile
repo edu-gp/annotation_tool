@@ -46,7 +46,8 @@ RUN rm -rf apex
 
 
 RUN pip install simpletransformers
-RUN pip install flask gevent gunicorn
+RUN pip install flask gevent gunicorn redis
+RUN apt-get install -y redis-server
 
 # --- Training Code ---
 # Copies the trainer code 
