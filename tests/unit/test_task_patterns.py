@@ -1,4 +1,7 @@
+import os
+import tempfile
 from db.task import Task, _convert_to_spacy_patterns
+from shared.utils import save_jsonl
 
 PATTERNS = [
     'Hello',
@@ -10,8 +13,10 @@ CONVERTED_PATTERNS = [
     {"label": "POSITIVE_CLASS", "pattern": [{"lower": "world"}]}
 ]
 
+
 def test_convert_patterns():
     assert _convert_to_spacy_patterns(PATTERNS) == CONVERTED_PATTERNS
+
 
 def _create_task():
     return Task.from_json({
@@ -22,6 +27,7 @@ def _create_task():
         'patterns': PATTERNS
     })
 
+
 def _create_task_no_patterns():
     return Task.from_json({
         'task_id': 'testing123',
@@ -30,9 +36,11 @@ def _create_task_no_patterns():
         'labels': ['HEALTHCARE'],
     })
 
+
 def test_patterns():
     task = _create_task()
     assert task.patterns == PATTERNS
+
 
 def test_save_load_patterns():
     task = _create_task()
@@ -40,16 +48,20 @@ def test_save_load_patterns():
     new_task = Task.from_json(data)
     assert task.patterns == PATTERNS
 
+
 def test_update_patterns():
     task = _create_task()
     new_patterns = PATTERNS[:1]
     task.update(patterns=new_patterns)
     assert task.patterns == new_patterns
 
+
 def test_get_patterns_model():
     task = _create_task()
     pm = task.get_pattern_model()
-    assert pm.predict(['hello there'], fancy=True) == [{'matches': [(0, 1, 'hello')], 'score': 0.5, 'tokens': ['hello', 'there']}]
+    assert pm.predict(['hello there'], fancy=True) == [
+        {'matches': [(0, 1, 'hello')], 'score': 0.5, 'tokens': ['hello', 'there']}]
+
 
 def test_get_patterns_model_when_no_patterns():
     task = _create_task_no_patterns()
@@ -57,15 +69,11 @@ def test_get_patterns_model_when_no_patterns():
     assert pm is None
 
 
-import tempfile
-import os
-from shared.utils import save_jsonl
-
 def test_task_with_pattern_file():
     with tempfile.TemporaryDirectory() as tmpdirname:
         fname = os.path.join(tmpdirname, 'patterns.jsonl')
         save_jsonl(fname, [
-            {"label":"HEALTHCARE","pattern":[{"lower":"health"}]},
+            {"label": "HEALTHCARE", "pattern": [{"lower": "health"}]},
         ])
 
         more_patterns = [
@@ -84,7 +92,9 @@ def test_task_with_pattern_file():
         model = task.get_pattern_model()
 
         preds = model.predict(['my dog is healthy'], fancy=True)
-        assert preds == [{'tokens': ['my', 'dog', 'is', 'healthy'], 'matches': [(3, 4, 'healthy')], 'score': 0.25}]
+        assert preds == [{'tokens': ['my', 'dog', 'is', 'healthy'],
+                          'matches': [(3, 4, 'healthy')], 'score': 0.25}]
 
         preds = model.predict(['my health is great'], fancy=True)
-        assert preds == [{'tokens': ['my', 'health', 'is', 'great'], 'matches': [(1, 2, 'health')], 'score': 0.25}]
+        assert preds == [{'tokens': ['my', 'health', 'is', 'great'], 'matches': [
+            (1, 2, 'health')], 'score': 0.25}]

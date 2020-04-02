@@ -1,6 +1,6 @@
 from numpy import save, load
-from .paths import _get_inference_fname
 from .utils import raw_to_pos_prob
+
 
 class InferenceResults:
     def __init__(self, raw):
@@ -13,8 +13,3 @@ class InferenceResults:
     @staticmethod
     def load(inf_fname):
         return InferenceResults(load(inf_fname + '.npy', allow_pickle=True))
-
-    @staticmethod
-    def load_from_task_version_fname(task_id, version, datafname):
-        inf_fname = _get_inference_fname(task_id, version, datafname)
-        return InferenceResults.load(inf_fname)

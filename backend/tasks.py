@@ -1,12 +1,7 @@
-import os
-import uuid
-import time
-import json
-
 from typing import List
 
 from flask import (
-    Blueprint, flash, g, redirect, render_template, request, session, url_for
+    Blueprint, flash, redirect, render_template, request, url_for
 )
 
 from db.utils import get_all_data_files
@@ -14,7 +9,6 @@ from db.task import Task
 from ar.data import compute_annotation_statistics
 
 from ar.ar_celery import generate_annotation_requests
-from ar.ar_celery import app as ar_celery_app
 
 from train.train_celery import train_model
 from train.model_viewer import ModelViewer
@@ -27,23 +21,28 @@ from .auth import auth
 
 bp = Blueprint('tasks', __name__, url_prefix='/tasks')
 
+
 @auth.login_required
 def _before_request():
     print("Before Request")
     """ Auth required for all routes in this module """
     pass
 
+
 bp.before_request(_before_request)
+
 
 @bp.route('/')
 def index():
     tasks = Task.fetch_all_tasks()
     return render_template('tasks/index.html', tasks=tasks)
 
+
 @bp.route('/new', methods=['GET'])
 def new():
     fnames = get_all_data_files()
     return render_template('tasks/new.html', fnames=fnames)
+
 
 @bp.route('/', methods=['POST'])
 def create():
@@ -61,7 +60,7 @@ def create():
         data_files = parse_data(form, all_files)
     except Exception as e:
         error = str(e)
-    
+
     if error is not None:
         flash(error)
         return render_template('tasks/new.html', fnames=all_files)
@@ -79,7 +78,6 @@ def create():
 
     return render_template('tasks/edit.html', task=task)
 
-    
 
 @bp.route('/<string:id>', methods=['GET'])
 def show(id):
@@ -97,7 +95,7 @@ def show(id):
             status_assign_jobs_stale.append(cjs)
         else:
             status_assign_jobs_active.append(cjs)
-    
+
     # TODO delete stale jobs on a queue, instead of here.
     for cjs in status_assign_jobs_stale:
         cjs.delete()
@@ -123,11 +121,13 @@ def show(id):
         annotator_login_links=annotator_login_links,
     )
 
+
 @bp.route('/<string:id>/edit', methods=['GET'])
 def edit(id):
     task = Task.fetch(id)
     return render_template('tasks/edit.html', task=task)
-    
+
+
 @bp.route('/<string:id>', methods=['POST'])
 def update(id):
     task = Task.fetch(id)
@@ -142,7 +142,7 @@ def update(id):
         patterns = parse_patterns(form)
     except Exception as e:
         error = str(e)
-    
+
     if error is not None:
         flash(error)
         return render_template('tasks/edit.html', task=task)
@@ -181,6 +181,7 @@ def parse_name(form):
     assert name, 'Name is required'
     return name
 
+
 def parse_labels(form):
     labels = form['labels']
     assert labels, 'Labels is required'
@@ -189,10 +190,11 @@ def parse_labels(form):
         labels = Task.parse_jinjafied('labels', labels)
     except Exception as e:
         raise Exception(f'Unable to load Labels: {e}')
-    
+
     assert isinstance(labels, list), 'Labels must be a list'
     assert len(labels) > 0, 'Labels must not be empty'
     return labels
+
 
 def parse_annotators(form):
     annotators = form['annotators']
@@ -207,6 +209,7 @@ def parse_annotators(form):
     assert len(annotators) > 0, 'Annotators must not be empty'
     return annotators
 
+
 def parse_data(form, all_files):
     data = form.getlist('data')
     assert data, "Data is required"
@@ -216,9 +219,11 @@ def parse_data(form, all_files):
         assert fname in all_files, f"Data file '{fname}' does not exist"
     return data
 
+
 def parse_patterns_file(form, all_files):
     selections = form.getlist('patterns_file')
-    assert isinstance(selections, list), "Pattern file selections is not a list"
+    assert isinstance(
+        selections, list), "Pattern file selections is not a list"
 
     if len(selections) > 0:
         assert len(selections) == 1, "Only 1 pattern file should be selected"
@@ -228,6 +233,7 @@ def parse_patterns_file(form, all_files):
     else:
         # Note a patterns file is optional
         return None
+
 
 def parse_patterns(form):
     patterns = form['patterns']

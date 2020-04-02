@@ -1,4 +1,29 @@
-from shared.utils import load_jsonl
+from scipy.special import softmax
+import numpy as np
+import os
+import json
+import pandas as pd
+
+BINARY_CLASSIFICATION = 'binary'
+MULTILABEL_CLASSIFICATION = 'multilabel'
+
+
+# TODO: Move load_jsonl and load_original_data_text out of here.
+
+# NOTE: This is copied from shared/utils.py,
+# so we can break dependency to that module.
+def load_jsonl(jsonl_fname, to_df=True):
+    if os.path.isfile(jsonl_fname):
+        data = []
+        with open(jsonl_fname) as f:
+            for line in f:
+                data.append(json.loads(line))
+        if to_df:
+            data = pd.DataFrame(data)
+        return data
+    else:
+        return None
+
 
 def load_original_data_text(datafname):
     text = load_jsonl(datafname)['text']
@@ -7,9 +32,21 @@ def load_original_data_text(datafname):
     return text
 
 
+def get_env_int(key, default):
+    val = os.environ.get(key, default)
+    if not isinstance(val, int):
+        val = int(val)
+    return val
 
-BINARY_CLASSIFICATION = 'binary'
-MULTILABEL_CLASSIFICATION = 'multilabel'
+
+def get_env_bool(key, default):
+    val = os.environ.get(key, default)
+    if isinstance(val, str):
+        val = val.lower() in ['t', 'true', '1', 'y', 'yes']
+    if not isinstance(val, bool):
+        val = bool(val)
+    return val
+
 
 def _parse_labels(data):
     '''
@@ -68,9 +105,6 @@ def _parse_labels(data):
     return y, problem_type, class_order
 
 
-import numpy as np
-from scipy.special import softmax
-
 def raw_to_pos_prob(raw):
     """Raw model output to positive class probability"""
     probs_pos_class = []
@@ -82,8 +116,9 @@ def raw_to_pos_prob(raw):
         elif len(out.shape) == 2:
             # This is the style of outputs when we use sliding windows.
             # Take the average prob of all the window predictions.
-            _prob = softmax(out, axis=1)[:,1].mean()
+            _prob = softmax(out, axis=1)[:, 1].mean()
             probs_pos_class.append(_prob)
         else:
-            raise Exception(f"Unclear how to deal with raw dimension: {out.shape}")
+            raise Exception(
+                f"Unclear how to deal with raw dimension: {out.shape}")
     return probs_pos_class

@@ -1,10 +1,11 @@
 import os
 
 from flask import (
-    Flask, render_template, g, redirect, url_for, session
+    Flask, redirect, url_for
 )
 
 from .auth import auth
+
 
 def create_app(test_config=None):
     # create and configure the app
@@ -29,13 +30,13 @@ def create_app(test_config=None):
 
     # -------------------------------------------------------------------------
     # Register custom Jinja Filters
-    
+
     import json
     @app.template_filter('to_pretty_json')
     def to_pretty_json(value):
         try:
             return json.dumps(value, sort_keys=False,
-                            indent=4, separators=(',', ': '))
+                              indent=4, separators=(',', ': '))
         except Exception as e:
             return str(e)
 
@@ -73,26 +74,29 @@ def create_app(test_config=None):
 
     import subprocess
     from flask import make_response
-    
+
     @app.route('/admin/ar_logs')
     @auth.login_required
     def admin_view_ar_logs():
-        completed_process = subprocess.run(["supervisorctl", "tail", "-3200", "ar_celery", "stderr"], capture_output=True)
+        completed_process = subprocess.run(
+            ["supervisorctl", "tail", "-3200", "ar_celery", "stderr"], capture_output=True)
         output = completed_process.stdout.decode()
         response = make_response(output, 200)
         response.content_type = "text/plain"
         return response
-    
+
     @app.route('/admin/train_logs')
     @auth.login_required
     def admin_view_train_logs():
-        completed_process = subprocess.run(["supervisorctl", "tail", "-3200", "train_celery", "stderr"], capture_output=True)
+        completed_process = subprocess.run(
+            ["supervisorctl", "tail", "-3200", "train_celery", "stderr"], capture_output=True)
         output = completed_process.stdout.decode()
         response = make_response(output, 200)
         response.content_type = "text/plain"
         return response
-    
+
     return app
+
 
 '''
 env FLASK_APP=backend FLASK_ENV=development flask init-db

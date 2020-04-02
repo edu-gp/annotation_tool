@@ -2,8 +2,11 @@ import hashlib
 import numpy as np
 
 from inference.base import ITextCatModel
-from train.utils import load_original_data_text
-from train.inference_results import InferenceResults
+from train.no_deps.utils import load_original_data_text
+from train.no_deps.inference_results import InferenceResults
+from train.no_deps.paths import _get_inference_fname
+from train.paths import _get_version_dir
+
 
 class NLPModel(ITextCatModel):
     # TODO exploit vs explore
@@ -23,12 +26,15 @@ class NLPModel(ITextCatModel):
 
             text = load_original_data_text(fname)
 
-            ir = InferenceResults.load_from_task_version_fname(
-                    self.task_id, self.version, fname)
+            version_dir = _get_version_dir(self.task_id, self.version)
+            inf_fname = _get_inference_fname(version_dir, fname)
+            ir = InferenceResults.load(inf_fname)
+
             probs = ir.probs
 
             # TODO run any inferences that have not been ran
-            assert len(text) == len(probs), 'Mismatch orig and inferred length. Did original data change?'
+            assert len(text) == len(
+                probs), 'Mismatch orig and inferred length. Did original data change?'
 
             for t, p in zip(text, probs):
                 yield (t, p)
@@ -55,9 +61,11 @@ class NLPModel(ITextCatModel):
 
         return res
 
+
 def _hash_text(text):
     text = text or ''
     return hashlib.md5(text.strip().encode()).hexdigest()
+
 
 def _get_uncertainty(pred, eps=1e-6):
     # Return entropy as the uncertainty value

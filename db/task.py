@@ -3,9 +3,8 @@ import os
 import shutil
 import uuid
 
-from shared.utils import load_json, save_json, mkf, mkd, load_jsonl
+from shared.utils import load_json, save_json, mkf, load_jsonl
 
-from inference.base import ITextCatModel
 from inference.pattern_model import PatternModel
 
 from db import _data_dir, _task_dir
@@ -13,19 +12,21 @@ from db import _data_dir, _task_dir
 from train.model_viewer import ModelViewer
 from inference.nlp_model import NLPModel
 
-DIR_AREQ = 'ar' # Annotation Requests
-DIR_ANNO = 'an' # Annotations
+DIR_AREQ = 'ar'  # Annotation Requests
+DIR_ANNO = 'an'  # Annotations
 
-def _convert_to_spacy_patterns(patterns:List[str]):
+
+def _convert_to_spacy_patterns(patterns: List[str]):
     return [
         {"label": "POSITIVE_CLASS", "pattern": [{"lower": x.lower()}]}
         for x in patterns
     ]
 
+
 class Task:
     def __init__(self, name=None):
         self.task_id = str(uuid.uuid4())
-        self.annotators = [] # A list of user_id's
+        self.annotators = []  # A list of user_id's
         self.labels = []
         self._data_filenames = []
 
@@ -89,7 +90,7 @@ class Task:
 
     @staticmethod
     def fetch_all_tasks(id_only=False):
-        task_ids:List[os.DirEntry] = sorted(
+        task_ids: List[os.DirEntry] = sorted(
             os.scandir(_task_dir()),
             key=lambda d: d.stat().st_mtime,
             reverse=True)
@@ -109,17 +110,18 @@ class Task:
 
     # ------------------------------------------------------------
 
-    def _add_data(self, fname:str):
+    def _add_data(self, fname: str):
         # TODO test
-        assert fname in os.listdir(_data_dir()), f"{fname} is not in {_data_dir}"
+        assert fname in os.listdir(
+            _data_dir()), f"{fname} is not in {_data_dir}"
         if fname not in self._data_filenames:
             self._data_filenames.append(fname)
 
-    def _add_annotator(self, user_id:str):
+    def _add_annotator(self, user_id: str):
         if user_id not in self.annotators:
             self.annotators.append(user_id)
-    
-    def _add_label(self, label:str):
+
+    def _add_label(self, label: str):
         # label = label.upper() # TODO Do I need to enforce this?
         if label not in self.labels:
             self.labels.append(label)
@@ -130,23 +132,24 @@ class Task:
             patterns = []
 
             if self.patterns_file is not None:
-                patterns += load_jsonl(os.path.join(_data_dir(), self.patterns_file), to_df=False)
+                patterns += load_jsonl(os.path.join(_data_dir(),
+                                                    self.patterns_file), to_df=False)
 
             if self.patterns is not None:
                 patterns += _convert_to_spacy_patterns(self.patterns)
-            
+
             if len(patterns) > 0:
                 self._pattern_model = PatternModel(patterns)
 
         return self._pattern_model
 
     def update(self,
-            name=None,
-            labels=None,
-            patterns_file=None,
-            patterns=None,
-            annotators=None,
-            data_files=None):
+               name=None,
+               labels=None,
+               patterns_file=None,
+               patterns=None,
+               annotators=None,
+               data_files=None):
 
         if name:
             self.name = name.strip()
@@ -154,7 +157,7 @@ class Task:
         if data_files:
             for data in data_files:
                 self._add_data(data)
-        
+
         if annotators:
             for anno in annotators:
                 self._add_annotator(anno)
@@ -166,7 +169,7 @@ class Task:
         if patterns_file is not None:
             # TODO: Note this style means there's no way to delete the patterns model
             self.patterns_file = patterns_file
-        
+
         if patterns is not None:
             self.patterns = patterns
 
@@ -178,7 +181,7 @@ class Task:
         return self
 
     # ------------------------------------------------------------
-    
+
     def get_full_data_fnames(self):
         d = _data_dir()
         return [os.path.join(d, fname) for fname in self._data_filenames]
@@ -211,7 +214,7 @@ class Task:
 
     def get_model_viewers(self) -> List[ModelViewer]:
         mvs = ModelViewer.fetch_all_for_task(self.task_id)
-        return mvs[::-1] # Reverse list so latest is first
+        return mvs[::-1]  # Reverse list so latest is first
 
     def get_active_nlp_model(self) -> Optional[NLPModel]:
         # TODO logic to get active model will change.

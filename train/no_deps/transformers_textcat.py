@@ -1,13 +1,12 @@
+# TODO remove these module dependencies if possible
+from .utils import raw_to_pos_prob
 import pandas as pd
 import numpy as np
-import json
 from simpletransformers.classification import ClassificationModel
-
-from .inference_results import InferenceResults
-from .utils import load_original_data_text, raw_to_pos_prob
 
 import torch
 USE_CUDA = torch.cuda.is_available()
+
 
 def get_class_weights(X, y):
     from sklearn.utils.class_weight import compute_class_weight
@@ -17,6 +16,7 @@ def get_class_weights(X, y):
     print('class_weights:', class_weights)
     return class_weights
 
+
 def build_model(config, model_dir=None, weight=None):
     """
     Inputs:
@@ -24,6 +24,7 @@ def build_model(config, model_dir=None, weight=None):
         model_dir: a trained model's output dir, None if model has not been trained yet
         weight: class weights
     """
+    print(f"Building model with config: {config}")
     return ClassificationModel(
         'roberta', model_dir or 'roberta-base',
         use_cuda=USE_CUDA,
@@ -58,6 +59,8 @@ def build_model(config, model_dir=None, weight=None):
     )
 
 # TODO validation data + early stopping
+
+
 def train(X_train, y_train, config):
     train_df = pd.DataFrame(zip(X_train, y_train))
 
@@ -73,6 +76,7 @@ def train(X_train, y_train, config):
 
     return model
 
+
 def evaluate_model(model, X_test, y_test):
     '''
     Designed for binary classification models
@@ -84,7 +88,7 @@ def evaluate_model(model, X_test, y_test):
     # Evaluate the model
     # test_df  = pd.DataFrame(zip(X_test, y_test))
     # _, model_outputs, _ = model.eval_model(test_df)
-    
+
     _, raw = model.predict(X_test)
 
     from sklearn import metrics
@@ -92,7 +96,8 @@ def evaluate_model(model, X_test, y_test):
     roc_auc = metrics.roc_auc_score(y_test, probs_pos_class)
 
     preds = [int(x > 0.5) for x in probs_pos_class]
-    precision, recall, fscore, support = metrics.precision_recall_fscore_support(y_test, preds)
+    precision, recall, fscore, support = \
+        metrics.precision_recall_fscore_support(y_test, preds)
 
     result = {
         'roc_auc': roc_auc,
@@ -100,15 +105,6 @@ def evaluate_model(model, X_test, y_test):
         'recall': list(recall),
         'fscore': list(fscore),
     }
-    
+
     print(result)
     return result
-
-def run_inference(model, input_fname, output_fname):
-    '''
-    Input is a jsonl, like the original data we want to label
-    '''
-    text = load_original_data_text(input_fname)
-    preds, raw = model.predict(text)
-    InferenceResults(raw).save(output_fname)
-    return InferenceResults

@@ -1,17 +1,20 @@
 import os
 from pathlib import Path
 from inference.base import ITextCatModel
-from shared.utils import load_jsonl, save_jsonl, mkf, mkd
+from shared.utils import load_jsonl, save_jsonl, mkf
 
 from shared.config import Config
+
 
 def _predict(data_fname, model):
     df = load_jsonl(data_fname)
     res = model.predict(df['text'])
     return res
 
-def get_predicted(data_fname, model:ITextCatModel, cache=True):
-    print(f"get_predicted model={model} data_fname={data_fname} (cache={cache})")
+
+def get_predicted(data_fname, model: ITextCatModel, cache=True):
+    print(
+        f"get_predicted model={model} data_fname={data_fname} (cache={cache})")
 
     if not cache:
         return _predict(data_fname, model)
