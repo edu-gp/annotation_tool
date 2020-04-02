@@ -129,7 +129,7 @@ if __name__ == "__main__":
     labels_pred, scores_pred = ScoringService.predict(data)
     predictions = {
         "labels": labels_pred.tolist(),
-        "scores": [scores.tolist() for scores in scores_pred]
+        "scores": [scores.tolist()[0] for scores in scores_pred]
     }
 
     r = redis.Redis(host='localhost', port=6379, db=0)

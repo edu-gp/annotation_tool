@@ -14,6 +14,7 @@ import traceback
 import redis
 
 from datetime import datetime
+from flask import jsonify
 
 import flask
 
@@ -28,6 +29,65 @@ prefix = '/opt/ml/'
 model_dir = '/opt/program/model'
 model_path = '/opt/program/model'
 r = redis.Redis(host='localhost', port=6379, db=0)
+
+class ScoringService(object):
+    model = None                # Where we keep the model when it's loaded
+    train_config = {
+        'model_output_dir': '/tmp',
+        'num_train_epochs': 5,
+        'sliding_window': True,
+        'max_seq_length': 512,
+    }
+
+    @classmethod
+    def get_model(cls):
+        """Get the model object for this instance, loading it if it's not already loaded."""
+        if cls.model == None:
+            print(str(datetime.now()) + " Loading model...")
+            cls.model = build_model(cls.train_config, model_dir)
+            # with open(os.path.join(model_path, 'lr.pkl'), 'rb') as inp:
+            #     cls.model = pickle.load(inp)
+        print(str(datetime.now()) + " Model loaded...")
+        return cls.model
+
+def build_model(config, model_dir=None, weight=None):
+    """
+    Inputs:
+        config: train_config, see train_celery.py
+        model_dir: a trained model's output dir, None if model has not been trained yet
+        weight: class weights
+    """
+    contents = os.listdir(model_dir)
+    print(contents)
+
+    return ClassificationModel(
+        'roberta', model_dir or 'roberta-base',
+        use_cuda=USE_CUDA,
+        args={
+            # https://github.com/ThilinaRajapakse/simpletransformers/#sliding-window-for-long-sequences
+            'sliding_window': config.get('sliding_window', False),
+
+            'reprocess_input_data': True,
+            'overwrite_output_dir': True,
+
+            'use_cached_eval_features': False,
+            'no_cache': True,
+
+            'num_train_epochs': config['num_train_epochs'],
+            'weight': weight,
+
+            # TODO I don't need checkpoints yet - disable this to save disk space
+            'save_eval_checkpoints': False,
+            'save_model_every_epoch': False,
+            'save_steps': 999999,
+
+            # Bug in the library, need to specify it here and in the .train_model kwargs
+            'output_dir': config.get('model_output_dir'),
+
+            # Note: 512 requires 16g of GPU mem. You can try 256 for 8g.
+            'max_seq_length': config.get('max_seq_length', 512),
+        }
+    )
 
 # The flask app for serving predictions
 app = flask.Flask(__name__)
@@ -70,7 +130,7 @@ def transformation():
     # Do the prediction
     # predictions = ScoringService.predict(data)
     command_array = [
-        'python', 'predict_data.py', '--data', s, 
+        'python', './utils/predict_data.py', '--data', s, 
         '--request_id', request_id
     ]
 
@@ -80,6 +140,11 @@ def transformation():
     )
     predictions = r.get(request_id)
     print(predictions)
+    print(type(predictions))
+
+    predictions = predictions.decode("ascii")
+    print(predictions)
+    print(type(predictions))
     # stdout_value = proc.communicate()[0].decode('utf-8')
     # print('stdout:', repr(stdout_value))
     # predictions = stdout_value
@@ -87,7 +152,10 @@ def transformation():
 
     # Convert from numpy back to CSV
     result = json.loads(predictions)
+    print(result)
+    print(type(result))
     # pd.DataFrame({'results':predictions}).to_csv(out, header=False, index=False)
     # result = out.getvalue()
 
-    return flask.Response(response=result, status=200, mimetype='application/json')
+    # return flask.Response(response=json.dumps(result), status=200, mimetype='application/json')
+    return jsonify(result)
