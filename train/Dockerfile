@@ -84,7 +84,7 @@ RUN echo '[GoogleCompute]\nservice_account = default' > /etc/boto.cfg
 
 # Copy in code 
 RUN mkdir /root/alchemy
-COPY * /root/alchemy/
+COPY gcp_run.py /root/alchemy/
 COPY no_deps /root/alchemy/no_deps
 
 # Sets up the entry point to invoke the trainer.
