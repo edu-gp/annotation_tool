@@ -1,36 +1,36 @@
 {% extends 'base.html' %}
 
 {% block header %}
-  <nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-      <li class="breadcrumb-item">
-        <a href="{{ url_for('index') }}">Home</a>
-      </li>
-      <li class="breadcrumb-item active" aria-current="page">
-        Task
-      </li>
-    </ol>
-  </nav>
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item">
+      <a href="{{ url_for('index') }}">Home</a>
+    </li>
+    <li class="breadcrumb-item active" aria-current="page">
+      Task
+    </li>
+  </ol>
+</nav>
 {% endblock %}
 
 {% block content %}
-  <h2>
-    {{task}}
-  </h2>
+<h2>
+  {{task}}
+</h2>
 
-  <ul class="list-group list-group-flush">
+<ul class="list-group list-group-flush">
   {% for ar_id in ars %}
-    <li class="list-group-item">
-        {% if has_annotation[loop.index0] %}
-            <span class='badge badge-info'>Done</span>
-        {% else %}
-            <span class='badge badge-danger'>TODO</span>
-        {% endif %}
-        <a class="mx-2" href={{url_for('tasks.annotate', id=task.task_id, ar_id=ar_id)}}>
-          Example {{loop.index}} - {{ar_id}}
-        </a>
-    </li>
+  <li class="list-group-item">
+    {% if has_annotation[loop.index0] %}
+    <span class='badge badge-info'>Done</span>
+    {% else %}
+    <span class='badge badge-danger'>TODO</span>
+    {% endif %}
+    <a class="mx-2" href={{url_for('tasks.annotate', id=task.task_id, ar_id=ar_id)}}>
+      Example {{loop.index}} - {{ar_id}}
+    </a>
+  </li>
   {% endfor %}
-  </ul>
+</ul>
 
 {% endblock %}

@@ -1,295 +1,295 @@
 {% extends 'base.html' %}
 
 {% block header %}
-  <nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-      <li class="breadcrumb-item">
-        <a href="{{ url_for('index') }}">Home</a>
-      </li>
-      <li class="breadcrumb-item active" aria-current="page">
-        Task
-      </li>
-    </ol>
-  </nav>
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item">
+      <a href="{{ url_for('index') }}">Home</a>
+    </li>
+    <li class="breadcrumb-item active" aria-current="page">
+      Task
+    </li>
+  </ol>
+</nav>
 {% endblock %}
 
 {% block content %}
-  <h1>{{task}}</h1>
+<h1>{{task}}</h1>
 
-  <div class="card my-2">
-    <div class="card-body">
+<div class="card my-2">
+  <div class="card-body">
 
-      <div class="row">
-        <div class="col-9">
-          <h4>
-            Basic Info
-          </h4>
-    
-          <br />
-    
-          <ul>
-            <li>
-              Task ID: 
-              <span class="badge badge-light">{{task.task_id}}</span>
-            </li>
-            <li>
-              Pattern Model:
-              {% if task.get_pattern_model() %}
-                <span class="badge badge-light">{{ task.get_pattern_model() }}</span>
-                <span class="badge badge-light">
-                  {% if task.patterns_file %}
-                    {{task.patterns_file}}
-                  {% endif %}
-                </span>
+    <div class="row">
+      <div class="col-9">
+        <h4>
+          Basic Info
+        </h4>
+
+        <br />
+
+        <ul>
+          <li>
+            Task ID:
+            <span class="badge badge-light">{{task.task_id}}</span>
+          </li>
+          <li>
+            Pattern Model:
+            {% if task.get_pattern_model() %}
+            <span class="badge badge-light">{{ task.get_pattern_model() }}</span>
+            <span class="badge badge-light">
+              {% if task.patterns_file %}
+              {{task.patterns_file}}
               {% endif %}
-            </li>
-            <li>
-              NLP Model:
-              <span class="badge badge-light">{{ active_model }}</span>
-            </li>
-            <li>
-              Data:
-              {% for fname in task._data_filenames %}
-                <span class="badge badge-light">{{fname}}</span>
-              {% endfor %}
-            </li>
-            <li>
-              Annotators:
-              {% for annotator in task.annotators %}
-                <span class="badge badge-light">{{annotator}}</span>
-              {% endfor %}
-            </li>
-            <li>
-              Labels: 
-              {% for label in task.labels %}
-                <span class="badge badge-light">{{label}}</span>
-              {% endfor %}
-            </li>
-          </ul>
-        </div>
-        <div class="col">
-          <a class="btn btn-sm btn-secondary" href="{{ url_for('tasks.edit', id=task.task_id) }}">Edit</a>
-        </div>
+            </span>
+            {% endif %}
+          </li>
+          <li>
+            NLP Model:
+            <span class="badge badge-light">{{ active_model }}</span>
+          </li>
+          <li>
+            Data:
+            {% for fname in task._data_filenames %}
+            <span class="badge badge-light">{{fname}}</span>
+            {% endfor %}
+          </li>
+          <li>
+            Annotators:
+            {% for annotator in task.annotators %}
+            <span class="badge badge-light">{{annotator}}</span>
+            {% endfor %}
+          </li>
+          <li>
+            Labels:
+            {% for label in task.labels %}
+            <span class="badge badge-light">{{label}}</span>
+            {% endfor %}
+          </li>
+        </ul>
       </div>
-      
-
+      <div class="col">
+        <a class="btn btn-sm btn-secondary" href="{{ url_for('tasks.edit', id=task.task_id) }}">Edit</a>
+      </div>
     </div>
+
+
   </div>
+</div>
 
-  <div class="card my-2">
-    <div class="card-body">
-      <div class="row">
-        <div class="col-9">
-          <h4>
-            Annotations
-          </h4>
-    
-          <br />
-          
-          <div class="row">
-            <div class="col">
-              <ul>
-                <li>
-                  Total outstanding requests: {{annotation_statistics['total_outstanding_requests']}}
-                </li>
-                <li>
-                  Outstanding requests for each annotator:
-                    <ul>
-                      {% for k in annotation_statistics['n_outstanding_requests_per_user'] %}
-                        <li>
-                          {{k}}: {{annotation_statistics['n_outstanding_requests_per_user'][k]}}
-                        </li>
-                      {% endfor %}
-                    </ul>
-                </li>
-              </ul>
-            </div>
-            <div class="col">
-              <ul>
-                <li>
-                  Total Annotated: {{annotation_statistics['total_annotations']}}
-                </li>
-                <li>
-                  Annotated per label:
-                    <ul>
-                      {% for k in annotation_statistics['n_annotations_per_label'] %}
-                        <li>
-                          {{k}}: 
-                          {% for resp in annotation_statistics['n_annotations_per_label'][k] %}
-                            {% set n = annotation_statistics['n_annotations_per_label'][k][resp] %}
-                            {% if resp == 1 %}
-                              <span class='badge badge-pill badge-success'>{{resp}}</span>x{{n}}
-                            {% elif resp == -1 %}
-                              <span class='badge badge-pill badge-danger'>{{resp}}</span>x{{n}}
-                            {% else %}
-                              <span class='badge badge-pill badge-info'>{{resp}}</span>x{{n}}
-                            {% endif %}
-                          {% endfor %}
-                        </li>
-                      {% endfor %}
-                    </ul>
-                </li>
-                <li>
-                  Annotated by each annotator:
-                    <ul>
-                      {% for k in annotation_statistics['n_annotations_per_user'] %}
-                        <li>
-                          {{k}}: {{annotation_statistics['n_annotations_per_user'][k]}}
-                        </li>
-                      {% endfor %}
-                    </ul>
-                </li>
-              </ul>
-            </div>
-          </div>
-          
-          <div class="row">
-            <div class="col">
-              <h6>Annotator Login Links</h6>
-              <ul>
-              {% for user, link in annotator_login_links %}
-                <li>
-                  <b>{{user}}</b>: <span onclick="selectText(this.id)" id="{{link}}">{{link}}</span>
-                </li>
-              {% endfor %}
-              </ul>
-            </div>
-          </div>
-          
-          <!-- <code>
-            {{annotation_statistics}}
-          </code> -->
-        </div>
-        <div class="col">
-          <div>
-            <form action="{{ url_for('tasks.assign', id=task.task_id) }}" method="POST">
-              <button type="submit" class="btn btn-sm btn-secondary">Request More Annotations</button>
-            </form>
-          </div>
+<div class="card my-2">
+  <div class="card-body">
+    <div class="row">
+      <div class="col-9">
+        <h4>
+          Annotations
+        </h4>
 
-          <p>
-            <a href="{{ url_for('admin_view_ar_logs') }}" target="_blank">View Annotation Worker Logs</a>
-          </p>
-          
-          {% if status_assign_jobs is defined and status_assign_jobs | length > 0 %}
+        <br />
+
+        <div class="row">
+          <div class="col">
             <ul>
-              {% for status in status_assign_jobs %}
-                <li>
-                  <h6>
-                    Active Job: <span class="badge badge-info">{{status}}</span> <br />
-                    <i class='small'>Refresh page to see updates</i>
-                  </h6>
-                </li>
+              <li>
+                Total outstanding requests: {{annotation_statistics['total_outstanding_requests']}}
+              </li>
+              <li>
+                Outstanding requests for each annotator:
+                <ul>
+                  {% for k in annotation_statistics['n_outstanding_requests_per_user'] %}
+                  <li>
+                    {{k}}: {{annotation_statistics['n_outstanding_requests_per_user'][k]}}
+                  </li>
+                  {% endfor %}
+                </ul>
+              </li>
+            </ul>
+          </div>
+          <div class="col">
+            <ul>
+              <li>
+                Total Annotated: {{annotation_statistics['total_annotations']}}
+              </li>
+              <li>
+                Annotated per label:
+                <ul>
+                  {% for k in annotation_statistics['n_annotations_per_label'] %}
+                  <li>
+                    {{k}}:
+                    {% for resp in annotation_statistics['n_annotations_per_label'][k] %}
+                    {% set n = annotation_statistics['n_annotations_per_label'][k][resp] %}
+                    {% if resp == 1 %}
+                    <span class='badge badge-pill badge-success'>{{resp}}</span>x{{n}}
+                    {% elif resp == -1 %}
+                    <span class='badge badge-pill badge-danger'>{{resp}}</span>x{{n}}
+                    {% else %}
+                    <span class='badge badge-pill badge-info'>{{resp}}</span>x{{n}}
+                    {% endif %}
+                    {% endfor %}
+                  </li>
+                  {% endfor %}
+                </ul>
+              </li>
+              <li>
+                Annotated by each annotator:
+                <ul>
+                  {% for k in annotation_statistics['n_annotations_per_user'] %}
+                  <li>
+                    {{k}}: {{annotation_statistics['n_annotations_per_user'][k]}}
+                  </li>
+                  {% endfor %}
+                </ul>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col">
+            <h6>Annotator Login Links</h6>
+            <ul>
+              {% for user, link in annotator_login_links %}
+              <li>
+                <b>{{user}}</b>: <span onclick="selectText(this.id)" id="{{link}}">{{link}}</span>
+              </li>
               {% endfor %}
             </ul>
-          {% else %}
-            No Recent Jobs
-          {% endif %}
+          </div>
         </div>
+
+        <!-- <code>
+            {{annotation_statistics}}
+          </code> -->
       </div>
-      
+      <div class="col">
+        <div>
+          <form action="{{ url_for('tasks.assign', id=task.task_id) }}" method="POST">
+            <button type="submit" class="btn btn-sm btn-secondary">Request More Annotations</button>
+          </form>
+        </div>
 
+        <p>
+          <a href="{{ url_for('admin_view_ar_logs') }}" target="_blank">View Annotation Worker Logs</a>
+        </p>
+
+        {% if status_assign_jobs is defined and status_assign_jobs | length > 0 %}
+        <ul>
+          {% for status in status_assign_jobs %}
+          <li>
+            <h6>
+              Active Job: <span class="badge badge-info">{{status}}</span> <br />
+              <i class='small'>Refresh page to see updates</i>
+            </h6>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        No Recent Jobs
+        {% endif %}
+      </div>
     </div>
+
+
   </div>
+</div>
 
-  <div class="card my-2">
-    <div class="card-body">
+<div class="card my-2">
+  <div class="card-body">
 
-      <div class="row">
-        <div class="col-9">
-          <h4>
-            Models
-          </h4>
+    <div class="row">
+      <div class="col-9">
+        <h4>
+          Models
+        </h4>
 
-          {% for mv in model_viewers %}
-            <div class="card">
-              <div class="card-body">
-                <h5>{{mv}}</h5>
-                
-                {% set metrics = mv.get_metrics() %}
+        {% for mv in model_viewers %}
+        <div class="card">
+          <div class="card-body">
+            <h5>{{mv}}</h5>
 
-                <div class="row">
-                  <div class="col">
-                    {% for url in mv.get_plots() %}
-                      <!-- Note: This uses the insecure way to get a file  -->
-                      <img style="max-width: 400px" src="/file?f={{url}}" />
-                    {% endfor %}
-                  </div>
-                </div>
+            {% set metrics = mv.get_metrics() %}
 
-                <div class="row" style="font-size: 0.8em">
-                  <div class="col-lg-3 col-md-6 col-sm-6">
-                    <h6>Train</h6>
-                    <pre>
-                      {{- metrics['train']|to_pretty_json -}}
-                    </pre>
-                  </div>
-                  <div class="col-lg-3 col-md-6 col-sm-6">
-                    <h6>Test</h6>
-                    <pre>
-                      {{- metrics['test']|to_pretty_json -}}
-                    </pre>
-                  </div>
-                </div>
-
-                <div class="row" style="font-size: 0.2em">
-                  <div class="col">
-                    Config:
-                    <pre>
-                      {{- mv.get_config()|to_pretty_json -}}
-                    </pre>
-                    Data Parser:
-                    <pre>
-                      {{- mv.get_data_parser()|to_pretty_json -}}
-                    </pre>
-                  </div>
-                </div>
-
+            <div class="row">
+              <div class="col">
+                {% for url in mv.get_plots() %}
+                <!-- Note: This uses the insecure way to get a file  -->
+                <img style="max-width: 400px" src="/file?f={{url}}" />
+                {% endfor %}
               </div>
             </div>
-          {% endfor %}
+
+            <div class="row" style="font-size: 0.8em">
+              <div class="col-lg-3 col-md-6 col-sm-6">
+                <h6>Train</h6>
+                <pre>
+                      {{- metrics['train']|to_pretty_json -}}
+                    </pre>
+              </div>
+              <div class="col-lg-3 col-md-6 col-sm-6">
+                <h6>Test</h6>
+                <pre>
+                      {{- metrics['test']|to_pretty_json -}}
+                    </pre>
+              </div>
+            </div>
+
+            <div class="row" style="font-size: 0.2em">
+              <div class="col">
+                Config:
+                <pre>
+                      {{- mv.get_config()|to_pretty_json -}}
+                    </pre>
+                Data Parser:
+                <pre>
+                      {{- mv.get_data_parser()|to_pretty_json -}}
+                    </pre>
+              </div>
+            </div>
+
+          </div>
         </div>
-        <div class="col">
-          <form action="{{ url_for('tasks.train', id=task.task_id) }}" method="POST">
-            <button type="submit" class="btn btn-sm btn-secondary">Train new model</button>
-          </form>
-          <p>
-            <a href="{{ url_for('admin_view_train_logs') }}" target="_blank">View Train Worker Logs</a>
-          </p>
-        </div>
+        {% endfor %}
       </div>
-      
-      
-
-      
-
+      <div class="col">
+        <form action="{{ url_for('tasks.train', id=task.task_id) }}" method="POST">
+          <button type="submit" class="btn btn-sm btn-secondary">Train new model</button>
+        </form>
+        <p>
+          <a href="{{ url_for('admin_view_train_logs') }}" target="_blank">View Train Worker Logs</a>
+        </p>
+      </div>
     </div>
+
+
+
+
+
   </div>
+</div>
 
 <script>
   //https://www.sanwebe.com/2014/04/select-all-text-in-element-on-click
-  function selectText(id){
-	var sel, range;
-	var el = document.getElementById(id); //get element id
-	if (window.getSelection && document.createRange) { //Browser compatibility
-	  sel = window.getSelection();
-	  if(sel.toString() == ''){ //no text selection
-		 window.setTimeout(function(){
-			range = document.createRange(); //range object
-			range.selectNodeContents(el); //sets Range
-			sel.removeAllRanges(); //remove all ranges from selection
-			sel.addRange(range);//add Range to a Selection.
-		},1);
-	  }
-	}else if (document.selection) { //older ie
-		sel = document.selection.createRange();
-		if(sel.text == ''){ //no text selection
-			range = document.body.createTextRange();//Creates TextRange object
-			range.moveToElementText(el);//sets Range
-			range.select(); //make selection.
-		}
-	}
-}
-  
+  function selectText(id) {
+    var sel, range;
+    var el = document.getElementById(id); //get element id
+    if (window.getSelection && document.createRange) { //Browser compatibility
+      sel = window.getSelection();
+      if (sel.toString() == '') { //no text selection
+        window.setTimeout(function () {
+          range = document.createRange(); //range object
+          range.selectNodeContents(el); //sets Range
+          sel.removeAllRanges(); //remove all ranges from selection
+          sel.addRange(range);//add Range to a Selection.
+        }, 1);
+      }
+    } else if (document.selection) { //older ie
+      sel = document.selection.createRange();
+      if (sel.text == '') { //no text selection
+        range = document.body.createTextRange();//Creates TextRange object
+        range.moveToElementText(el);//sets Range
+        range.select(); //make selection.
+      }
+    }
+  }
+
 </script>
 {% endblock %}

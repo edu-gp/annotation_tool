@@ -1,45 +1,46 @@
 {% extends 'base.html' %}
 
 {% block header %}
-  <nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-      <li class="breadcrumb-item">
-        <a href="{{ url_for('index') }}">Home</a>
-      </li>
-      <li class="breadcrumb-item active" aria-current="page">
-        New Task
-      </li>
-    </ol>
-  </nav>
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item">
+      <a href="{{ url_for('index') }}">Home</a>
+    </li>
+    <li class="breadcrumb-item active" aria-current="page">
+      New Task
+    </li>
+  </ol>
+</nav>
 {% endblock %}
 
 {% block content %}
-  <h1>New Classification Task</h1>
+<h1>New Classification Task</h1>
 
-  <form action="{{ url_for('tasks.create') }}" method="POST">
-    
-    <div class="row"><div class="col-6">
+<form action="{{ url_for('tasks.create') }}" method="POST">
 
-    <div class="form-group">
-      <label for="name">Name</label>
-      <input type="text" class="form-control" name="name" id="name" value="{{ request.form['name'] }}" required>
-    </div>
+  <div class="row">
+    <div class="col-6">
 
-    <div class="form-group">
+      <div class="form-group">
+        <label for="name">Name</label>
+        <input type="text" class="form-control" name="name" id="name" value="{{ request.form['name'] }}" required>
+      </div>
+
+      <div class="form-group">
         <label for="data">What data will we annotate?</label>
         <small class="form-text text-muted mt-0 mb-2">You can select multiple files.</small>
         {% for fname in fnames %}
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" name="data" value="{{fname}}" id="data_{{fname}}"
-                    {{'checked' if fname in request.form.getlist('data') else ''}}>
-                <label class="form-check-label" for="data_{{fname}}">
-                    {{fname}}
-                </label>
-            </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="data" value="{{fname}}" id="data_{{fname}}"
+            {{'checked' if fname in request.form.getlist('data') else ''}}>
+          <label class="form-check-label" for="data_{{fname}}">
+            {{fname}}
+          </label>
+        </div>
         {% endfor %}
-    </div>
+      </div>
 
-    <div class="form-group">
+      <div class="form-group">
         <label for="patterns">Would you like to use patterns to bootstrap samples? (Optional)</label>
 
         <div class="row">
@@ -52,36 +53,39 @@
           <div class="col-6">
             <small class="form-text text-muted mt-0 mb-2">Or, select the patterns file.</small>
             {% for fname in fnames %}
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" name="patterns_file" value="{{fname}}" id="patterns_{{fname}}"
-                        {{'checked' if fname in request.form.getlist('patterns_file') else ''}}>
-                    <label class="form-check-label" for="patterns_{{fname}}">
-                        {{fname}}
-                    </label>
-                </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="patterns_file" value="{{fname}}"
+                id="patterns_{{fname}}" {{'checked' if fname in request.form.getlist('patterns_file') else ''}}>
+              <label class="form-check-label" for="patterns_{{fname}}">
+                {{fname}}
+              </label>
+            </div>
             {% endfor %}
           </div>
         </div>
-    </div>
-    
-    <div class="form-group">
+      </div>
+
+      <div class="form-group">
         <label for="labels">What are the class names? One class per line.</label>
-        <small class="form-text text-muted mt-0 mb-2">We assume Multi-Label classification by default, i.e. each instance can belong to many classes. If only one class is specified, we will use binary classification.</small>
+        <small class="form-text text-muted mt-0 mb-2">We assume Multi-Label classification by default, i.e. each
+          instance can belong to many classes. If only one class is specified, we will use binary
+          classification.</small>
         <textarea class="form-control" name="labels" id="labels" rows=5 required>
             {{- request.form['labels'] -}}
         </textarea>
-    </div>
-    
-    <div class="form-group">
+      </div>
+
+      <div class="form-group">
         <label for="annotators">Who are the annotators? One username per line.</label>
         <small class="form-text text-muted mt-0 mb-2">At least one person required. You can add more later.</small>
         <textarea class="form-control" name="annotators" id="annotators" rows=5 required>
             {{- request.form['annotators'] -}}
         </textarea>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Submit</button>
+
     </div>
-
-    <button type="submit" class="btn btn-primary">Submit</button>
-
-    </div></div>
-  </form>
+  </div>
+</form>
 {% endblock %}

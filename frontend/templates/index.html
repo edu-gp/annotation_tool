@@ -1,15 +1,15 @@
 {% extends 'base.html' %}
 
 {% block content %}
-  <h2>
-    Hi {% if g.user %} {{g.user['username']}} {% endif %}
-  </h2>
-  <p>
-      {% if tasks|length > 0 %}
-        You're requested to annotate:
-        <ol class="list-group list-group-flush">
-          {% for task in tasks %}
-            <li class="list-group-item"><a href="{{ url_for('tasks.show', id=task.task_id) }}"">{{task}}</a></li>
+<h2>
+  Hi {% if g.user %} {{g.user['username']}} {% endif %}
+</h2>
+<p>
+  {% if tasks|length > 0 %}
+  You're requested to annotate:
+  <ol class="list-group list-group-flush">
+    {% for task in tasks %}
+    <li class="list-group-item"><a href="{{ url_for('tasks.show', id=task.task_id) }}"">{{task}}</a></li>
           {% endfor %}
         </ol>
       {% else %}

@@ -1,12 +1,10 @@
-import os
-import uuid
-import time
+from ar.data import (
+    fetch_all_ar, fetch_ar, fetch_annotation, fetch_all_annotations, get_next_ar,
+    build_empty_annotation, annotate_ar
+)
 import json
-
-from typing import List
-
 from flask import (
-    Blueprint, flash, g, redirect, render_template, request, session, url_for
+    Blueprint, g, render_template, request, url_for
 )
 
 from db.task import Task
@@ -17,12 +15,8 @@ bp = Blueprint('tasks', __name__, url_prefix='/tasks')
 
 # TODO eddie update with new way of showing annotations
 # TODO this has to be rewritten with
-from ar.data import (
-    fetch_all_ar, fetch_ar, fetch_annotation, fetch_all_annotations, get_next_ar,
-    build_empty_annotation, annotate_ar
-)
 
-# def load_annotation_requests(task_id, user_id): 
+# def load_annotation_requests(task_id, user_id):
 #     task = Task.fetch(task_id)
 #     assert task is not None
 #     fname = os.path.join(_task_dir(task_id), 'annotators', f'{user_id}.jsonl')
@@ -34,6 +28,7 @@ from ar.data import (
 # memory = Memory(location, verbose=0)
 # load_annotation_requests_cached = memory.cache(load_annotation_requests)
 
+
 @bp.route('/<string:id>')
 @login_required
 def show(id):
@@ -41,7 +36,7 @@ def show(id):
 
     import time
     st = time.time()
-    
+
     task = Task.fetch(id)
     ars = fetch_all_ar(id, user_id)
     annotated = set(fetch_all_annotations(id, user_id))
@@ -51,9 +46,10 @@ def show(id):
     print("Load time", et-st)
 
     return render_template('tasks/show.html',
-        task=task,
-        ars=ars,
-        has_annotation=has_annotation)
+                           task=task,
+                           ars=ars,
+                           has_annotation=has_annotation)
+
 
 @bp.route('/<string:id>/annotate/<string:ar_id>')
 @login_required
@@ -79,14 +75,15 @@ def annotate(id, ar_id):
     # print("Load time", et-st)
 
     return render_template('tasks/annotate.html',
-        task=task,
-        anno=anno,
-        # You can pass more than one to render multiple examples
-        # TODO XXX left off here - make this work in the frontend
-        # 0. Create a test kitchen sink page.
-        # 1. Make sure the buttons remember state.
-        data=json.dumps([anno]),
-        next_ar_id=next_ar_id)
+                           task=task,
+                           anno=anno,
+                           # You can pass more than one to render multiple examples
+                           # TODO XXX left off here - make this work in the frontend
+                           # 0. Create a test kitchen sink page.
+                           # 1. Make sure the buttons remember state.
+                           data=json.dumps([anno]),
+                           next_ar_id=next_ar_id)
+
 
 @bp.route('/receive_annotation', methods=['POST'])
 @login_required
@@ -99,7 +96,7 @@ def receive_annotation():
     task_id = data['task_id']
     ar_id = data['req']['ar_id']
     anno = data['anno']
-    
+
     annotate_ar(task_id, user_id, ar_id, anno)
 
     next_ar_id = get_next_ar(task_id, user_id, ar_id)
@@ -108,6 +105,7 @@ def receive_annotation():
         return {'redirect': url_for('tasks.annotate', id=task_id, ar_id=next_ar_id)}
     else:
         return {'redirect': url_for('tasks.show', id=task_id)}
+
 
 @bp.route('/kitchen_sink')
 # @login_required
@@ -150,11 +148,11 @@ def kitchen_sink():
                 "their", "patients", "in", "an", "enhanced", "way", "."
             ],
             "matches": [
-                [ 4, 5, "patient" ],
-                [ 11, 12, "clinical" ],
-                [ 17, 18, "patient" ],
-                [ 37, 38, "patient" ],
-                [ 46, 47, "clinical" ]
+                [4, 5, "patient"],
+                [11, 12, "clinical"],
+                [17, 18, "patient"],
+                [37, 38, "patient"],
+                [46, 47, "clinical"]
             ],
             "score": 0.07575757575757576
         }
@@ -196,6 +194,6 @@ def kitchen_sink():
     # TODO what if an existing label does not exist in 'suggested_labels'? Do not show it? Undefined behavior?
 
     return render_template('tasks/annotate.html',
-        task=task,
-        data=json.dumps([anno_a, anno_b, anno_c]),
-        next_ar_id='#')
+                           task=task,
+                           data=json.dumps([anno_a, anno_b, anno_c]),
+                           next_ar_id='#')

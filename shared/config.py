@@ -1,10 +1,11 @@
 import os
 from os import environ
 
+
 class Config:
     """
     Set configuration vars from .env file.
-    
+
     This module is designed to fail loudly when a required env var is not found.
     """
 

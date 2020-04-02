@@ -1,15 +1,11 @@
 # Annotation Request Module
 
-import os
-import shutil
-import re
-import glob
 from typing import List
 from collections import namedtuple
 
 import numpy as np
-from shared.utils import load_jsonl, save_jsonl, load_json, save_json, mkf, mkd
-from db.task import Task, DIR_ANNO, DIR_AREQ
+from shared.utils import load_jsonl
+from db.task import Task
 from inference.base import ITextCatModel
 from inference import get_predicted
 from inference.random_model import RandomModel
@@ -18,6 +14,7 @@ from .data import fetch_all_annotations
 from .utils import get_ar_id
 
 Pred = namedtuple('Pred', ['score', 'fname', 'line_number'])
+
 
 def generate_annotation_requests(task_id, n=100, overlap=2):
     '''
@@ -33,7 +30,8 @@ def generate_annotation_requests(task_id, n=100, overlap=2):
 
     # Random Examples
     _examples.append(
-        _get_predictions(task.get_full_data_fnames(), [RandomModel()], cache=False)
+        _get_predictions(task.get_full_data_fnames(),
+                         [RandomModel()], cache=False)
     )
     _proportions.append(1)
 
@@ -41,26 +39,30 @@ def generate_annotation_requests(task_id, n=100, overlap=2):
     _patterns_model = task.get_pattern_model()
     if _patterns_model is not None:
         _examples.append(
-            _get_predictions(task.get_full_data_fnames(), [_patterns_model], cache=True)
+            _get_predictions(task.get_full_data_fnames(), [
+                             _patterns_model], cache=True)
         )
-        _proportions.append(3) # [1,3] -> [0.25, 0.75]
+        _proportions.append(3)  # [1,3] -> [0.25, 0.75]
 
     # NLP-driven Examples
     _nlp_model = task.get_active_nlp_model()
     if _nlp_model is not None:
         _examples.append(
-            _get_predictions(task.get_full_data_fnames(), [_nlp_model], cache=False) #cache=True) # TODO
+            _get_predictions(task.get_full_data_fnames(), [
+                             _nlp_model], cache=False)  # cache=True) # TODO
         )
-        _proportions.append(12) # [1,3,12] -> [0.0625, 0.1875, 0.75]
-    
+        _proportions.append(12)  # [1,3,12] -> [0.0625, 0.1875, 0.75]
+
     print("Shuffling together examples...")
-    ordered_examples = _shuffle_together_examples(_examples, proportions=_proportions)
+    ordered_examples = _shuffle_together_examples(
+        _examples, proportions=_proportions)
 
     # Blacklist whatever users have labeled already
     blacklist_fn = _build_blacklist_fn(task)
 
     print("Assigning to annotators...")
-    assignments = _assign(ordered_examples, task.annotators, blacklist_fn=blacklist_fn, max_per_annotator=n, max_per_dp=overlap)
+    assignments = _assign(ordered_examples, task.annotators,
+                          blacklist_fn=blacklist_fn, max_per_annotator=n, max_per_dp=overlap)
 
     # ---- Populate Cache ----
 
@@ -68,11 +70,12 @@ def generate_annotation_requests(task_id, n=100, overlap=2):
     __cache_df = {}
     for fname in task.get_full_data_fnames():
         __cache_df[fname] = load_jsonl(fname)
+
     def get_dp(fname, line_number):
         '''Get Datapoint'''
         return __cache_df[fname].iloc[line_number]
 
-    # It's faster to get decorated examples in batch. 
+    # It's faster to get decorated examples in batch.
     __examples = set()
     for annotator, list_of_examples in assignments.items():
         for pred in list_of_examples:
@@ -100,7 +103,7 @@ def generate_annotation_requests(task_id, n=100, overlap=2):
     # Build up a dict for random access
     __example_idx_lookup = dict(zip(__examples, range(len(__examples))))
 
-    def get_decorated_example(pred:Pred):
+    def get_decorated_example(pred: Pred):
         idx = __example_idx_lookup[pred]
 
         ar_id = get_ar_id(pred.fname, pred.line_number)
@@ -133,20 +136,22 @@ def generate_annotation_requests(task_id, n=100, overlap=2):
     print("Finished generating annotation requests.")
     return annotation_requests
 
-def _build_blacklist_fn(task:Task):
+
+def _build_blacklist_fn(task: Task):
     _lookup = {
         user: set(fetch_all_annotations(task.task_id, user))
         for user in task.annotators
-    }        
+    }
 
     # blacklist_fn = lambda thing, user : False
-    def blacklist_fn(pred:Pred, annotator:str):
+    def blacklist_fn(pred: Pred, annotator: str):
         ar_id = get_ar_id(pred.fname, pred.line_number)
         return ar_id in _lookup[annotator]
 
     return blacklist_fn
 
-def _get_predictions(data_filenames:List[str], models:List[ITextCatModel], cache=True):
+
+def _get_predictions(data_filenames: List[str], models: List[ITextCatModel], cache=True):
     '''
     Return the aggregated score from all models for all lines in each data_filenames
 
@@ -159,18 +164,19 @@ def _get_predictions(data_filenames:List[str], models:List[ITextCatModel], cache
 
         for model in models:
             res = get_predicted(fname, model, cache=cache)
-            preds.append( [x['score'] for x in res] )
+            preds.append([x['score'] for x in res])
 
         if len(preds) > 0:
             # Get total score from all models.
             total_scores = np.sum(preds, axis=0)
 
             for line_number, score in enumerate(total_scores):
-                result.append( Pred(score, fname, line_number) )
+                result.append(Pred(score, fname, line_number))
 
     return result
 
-def _assign(datapoints:List, annotators:List, blacklist_fn=None, max_per_annotator=100, max_per_dp=2):
+
+def _assign(datapoints: List, annotators: List, blacklist_fn=None, max_per_annotator=100, max_per_dp=2):
     '''
     Args:
         datapoints: A list of data points to assign to each annotator.
@@ -186,7 +192,7 @@ def _assign(datapoints:List, annotators:List, blacklist_fn=None, max_per_annotat
         }
     '''
     if blacklist_fn is None:
-        blacklist_fn = lambda datapoint, annotator : False
+        def blacklist_fn(datapoint, annotator): return False
 
     from queue import PriorityQueue
     from collections import defaultdict
@@ -194,22 +200,22 @@ def _assign(datapoints:List, annotators:List, blacklist_fn=None, max_per_annotat
     anno_q = PriorityQueue()
     for anno in annotators:
         # Each annotator starts off with 0 datapoint assigned
-        anno_q.put( (0, anno) )
+        anno_q.put((0, anno))
 
     per_dp_queue = defaultdict(list)
     per_anno_queue = defaultdict(list)
 
     def is_valid(anno, dp):
-            if anno in per_dp_queue[dp]:
-                # This datapoint already assigned to this annotator
-                return False
-            if blacklist_fn(dp, anno):
-                # User specified function to not allow this
-                return False
-            if len(per_anno_queue[anno]) >= max_per_annotator:
-                # This annotator has too many datapoints to label already 
-                return False
-            return True
+        if anno in per_dp_queue[dp]:
+            # This datapoint already assigned to this annotator
+            return False
+        if blacklist_fn(dp, anno):
+            # User specified function to not allow this
+            return False
+        if len(per_anno_queue[anno]) >= max_per_annotator:
+            # This annotator has too many datapoints to label already
+            return False
+        return True
 
     def get_next_anno(dp):
         put_back = []
@@ -227,9 +233,9 @@ def _assign(datapoints:List, annotators:List, blacklist_fn=None, max_per_annotat
 
         for item in put_back:
             anno_q.put(item)
-        
+
         return ret_anno
-    
+
     for dp in datapoints:
         for i in range(max_per_dp):
             anno = get_next_anno(dp)
@@ -240,24 +246,27 @@ def _assign(datapoints:List, annotators:List, blacklist_fn=None, max_per_annotat
             else:
                 per_dp_queue[dp].append(anno)
                 per_anno_queue[anno].append(dp)
-                anno_q.put( (len(per_anno_queue[anno]), anno) )
-    
+                anno_q.put((len(per_anno_queue[anno]), anno))
+
     # TODO insert random jobs to trade explore/exploit?
 
     return per_anno_queue
 
-def _shuffle_together_examples(list_of_examples:List[List[Pred]], proportions:List[float]):
+
+def _shuffle_together_examples(list_of_examples: List[List[Pred]], proportions: List[float]):
     '''
     Randomly shuffle together lists of Pred, such that at any length, the proportion of elements
     from each list is approximately `proportions`.
     '''
 
     # Sort each list from top to bottom
-    list_of_examples = [sorted(x, key=lambda pred: pred.score, reverse=True) for x in list_of_examples]
+    list_of_examples = [
+        sorted(x, key=lambda pred: pred.score, reverse=True) for x in list_of_examples]
 
     res = []
     seen = set()
-    ls_idx = [0 for _ in range(len(list_of_examples))] # Current index into each list
+    # Current index into each list
+    ls_idx = [0 for _ in range(len(list_of_examples))]
 
     # Normalize proportions
     proportions = np.array(proportions)
@@ -266,11 +275,12 @@ def _shuffle_together_examples(list_of_examples:List[List[Pred]], proportions:Li
     # Note this is "worst case" O(total_n = total number of items in all lists)
     # Where "worst case" means if we have a bug in the loop.
     # We can actually expect this to run in O(number of unique filename:linenum pairs)
-     
+
     total_n = sum([len(x) for x in list_of_examples])
 
     for _ in range(total_n):
-        which_list = np.argmax(np.random.multinomial(1, proportions, size=1), axis=1)[0]
+        which_list = np.argmax(np.random.multinomial(
+            1, proportions, size=1), axis=1)[0]
         ls = list_of_examples[which_list]
 
         # Try our best to add 1 element from ls to res.
@@ -281,7 +291,7 @@ def _shuffle_together_examples(list_of_examples:List[List[Pred]], proportions:Li
             if (pred.fname, pred.line_number) not in seen:
                 # We've found an element from ls that can be added to res!
                 # TODO keep track of which list the pred comes from; for easier debugging
-                seen.add( (pred.fname, pred.line_number) )
+                seen.add((pred.fname, pred.line_number))
                 res.append(pred)
                 break
 

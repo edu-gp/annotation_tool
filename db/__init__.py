@@ -2,10 +2,12 @@ import os
 from shared.utils import mkd
 from shared.config import Config
 
+
 def _data_dir():
     d = Config.get_data_dir()
     mkd(d)
     return d
+
 
 def _task_dir(task_id=None):
     d = Config.get_tasks_dir()

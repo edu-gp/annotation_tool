@@ -1,5 +1,6 @@
 from ar.data import _export_labeled_examples
 
+
 def test__export_labeled_examples__simple():
     AR_1 = {
         'ar_id': 'foo_1',

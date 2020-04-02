@@ -21,6 +21,7 @@ from ar.data import (
 # monkeypatch.setenv('ANNOTATION_TOOL_DATA_DIR', '/tmp/__data')
 # monkeypatch.setenv('ANNOTATION_TOOL_INFERENCE_CACHE_DIR', '/tmp/__infcache')
 
+
 class TestARFlow:
     def setup_method(self, test_method):
         task = Task('just testing ar')
@@ -36,7 +37,7 @@ class TestARFlow:
         task = self.task
         task_id = task.task_id
         user_id = 'eddie_test'
-        
+
         # - New Annotation Requests.
         annotation_requests = [
             {
@@ -45,7 +46,7 @@ class TestARFlow:
                 'line_number': 1,
 
                 'score': 0.9,
-                'data': { 'text': 'blah', 'meta': {'foo': 'bar'}}
+                'data': {'text': 'blah', 'meta': {'foo': 'bar'}}
             },
             {
                 'ar_id': get_ar_id('a', 2),
@@ -53,7 +54,7 @@ class TestARFlow:
                 'line_number': 2,
 
                 'score': 0.5,
-                'data': { 'text': 'blah', 'meta': {'foo': 'bar'}}
+                'data': {'text': 'blah', 'meta': {'foo': 'bar'}}
             },
             {
                 'ar_id': get_ar_id('a', 3),
@@ -61,7 +62,7 @@ class TestARFlow:
                 'line_number': 3,
 
                 'score': 0.1,
-                'data': { 'text': 'blah', 'meta': {'foo': 'bar'}}
+                'data': {'text': 'blah', 'meta': {'foo': 'bar'}}
             },
         ]
 
@@ -71,8 +72,10 @@ class TestARFlow:
         # Check we can compute stats properly
         stats = compute_annotation_statistics(task_id)
         assert stats['total_annotations'] == 0
-        assert sum(stats['n_annotations_per_user'].values()) == 0 # nothing annotated yet
-        assert sum(stats['n_annotations_per_label'].values()) == 0 # nothing annotated yet
+        assert sum(stats['n_annotations_per_user'].values()
+                   ) == 0  # nothing annotated yet
+        assert sum(stats['n_annotations_per_label'].values()
+                   ) == 0  # nothing annotated yet
         assert stats['total_outstanding_requests'] == 3
         assert stats['n_outstanding_requests_per_user'][user_id] == 3
         # print(stats)
@@ -95,22 +98,25 @@ class TestARFlow:
         ar_detail = fetch_ar(task_id, user_id, all_ars[0])
         assert ar_detail['ar_id'] == annotation_requests[0]['ar_id']
         assert ar_detail['score'] == annotation_requests[0]['score']
-        
+
         # Annotate an existing thing
         my_anno = {'labels': {'HEALTHCARE': 1}}
         annotate_ar(task_id, user_id, all_ars[0], my_anno)
-        assert fetch_annotation(task_id, user_id, all_ars[0])['anno'] == my_anno
+        assert fetch_annotation(task_id, user_id, all_ars[0])[
+            'anno'] == my_anno
         assert len(fetch_all_annotations(task_id, user_id)) == 1
 
         # Annotate the same thing again updates the annotation
         updated_anno = {'labels': {'FINTECH': 1, 'HEALTHCARE': 0}}
         annotate_ar(task_id, user_id, all_ars[0], updated_anno)
-        assert fetch_annotation(task_id, user_id, all_ars[0])['anno'] == updated_anno
+        assert fetch_annotation(task_id, user_id, all_ars[0])[
+            'anno'] == updated_anno
         assert len(fetch_all_annotations(task_id, user_id)) == 1
 
         # Annotate something that doesn't exist
         # (this might happen when master is updating - we'll try to avoid it)
-        annotate_ar(task_id, user_id, 'doesnotexist', {'labels': {'HEALTHCARE': 1}})
+        annotate_ar(task_id, user_id, 'doesnotexist',
+                    {'labels': {'HEALTHCARE': 1}})
         assert len(fetch_all_annotations(task_id, user_id)) == 1
 
         # Fetch next thing to be annotated
@@ -129,7 +135,7 @@ class TestARFlow:
                 'line_number': 10,
 
                 'score': 0.9,
-                'data': { 'text': 'blah', 'meta': {'foo': 'bar'}}
+                'data': {'text': 'blah', 'meta': {'foo': 'bar'}}
             },
             {
                 'ar_id': get_ar_id('a', 11),
@@ -137,7 +143,7 @@ class TestARFlow:
                 'line_number': 11,
 
                 'score': 0.9,
-                'data': { 'text': 'loremipsum', 'meta': {'foo': '123xyz'}}
+                'data': {'text': 'loremipsum', 'meta': {'foo': '123xyz'}}
             },
             {
                 'ar_id': get_ar_id('a', 12),
@@ -145,7 +151,7 @@ class TestARFlow:
                 'line_number': 12,
 
                 'score': 0.9,
-                'data': { 'text': 'loremipsum', 'meta': {'foo': '123xyz'}}
+                'data': {'text': 'loremipsum', 'meta': {'foo': '123xyz'}}
             },
             {
                 'ar_id': get_ar_id('a', 13),
@@ -153,22 +159,26 @@ class TestARFlow:
                 'line_number': 13,
 
                 'score': 0.9,
-                'data': { 'text': 'loremipsum', 'meta': {'foo': '123xyz'}}
+                'data': {'text': 'loremipsum', 'meta': {'foo': '123xyz'}}
             }
         ]
 
-        basedir = save_new_ar_for_user(task_id, user_id, new_annotation_requests)
+        basedir = save_new_ar_for_user(
+            task_id, user_id, new_annotation_requests)
         assert len(new_annotation_requests) == len(os.listdir(basedir))
-        assert len(new_annotation_requests) == len(fetch_all_ar(task_id, user_id))
+        assert len(new_annotation_requests) == len(
+            fetch_all_ar(task_id, user_id))
 
         # Check existing annotations still exist
         assert len(fetch_all_annotations(task_id, user_id)) == 1
 
         # Annotate something thing in the new batch
-        my_anno = {'labels': {'MACHINELEARNING': 0, 'FINTECH': 1, 'HEALTHCARE': -1}}
+        my_anno = {'labels': {'MACHINELEARNING': 0,
+                              'FINTECH': 1, 'HEALTHCARE': -1}}
         all_ars = fetch_all_ar(task_id, user_id)
         annotate_ar(task_id, user_id, all_ars[0], my_anno)
-        assert fetch_annotation(task_id, user_id, all_ars[0])['anno'] == my_anno
+        assert fetch_annotation(task_id, user_id, all_ars[0])[
+            'anno'] == my_anno
         assert len(fetch_all_annotations(task_id, user_id)) == 2
 
         # TODO: Write the test. When there is 1 thing left in queue, get_next_ar should return None.
@@ -184,8 +194,9 @@ class TestARFlow:
         assert stats['n_annotations_per_label']['MACHINELEARNING'] == {0: 1}
         assert stats['total_outstanding_requests'] == 3
         assert stats['n_outstanding_requests_per_user'][user_id] == 3
-        
-        assert sum(stats['n_outstanding_requests_per_user'].values()) == stats['total_outstanding_requests']
+
+        assert sum(stats['n_outstanding_requests_per_user'].values()
+                   ) == stats['total_outstanding_requests']
 
         # Annotate one thing that we're unsure of
         my_anno = {'labels': {'MACHINELEARNING': 0}}
@@ -197,4 +208,5 @@ class TestARFlow:
         exported = export_labeled_examples(task_id)
         assert len(exported) == 2
         assert {'text': 'blah', 'labels': {'FINTECH': 1}} in exported
-        assert {'text': 'blah', 'labels': {'FINTECH': 1, 'HEALTHCARE': -1}} in exported
+        assert {'text': 'blah', 'labels': {
+            'FINTECH': 1, 'HEALTHCARE': -1}} in exported

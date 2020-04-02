@@ -5,15 +5,17 @@
 import redis
 import time
 
+
 def get_redis():
     return redis.Redis(host='localhost', port=6379, db=0)
+
 
 class CeleryJobStatus:
     def __init__(self, celery_id, context_id):
         self.celery_id = celery_id
         self.context_id = context_id
-        self.state = 'QUEUED' # STARTED, DONE, FAILED
-        self.progress = 0. # 0 to 1 float.
+        self.state = 'QUEUED'  # STARTED, DONE, FAILED
+        self.progress = 0.  # 0 to 1 float.
         self.created_at = time.time()
         self.updated_at = time.time()
 
@@ -25,7 +27,7 @@ class CeleryJobStatus:
 
     def is_stale(self):
         return (self.state == 'DONE' and (time.time() - self.updated_at > 10)) or \
-            (time.time() - self.created_at > 60*60*5) # 5 hours
+            (time.time() - self.created_at > 60*60*5)  # 5 hours
 
     # -------------------------------------------------------------------------
 

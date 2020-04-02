@@ -1,4 +1,3 @@
-import os
 import time
 
 from ar.data import export_labeled_examples

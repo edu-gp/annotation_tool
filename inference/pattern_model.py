@@ -3,9 +3,6 @@ import spacy
 from spacy.matcher import Matcher
 from .base import ITextCatModel
 
-from shared.utils import load_jsonl
-from db import _data_dir
-import os
 
 class PatternModel(ITextCatModel):
     def __init__(self, spacy_patterns):
@@ -37,7 +34,7 @@ class PatternModel(ITextCatModel):
 
             self._loaded = True
 
-    def predict(self, text_list:List[str], fancy=False) -> List:
+    def predict(self, text_list: List[str], fancy=False) -> List:
         self._load()
 
         res = []

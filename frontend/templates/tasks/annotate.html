@@ -20,66 +20,67 @@
 {% endblock %}
 
 {% block header %}
-  <nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-      <li class="breadcrumb-item">
-        <a href="{{ url_for('index') }}">Home</a>
-      </li>
-      <li class="breadcrumb-item">
-        <a href="{{ url_for('tasks.show', id=task.task_id) }}">Task</a>
-      </li>
-      <li class="breadcrumb-item active" aria-current="page">
-        Example
-      </li>
-    </ol>
-  </nav>
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item">
+      <a href="{{ url_for('index') }}">Home</a>
+    </li>
+    <li class="breadcrumb-item">
+      <a href="{{ url_for('tasks.show', id=task.task_id) }}">Task</a>
+    </li>
+    <li class="breadcrumb-item active" aria-current="page">
+      Example
+    </li>
+  </ol>
+</nav>
 {% endblock %}
 
 {% block content %}
-  <h2>
-    {{task}}
-  </h2>
+<h2>
+  {{task}}
+</h2>
 
-  <div class="row">
-    <div class="col">
-      <!-- <a class="btn btn-light float-right" href="#">Next</a> -->
-    </div>
-    <div class="col">
-      {% if next_ar_id %}
-      <a style="display:block" class="btn btn-light m-auto" href={{url_for('tasks.annotate', id=task.task_id, ar_id=next_ar_id)}}>Skip</a>
-      <!-- <div class="row">
+<div class="row">
+  <div class="col">
+    <!-- <a class="btn btn-light float-right" href="#">Next</a> -->
+  </div>
+  <div class="col">
+    {% if next_ar_id %}
+    <a style="display:block" class="btn btn-light m-auto"
+      href={{url_for('tasks.annotate', id=task.task_id, ar_id=next_ar_id)}}>Skip</a>
+    <!-- <div class="row">
         <a class="btn btn-light m-auto" href={{url_for('tasks.annotate', id=task.task_id, ar_id=next_ar_id)}}>Skip</a>
       </div> -->
-      {% endif %}
-    </div>
-    <div class="col">
-      <!-- <a class="btn btn-light float-right" href="#">Next</a> -->
-    </div>
+    {% endif %}
   </div>
-
-  <div class="row my-4">
-    <div class="col">
-
-      <h6 style="text-align: center;">
-        ar_id={{anno['req']['ar_id']}}
-      </h6>
-
-      <div id="react_container"></div>
-
-    </div>
+  <div class="col">
+    <!-- <a class="btn btn-light float-right" href="#">Next</a> -->
   </div>
+</div>
+
+<div class="row my-4">
+  <div class="col">
+
+    <h6 style="text-align: center;">
+      ar_id={{anno['req']['ar_id']}}
+    </h6>
+
+    <div id="react_container"></div>
+
+  </div>
+</div>
 
 <script>
-window.data = {{data | safe}};
+  window.data = {{ data | safe }};
 </script>
 
 
 <script type="text/babel">
 
-const e = React.createElement;
+  const e = React.createElement;
 
-const domContainer = document.querySelector('#react_container');
-ReactDOM.render(e(AnnotationBoxContainer, window.data), domContainer);
+  const domContainer = document.querySelector('#react_container');
+  ReactDOM.render(e(AnnotationBoxContainer, window.data), domContainer);
 
 </script>
 {% endblock %}

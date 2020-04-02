@@ -16,9 +16,11 @@ app = Celery(
     # backend='redis://localhost:6379/0',
 )
 
+
 @app.task
 def hello():
     print("HI")
+
 
 @app.task
 def generate_annotation_requests(task_id, n, overlap):
@@ -36,14 +38,17 @@ def generate_annotation_requests(task_id, n, overlap):
     cjs = CeleryJobStatus.fetch_by_celery_id(celery_id)
     cjs.set_state_started()
 
-    print(f"Generate max={n} annotations per user with max overlap={overlap}, task_id={task_id}")
+    print(
+        f"Generate max={n} annotations per user with max overlap={overlap}, task_id={task_id}")
     res = _generate_annotation_requests(task_id, n, overlap)
     for user_id, annotation_requests in res.items():
-        save_new_ar_for_user(task_id, user_id, annotation_requests, clean_existing=True)
+        save_new_ar_for_user(
+            task_id, user_id, annotation_requests, clean_existing=True)
     print(f"Done")
 
     cjs.set_progress(1)
     cjs.set_state_done()
+
 
 app.conf.task_routes = {'*.ar_celery.*': {'queue': 'ar_celery'}}
 

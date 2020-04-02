@@ -45,8 +45,8 @@ def test_patterns():
 def test_save_load_patterns():
     task = _create_task()
     data = task.to_json()
-    new_task = Task.from_json(data)
-    assert task.patterns == PATTERNS
+    loaded_task = Task.from_json(data)
+    assert loaded_task.patterns == PATTERNS
 
 
 def test_update_patterns():

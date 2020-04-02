@@ -1,5 +1,6 @@
 from shared.celery_job_status import CeleryJobStatus
 
+
 def test_celery_job_status():
     celery_id = 'test_12345'
     context_id = 'myapp:blah'
@@ -34,4 +35,4 @@ def test_celery_job_status():
     assert cjs_list[0].progress == 1.0
 
     cjs.delete()
-    assert CeleryJobStatus.fetch_by_celery_id(celery_id) == None
+    assert CeleryJobStatus.fetch_by_celery_id(celery_id) is None

@@ -1,13 +1,14 @@
 import os
 
 from flask import (
-    Flask, render_template, g, redirect, url_for, session
+    Flask, render_template, g
 )
 
 from .auth import login_required
 
 from db.task import Task
 from ar.data import fetch_tasks_for_user
+
 
 def create_app(test_config=None):
     # create and configure the app
@@ -54,6 +55,7 @@ def create_app(test_config=None):
     app.register_blueprint(tasks.bp)
 
     return app
+
 
 '''
 env FLASK_APP=frontend FLASK_ENV=development flask init-db
