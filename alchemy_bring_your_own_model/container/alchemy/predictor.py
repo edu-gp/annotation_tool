@@ -105,6 +105,7 @@ def build_model(config, model_dir=None, weight=None):
             # Bug in the library, need to specify it here and in the .train_model kwargs
             'output_dir': config.get('model_output_dir'),
             # Maybe a bug in the library, need to turn off multiprocessing for prediction
+            # We may also want to look at the process_count config. It may use too many cpus
             'use_multiprocessing': False,
             # Note: 512 requires 16g of GPU mem. You can try 256 for 8g.
             'max_seq_length': config.get('max_seq_length', 512),
