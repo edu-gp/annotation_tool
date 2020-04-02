@@ -50,6 +50,27 @@ class ScoringService(object):
         print(str(datetime.now()) + " Model loaded...")
         return cls.model
 
+    @classmethod
+    def predict(cls, input):
+        """For the input, do the predictions and return them.
+
+        Args:
+            input (a pandas dataframe): The data on which to do the predictions. There will be
+                one prediction per row in the dataframe"""
+        # from sklearn.datasets import load_iris
+        # X, y = load_iris(return_X_y=True)
+        # data = X[:2, :]
+
+
+        data = input
+        clf = cls.get_model()
+        print(clf)
+        print(str(datetime.now()) + " Prediction started...")
+        print("input is " + str(data))
+        res = clf.predict(data)
+        print(str(datetime.now()) + " Prediction completed...")
+        return res
+
 def build_model(config, model_dir=None, weight=None):
     """
     Inputs:
@@ -83,7 +104,8 @@ def build_model(config, model_dir=None, weight=None):
 
             # Bug in the library, need to specify it here and in the .train_model kwargs
             'output_dir': config.get('model_output_dir'),
-
+            # Maybe a bug in the library, need to turn off multiprocessing for prediction
+            'use_multiprocessing': False,
             # Note: 512 requires 16g of GPU mem. You can try 256 for 8g.
             'max_seq_length': config.get('max_seq_length', 512),
         }
@@ -115,47 +137,21 @@ def transformation():
     # Convert from CSV to pandas
     if flask.request.content_type == 'application/json':
         data = flask.request.data.decode('utf-8')
-        print(data)
-        print(type(data))
-        s = io.StringIO(data).getvalue()
-        # data = json.loads(s)["data"]
         # print(data)
         # print(type(data))
+        s = io.StringIO(data).getvalue()
+        data = json.loads(s)["data"]
     else:
         print('This predictor only supports JSON data')
         return flask.Response(response='This predictor only supports JSON data', status=415, mimetype='text/plain')
 
-    # print('Invoked with {} records'.format(data.shape[0]))
 
     # Do the prediction
-    # predictions = ScoringService.predict(data)
-    command_array = [
-        'python', './utils/predict_data.py', '--data', s, 
-        '--request_id', request_id
-    ]
-
-    import subprocess
-    subprocess.run(
-        command_array
-    )
-    predictions = r.get(request_id)
-    print(predictions)
-    print(type(predictions))
-
-    predictions = predictions.decode("ascii")
-    print(predictions)
-    print(type(predictions))
-    # stdout_value = proc.communicate()[0].decode('utf-8')
-    # print('stdout:', repr(stdout_value))
-    # predictions = stdout_value
-    # print(predictions)
-
-    # Convert from numpy back to CSV
-    result = json.loads(predictions)
-    print(result)
-    print(type(result))
-    # pd.DataFrame({'results':predictions}).to_csv(out, header=False, index=False)
-    # result = out.getvalue()
+    labels_pred, scores_pred = ScoringService.predict(data)
+    predictions = {
+        "labels": labels_pred.tolist(),
+        "scores": [scores.tolist()[0] for scores in scores_pred]
+    }
 
     # return flask.Response(response=json.dumps(result), status=200, mimetype='application/json')
-    return jsonify(result)
+    return jsonify(predictions)
