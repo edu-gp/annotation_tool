@@ -3,6 +3,7 @@ This file is designed to have minimal dependency on the rest of the codebase,
 so we can use it for distributed model training.
 """
 
+import re
 import os
 import json
 from typing import List
@@ -155,6 +156,7 @@ def inference(version_dir, fnames: List[str],
             if problem_type == BINARY_CLASSIFICATION:
                 # Plot positive class for binary classification
                 class_name = class_order[0]
+                class_name = re.sub('[^0-9a-zA-Z]+', '_', class_name)
                 outname = _get_inference_density_plot_fname(
                     version_dir, fname, class_name)
                 _plot(outname, inference_results.probs,

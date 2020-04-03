@@ -259,4 +259,8 @@ job = GCPJob('99e5cb31-8343-4ec3-8b5e-c6cdedfb7e3d', 5)
 job.submit()
 job.get_status()
 job.download()
+
+from train.gcp_job import GCPJob
+job = GCPJob('8a79a035-56fa-415c-8202-9297652dfe75', 6)
+job.submit()
 """

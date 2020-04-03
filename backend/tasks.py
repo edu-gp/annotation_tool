@@ -11,7 +11,7 @@ from ar.data import compute_annotation_statistics
 from ar.ar_celery import generate_annotation_requests
 
 from train.train_celery import train_model as local_train_model
-from train.gcp_celery import train_model as gcp_train_model
+from train.gcp_celery import poll_status as gcp_poll_status
 from train.no_deps.utils import get_env_bool
 from train.model_viewer import ModelViewer
 from inference.nlp_model import NLPModel
@@ -181,7 +181,17 @@ def assign(id):
 @bp.route('/<string:id>/train', methods=['POST'])
 def train(id):
     if get_env_bool('GOOGLE_AI_PLATFORM_ENABLED', False):
-        async_result = gcp_train_model.delay(id)
+        # TODO use gcp_celery.train_model synchronously
+        from train.prep import get_next_version, prepare_task_for_training
+        from train.gcp_job import GCPJob
+        task_id = id
+        version = get_next_version(task_id)
+        prepare_task_for_training(task_id, version)
+        job = GCPJob(task_id, version)
+        # TODO: A duplicate job would error out.
+        job.submit()
+
+        async_result = gcp_poll_status.delay(id, version)
     else:
         async_result = local_train_model.delay(id)
     # TODO
