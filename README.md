@@ -28,6 +28,7 @@ Descriptions of the env vars:
 - `GOOGLE_AI_PLATFORM_ENABLED`: Whether to use Google AI Platform for training. Default is False.
 - `GOOGLE_AI_PLATFORM_BUCKET`: Distributed Training - bucket to store data.
 - `GOOGLE_AI_PLATFORM_DOCKER_IMAGE_URI`: Distributed Training - pre-built training image URI.
+- `CLOUDSDK_COMPUTE_REGION`: The GCP region, e.g. "us-central1". You must set this in order for Google AI Platform to work.
 
 # Exposing Port on Google Cloud
 
