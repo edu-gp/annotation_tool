@@ -30,8 +30,7 @@ def generate_annotation_requests(task_id, n=100, overlap=2):
 
     # Random Examples
     _examples.append(
-        _get_predictions(task.get_full_data_fnames(),
-                         [RandomModel()], cache=False)
+        _get_predictions(task.get_full_data_fnames(), [RandomModel()])
     )
     _proportions.append(1)
 
@@ -39,8 +38,7 @@ def generate_annotation_requests(task_id, n=100, overlap=2):
     _patterns_model = task.get_pattern_model()
     if _patterns_model is not None:
         _examples.append(
-            _get_predictions(task.get_full_data_fnames(), [
-                             _patterns_model], cache=True)
+            _get_predictions(task.get_full_data_fnames(), [_patterns_model])
         )
         _proportions.append(3)  # [1,3] -> [0.25, 0.75]
 
@@ -48,8 +46,7 @@ def generate_annotation_requests(task_id, n=100, overlap=2):
     _nlp_model = task.get_active_nlp_model()
     if _nlp_model is not None:
         _examples.append(
-            _get_predictions(task.get_full_data_fnames(), [
-                             _nlp_model], cache=False)  # cache=True) # TODO
+            _get_predictions(task.get_full_data_fnames(), [_nlp_model])
         )
         _proportions.append(12)  # [1,3,12] -> [0.0625, 0.1875, 0.75]
 

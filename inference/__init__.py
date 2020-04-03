@@ -13,6 +13,13 @@ def _predict(data_fname, model):
 
 
 def get_predicted(data_fname, model: ITextCatModel, cache=True):
+
+    # TODO cache key is not unique, and we need a way to expire the cache.
+    # Also, it's unclear if caching helps, unless we move to a real-time
+    # active learning strategy.
+    # For now, we'll turn off cache.
+    cache = False
+
     print(
         f"get_predicted model={model} data_fname={data_fname} (cache={cache})")
 
