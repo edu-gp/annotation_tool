@@ -121,11 +121,6 @@ class Task:
         if user_id not in self.annotators:
             self.annotators.append(user_id)
 
-    def _add_label(self, label: str):
-        # label = label.upper() # TODO Do I need to enforce this?
-        if label not in self.labels:
-            self.labels.append(label)
-
     def get_pattern_model(self):
         '''Return a PatternModel, if it exists'''
         if self._pattern_model is None:
@@ -163,8 +158,7 @@ class Task:
                 self._add_annotator(anno)
 
         if labels:
-            for label in labels:
-                self._add_label(label)
+            self.labels = sorted(list(set(labels)))
 
         if patterns_file is not None:
             # TODO: Note this style means there's no way to delete the patterns model

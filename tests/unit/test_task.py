@@ -36,6 +36,23 @@ def _create_task_no_patterns():
         'labels': ['HEALTHCARE'],
     })
 
+# --- BASICS ---
+
+
+def test_can_edit_label():
+    task = _create_task()
+
+    # Can add labels
+    task.update(labels=['B', 'A'])
+    # Labels are sorted
+    assert task.labels == ['A', 'B']
+
+    # Can remove labels
+    task.update(labels=['A'])
+    assert task.labels == ['A']
+
+# --- PATTERNS ---
+
 
 def test_patterns():
     task = _create_task()
