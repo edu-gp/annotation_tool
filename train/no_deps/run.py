@@ -6,6 +6,7 @@ so we can use it for distributed model training.
 import os
 import json
 from typing import List
+from pathlib import Path
 
 from sklearn.model_selection import train_test_split
 
@@ -157,7 +158,7 @@ def inference(version_dir, fnames: List[str],
                 outname = _get_inference_density_plot_fname(
                     version_dir, fname, class_name)
                 _plot(outname, inference_results.probs,
-                      f'{class_name} : {fname}')
+                      f'{class_name} : {Path(fname).name}')
             else:
                 raise Exception(
                     "generate_plots only supports binary classification")
