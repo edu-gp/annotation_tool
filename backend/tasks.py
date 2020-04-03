@@ -4,7 +4,7 @@ from flask import (
     Blueprint, flash, redirect, render_template, request, url_for
 )
 
-from db.utils import get_all_data_files
+from db.utils import get_all_data_files, get_all_pattern_files
 from db.task import Task
 from ar.data import compute_annotation_statistics
 
@@ -43,13 +43,17 @@ def index():
 
 @bp.route('/new', methods=['GET'])
 def new():
-    fnames = get_all_data_files()
-    return render_template('tasks/new.html', fnames=fnames)
+    data_fnames = get_all_data_files()
+    pattern_fnames = get_all_pattern_files()
+    return render_template('tasks/new.html',
+                           data_fnames=data_fnames,
+                           pattern_fnames=pattern_fnames)
 
 
 @bp.route('/', methods=['POST'])
 def create():
-    all_files = get_all_data_files()
+    data_fnames = get_all_data_files()
+    pattern_fnames = get_all_pattern_files()
 
     error = None
     try:
@@ -58,15 +62,17 @@ def create():
         name = parse_name(form)
         labels = parse_labels(form)
         annotators = parse_annotators(form)
-        patterns_file = parse_patterns_file(form, all_files)
+        patterns_file = parse_patterns_file(form, pattern_fnames)
         patterns = parse_patterns(form)
-        data_files = parse_data(form, all_files)
+        data_files = parse_data(form, data_fnames)
     except Exception as e:
         error = str(e)
 
     if error is not None:
         flash(error)
-        return render_template('tasks/new.html', fnames=all_files)
+        return render_template('tasks/new.html',
+                               data_fnames=data_fnames,
+                               pattern_fnames=pattern_fnames)
     else:
         task = Task()
         task.update_and_save(
