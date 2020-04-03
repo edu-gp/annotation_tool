@@ -23,13 +23,13 @@ def hello():
 
 
 @app.task
-def generate_annotation_requests(task_id, n, overlap):
+def generate_annotation_requests(task_id, max_per_annotator, max_per_dp):
     celery_id = str(generate_annotation_requests.request.id)
     set_status(celery_id, JobStatus.STARTED, progress=0.0)
 
     print(
-        f"Generate max={n} annotations per user with max overlap={overlap}, task_id={task_id}")
-    res = _generate_annotation_requests(task_id, n, overlap)
+        f"Generate max={max_per_annotator} annotations per user with max_per_dp={max_per_dp}, task_id={task_id}")
+    res = _generate_annotation_requests(task_id, max_per_annotator, max_per_dp)
     for user_id, annotation_requests in res.items():
         save_new_ar_for_user(
             task_id, user_id, annotation_requests, clean_existing=True)

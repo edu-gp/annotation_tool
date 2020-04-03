@@ -53,3 +53,10 @@ def mkd(*dir_path):
     d = os.path.join(*dir_path)
     os.makedirs(d, exist_ok=True)
     return d
+
+
+def get_env_int(key, default):
+    val = os.environ.get(key, default)
+    if not isinstance(val, int):
+        val = int(val)
+    return val

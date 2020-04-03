@@ -18,6 +18,7 @@ from shared.celery_job_status import (
     CeleryJobStatus, create_status, delete_status
 )
 from shared.frontend_user_password import generate_frontend_user_login_link
+from shared.utils import get_env_int
 
 from .auth import auth
 
@@ -160,7 +161,10 @@ def update(id):
 
 @bp.route('/<string:id>/assign', methods=['POST'])
 def assign(id):
-    async_result = generate_annotation_requests.delay(id, n=100, overlap=2)
+    max_per_annotator = get_env_int('ANNOTATION_TOOL_MAX_PER_ANNOTATOR', 100)
+    max_per_dp = get_env_int('ANNOTATION_TOOL_MAX_PER_DP', 3)
+    async_result = generate_annotation_requests.delay(
+        id, max_per_annotator=max_per_annotator, max_per_dp=max_per_dp)
     celery_id = str(async_result)
     create_status(celery_id, f'assign:{id}')
     return redirect(url_for('tasks.show', id=id))

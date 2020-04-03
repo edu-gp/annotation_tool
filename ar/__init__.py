@@ -16,7 +16,8 @@ from .utils import get_ar_id
 Pred = namedtuple('Pred', ['score', 'fname', 'line_number'])
 
 
-def generate_annotation_requests(task_id, n=100, overlap=2):
+def generate_annotation_requests(task_id: str,
+                                 max_per_annotator: int, max_per_dp: int):
     '''
     NOTE: This could be super slow, but that's okay for now!
     '''
@@ -59,7 +60,9 @@ def generate_annotation_requests(task_id, n=100, overlap=2):
 
     print("Assigning to annotators...")
     assignments = _assign(ordered_examples, task.annotators,
-                          blacklist_fn=blacklist_fn, max_per_annotator=n, max_per_dp=overlap)
+                          blacklist_fn=blacklist_fn,
+                          max_per_annotator=max_per_annotator,
+                          max_per_dp=max_per_dp)
 
     # ---- Populate Cache ----
 
@@ -173,7 +176,9 @@ def _get_predictions(data_filenames: List[str], models: List[ITextCatModel], cac
     return result
 
 
-def _assign(datapoints: List, annotators: List, blacklist_fn=None, max_per_annotator=100, max_per_dp=2):
+def _assign(datapoints: List, annotators: List,
+            max_per_annotator: int, max_per_dp: int,
+            blacklist_fn=None):
     '''
     Args:
         datapoints: A list of data points to assign to each annotator.
