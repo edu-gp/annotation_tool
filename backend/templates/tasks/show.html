@@ -172,12 +172,12 @@
         </p>
 
         {% if status_assign_jobs is defined and status_assign_jobs | length > 0 %}
+        <i class='small'>Refresh page to see updates</i>
         <ul>
           {% for status in status_assign_jobs %}
           <li>
             <h6>
-              Active Job: <span class="badge badge-info">{{status}}</span> <br />
-              <i class='small'>Refresh page to see updates</i>
+              <span class="badge badge-info">{{status}}</span>
             </h6>
           </li>
           {% endfor %}
@@ -191,6 +191,8 @@
 
   </div>
 </div>
+
+{% if annotation_statistics['total_annotations'] > 0 or model_viewers | length > 0 %}
 
 <div class="card my-2">
   <div class="card-body">
@@ -265,6 +267,8 @@
 
   </div>
 </div>
+
+{% endif %}
 
 <script>
   //https://www.sanwebe.com/2014/04/select-all-text-in-element-on-click
