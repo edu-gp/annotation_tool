@@ -10,7 +10,9 @@ from ar.data import compute_annotation_statistics
 
 from ar.ar_celery import generate_annotation_requests
 
-from train.train_celery import train_model
+from train.train_celery import train_model as local_train_model
+from train.gcp_celery import train_model as gcp_train_model
+from train.no_deps.utils import get_env_bool
 from train.model_viewer import ModelViewer
 from inference.nlp_model import NLPModel
 
@@ -178,7 +180,10 @@ def assign(id):
 
 @bp.route('/<string:id>/train', methods=['POST'])
 def train(id):
-    async_result = train_model.delay(id)
+    if get_env_bool('GOOGLE_AI_PLATFORM_ENABLED', False):
+        async_result = gcp_train_model.delay(id)
+    else:
+        async_result = local_train_model.delay(id)
     # TODO
     # celery_id = str(async_result)
     # CeleryJobStatus(celery_id, f'assign:{id}').save()

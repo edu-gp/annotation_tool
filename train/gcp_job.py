@@ -141,8 +141,9 @@ def prepare_model_assets_for_training(task_id, version):
     data_fname = _get_exported_data_fname(version_dir)
 
     # We assume these two files exist
-    assert os.path.isfile(config_fname)
-    assert os.path.isfile(data_fname)
+    assert os.path.isfile(config_fname), \
+        f'Config File Not Found: {config_fname}'
+    assert os.path.isfile(data_fname), f'Data File Not Found: {data_fname}'
 
     output_dir = build_remote_model_dir(task_id, version)
 
@@ -214,9 +215,16 @@ class GCPJob:
 
         exp_id = get_exp_id(self.task_id, self.version)
         cmd = f"gcloud ai-platform jobs describe {exp_id} --format json"
-        res = run_cmd(cmd)
-        res = json.loads(res.stdout)
-        return res
+
+        # TODO this is not best way to capture real error
+        # vs when a status doens't exist.
+        try:
+            res = run_cmd(cmd)
+        except Exception as e:
+            print(e)
+            return None
+        else:
+            return json.loads(res.stdout)
 
     def submit(self):
         print("Upload model assets for training")
