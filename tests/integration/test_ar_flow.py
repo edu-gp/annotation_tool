@@ -2,7 +2,6 @@ import os
 from db.task import Task
 from ar.data import (
     save_new_ar_for_user,
-    get_ar_id,
     compute_annotation_statistics,
     fetch_tasks_for_user,
     fetch_all_ar,
@@ -13,6 +12,7 @@ from ar.data import (
     get_next_ar,
     export_labeled_examples,
 )
+from ar.utils import get_ar_id
 
 # TODO test the actual saving and deleting of Task
 

@@ -3,10 +3,10 @@ from typing import List
 from db.task import Task
 from ar.data import (
     save_new_ar_for_user,
-    get_ar_id,
     annotate_ar,
     fetch_all_annotations
 )
+from ar.utils import get_ar_id
 from train.prep import (
     get_next_version,
     prepare_task_for_training

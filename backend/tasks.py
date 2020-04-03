@@ -14,7 +14,9 @@ from train.train_celery import train_model
 from train.model_viewer import ModelViewer
 from inference.nlp_model import NLPModel
 
-from shared.celery_job_status import CeleryJobStatus
+from shared.celery_job_status import (
+    CeleryJobStatus, create_status, delete_status
+)
 from shared.frontend_user_password import generate_frontend_user_login_link
 
 from .auth import auth
@@ -98,7 +100,7 @@ def show(id):
 
     # TODO delete stale jobs on a queue, instead of here.
     for cjs in status_assign_jobs_stale:
-        cjs.delete()
+        delete_status(cjs.celery_id, cjs.context_id)
 
     # Annotator login links
     annotator_login_links = [
@@ -160,7 +162,7 @@ def update(id):
 def assign(id):
     async_result = generate_annotation_requests.delay(id, n=100, overlap=2)
     celery_id = str(async_result)
-    CeleryJobStatus(celery_id, f'assign:{id}').save()
+    create_status(celery_id, f'assign:{id}')
     return redirect(url_for('tasks.show', id=id))
 
 
