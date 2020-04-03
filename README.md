@@ -23,6 +23,8 @@ Descriptions of the env vars:
 - `TRANSFORMER_SLIDING_WINDOW`: If a sequence is too long (longer than `TRANSFORMER_MAX_SEQ_LENGTH`), should we use a sliding window to average out the result. Default is "True".
 - `TRANSFORMER_TRAIN_BATCH_SIZE`: Training batch size. Default is 8.
 - `TRANSFORMER_EVAL_BATCH_SIZE`: Prediction batch size. Default is 8.
+- `GOOGLE_AI_PLATFORM_BUCKET`: Distributed Training - bucket to store data.
+- `GOOGLE_AI_PLATFORM_DOCKER_IMAGE_URI`: Distributed Training - pre-built training image URI.
 
 # Exposing Port on Google Cloud
 

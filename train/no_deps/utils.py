@@ -1,3 +1,5 @@
+import subprocess
+import shlex
 from scipy.special import softmax
 import numpy as np
 import os
@@ -122,3 +124,21 @@ def raw_to_pos_prob(raw):
             raise Exception(
                 f"Unclear how to deal with raw dimension: {out.shape}")
     return probs_pos_class
+
+
+def run_cmd(cmd: str):
+    """Run a command line command
+    Inputs:
+        cmd: A command line command.
+    """
+    # check=True makes this function raise an Exception if the command fails.
+    return subprocess.run(shlex.split(cmd), check=True, capture_output=True)
+
+
+def gs_copy_dir(src_dir, dst_dir):
+    # run_cmd(f'gsutil -m cp -r {src_dir}/* {dst_dir}')
+    run_cmd(f'gsutil -m rsync -r {src_dir} {dst_dir}')
+
+
+def gs_copy_file(fname, dst):
+    run_cmd(f'gsutil cp {fname} {dst}')

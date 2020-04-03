@@ -1,23 +1,14 @@
 import os
 import tempfile
-import subprocess
-import shlex
 from pathlib import Path
-from .no_deps.run import (
+from .run import (
     train_model as _train_model,
     inference as _inference
 )
-
-
-def copy_dir(src_dir, dst_dir):
-    # cmd = shlex.split(f'gsutil -m cp -r {src_dir}/* {dst_dir}')
-    cmd = shlex.split(f'gsutil -m rsync -r {src_dir} {dst_dir}')
-    subprocess.run(cmd)
-
-
-def copy_file(fname, dst):
-    cmd = shlex.split(f'gsutil cp {fname} {dst}')
-    subprocess.run(cmd)
+from .utils import (
+    gs_copy_dir as copy_dir,
+    gs_copy_file as copy_file
+)
 
 
 def train_model(local_dir, remote_dir, force_retrain=False):

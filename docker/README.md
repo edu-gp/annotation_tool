@@ -19,6 +19,22 @@ If you do not have a GPU:
 docker run -d -v ~/annotation_tool:/annotation_tool -p 5000:5000 -p 5001:5001 -p 9001:9001 myapp bash /annotation_tool/docker/run.sh
 ```
 
+### Google Compute Platform
+
+If you are using Google Compute Platform, first login:
+
+```
+gcloud auth application-default login
+```
+
+Then, add the following to your command to forward it the gcloud credentials:
+
+```
+-v=$HOME/.config/gcloud:/root/.config/gcloud
+```
+
+(This is instructions from [this Stackoverflow answer](https://stackoverflow.com/a/42319234/389122), however a more proper way may be through [this page](https://cloud.google.com/run/docs/testing/local), which I haven't gotten working yet.)
+
 # Tunnel ports (if it's running remotely)
 
 ```
