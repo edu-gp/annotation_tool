@@ -55,7 +55,7 @@
 
       <div class="form-group">
         <label for="labels">Patterns (one per line)</label>
-        <textarea class="form-control" name="patterns" id="patterns" rows=15 required>
+        <textarea class="form-control" name="patterns" id="patterns" rows=15>
               {{- request.form['patterns'] | default(task.jinjafy('patterns')) -}}
             </textarea>
       </div>
