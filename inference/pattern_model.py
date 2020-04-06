@@ -33,7 +33,7 @@ class PatternModel(ITextCatModel):
 
                 # TODO temporary fix:
                 # Assuming it's of the form "pattern": [{"lower": "my phrase"}]
-                if len(row['pattern']) == 0 and 'lower' in row['pattern'][0]:
+                if len(row['pattern']) == 1 and 'lower' in row['pattern'][0]:
                     matcher.add(row['label'], None, nlp(
                         row['pattern'][0]['lower'].lower()))
                 else:
