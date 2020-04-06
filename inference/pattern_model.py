@@ -1,6 +1,7 @@
 from typing import List
 import spacy
-from spacy.matcher import Matcher
+# from spacy.matcher import Matcher
+from spacy.matcher import PhraseMatcher
 from .base import ITextCatModel
 
 
@@ -24,10 +25,19 @@ class PatternModel(ITextCatModel):
     def _load(self):
         if not self._loaded:
             nlp = spacy.load("en_core_web_sm")
-            matcher = Matcher(nlp.vocab)
+            #matcher = Matcher(nlp.vocab)
+            matcher = PhraseMatcher(nlp.vocab)
 
             for row in self.spacy_patterns:
-                matcher.add(row['label'], None, row['pattern'])
+                #matcher.add(row['label'], None, row['pattern'])
+
+                # TODO temporary fix:
+                # Assuming it's of the form "pattern": [{"lower": "my phrase"}]
+                if len(row['pattern']) == 0 and 'lower' in row['pattern'][0]:
+                    matcher.add(row['label'], None, nlp(
+                        row['pattern'][0]['lower'].lower()))
+                else:
+                    raise Exception(f"Cannot load pattern: {row['pattern']}")
 
             self.matcher = matcher
             self.nlp = nlp
@@ -45,7 +55,10 @@ class PatternModel(ITextCatModel):
         # TODO disable the right things for speed
         for doc in self.nlp.pipe(text_list, disable=["tagger", "parser"]):
             matches = self.matcher(doc)
-            score = len(matches) / len(doc) if len(doc) > 0 else 0.
+
+            # m[2] and m[1] are start and end of matches
+            len_of_matches = [m[2] - m[1] for m in matches]
+            score = sum(len_of_matches) / len(doc) if len(doc) > 0 else 0.
 
             if fancy:
                 _matches = []
