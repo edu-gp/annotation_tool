@@ -74,7 +74,17 @@ class AnnotationBox extends React.Component {
 
         var content = [];
 
-        var contentStyle = { padding: '5px', backgroundColor: "#ecfffe", borderRadius: "5px" };
+        if (req.data.meta.image_url !== undefined) {
+            content.push(
+                <div key='rendered_image' style={{ textAlign: "center", padding: '5px' }}>
+                    <a href={req.data.meta.image_url} target="_blank">
+                        <img src={req.data.meta.image_url} style={{ maxHeight: "300px", maxWidth: "300px" }} />
+                    </a>
+                </div>
+            )
+        }
+
+        var textStyle = { padding: '5px' };
 
         if (req.pattern_info !== undefined) {
             let tokens = req.pattern_info.tokens;
@@ -107,13 +117,13 @@ class AnnotationBox extends React.Component {
             }
 
             content.push(
-                <div style={contentStyle} key='rendered_tokens'>
+                <div style={textStyle} key='rendered_tokens'>
                     {rendered_tokens}
                 </div>
             );
         } else {
             content.push(
-                <div style={contentStyle} key='rendered_tokens'>
+                <div style={textStyle} key='rendered_tokens'>
                     {req.data.text}
                 </div>
             );
@@ -206,7 +216,7 @@ class AnnotationBox extends React.Component {
                     score: {req.score}
                 </div>
 
-                <div style={{ margin: '5px' }} key="content">
+                <div style={{ margin: '5px', padding: '5px', backgroundColor: "#ecfffe", borderRadius: "5px" }} key="content">
                     {content}
                 </div>
 
