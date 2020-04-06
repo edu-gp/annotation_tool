@@ -28,7 +28,6 @@ USE_CUDA = torch.cuda.is_available()
 prefix = '/opt/ml/'
 model_dir = '/opt/program/model'
 model_path = '/opt/program/model'
-r = redis.Redis(host='localhost', port=6379, db=0)
 
 class ScoringService(object):
     model = None                # Where we keep the model when it's loaded
@@ -138,8 +137,6 @@ def transformation():
     # Convert from CSV to pandas
     if flask.request.content_type == 'application/json':
         data = flask.request.data.decode('utf-8')
-        # print(data)
-        # print(type(data))
         s = io.StringIO(data).getvalue()
         data = json.loads(s)["data"]
     else:
@@ -154,5 +151,4 @@ def transformation():
         "scores": [scores.tolist()[0] for scores in scores_pred]
     }
 
-    # return flask.Response(response=json.dumps(result), status=200, mimetype='application/json')
     return jsonify(predictions)
