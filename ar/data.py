@@ -1,9 +1,16 @@
 import os
 import shutil
+import itertools
 import re
 import glob
 import time
 from collections import defaultdict, Counter
+import logging
+
+import pandas as pd
+from flask import app
+from pandas import DataFrame
+from sklearn.metrics import cohen_kappa_score
 
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd
 from db.task import Task, DIR_ANNO, DIR_AREQ
@@ -212,8 +219,11 @@ def compute_annotation_statistics(task_id):
         _get_all_annotators_from_annotated(task_id)
     )
 
+    total_non_overlapping_annotations = set()
+
     for user_id in user_ids:
         anno_ids = fetch_all_annotations(task_id, user_id)
+        total_non_overlapping_annotations.update(anno_ids)
         n_annotations_per_user[user_id] = len(anno_ids)
 
         # TODO: slow
@@ -227,14 +237,124 @@ def compute_annotation_statistics(task_id):
         n_outstanding_requests_per_user[user_id] = len(
             set(ar_ids) - set(anno_ids))
 
+    # kappa stats calculation
+    kappa_table_per_label = _calculate_per_label_kappa_stats(
+        task_id, user_ids, total_non_overlapping_annotations)
+
     return {
         'total_annotations': sum(n_annotations_per_user.values()),
+        'total_non_overlapping_annotations': len(total_non_overlapping_annotations),
         'n_annotations_per_user': n_annotations_per_user,
         'n_annotations_per_label': n_annotations_per_label,
-
+        'kappa_table_per_label': kappa_table_per_label,
         'total_outstanding_requests': sum(n_outstanding_requests_per_user.values()),
         'n_outstanding_requests_per_user': n_outstanding_requests_per_user,
     }
+
+
+def _calculate_per_label_kappa_stats(task_id, user_ids,
+                                     total_non_overlapping_annotations):
+    """
+    Structure of the labeling results per label per user for the same set
+    of annotations:
+
+    {
+        "label1": {
+            "user_id1": [1, -1, 1, 1, -1],
+            "user_id2": [-1, 1, 1, -1, 1],
+            ...
+        },
+        "label12": {
+            "user_id1": [1, -1, 1, -1, 1],
+            "user_id2": [1, -1, -1, 1, 1],
+            ...
+        },
+        ...
+    }
+
+    Structure of the final output
+    {
+        "label": a matrix of kappa stats in the form of another dict,
+        ...
+    }
+    """
+    kappa_stats_raw_data = _construct_per_label_per_user_result(
+        task_id,
+        user_ids,
+        total_non_overlapping_annotations
+    )
+    user_ids.add("fake_user")
+    kappa_dataframe = _compute_kappa_matrix(user_ids, kappa_stats_raw_data)
+
+    return kappa_dataframe
+
+
+def _compute_kappa_matrix(user_ids, kappa_stats_raw_data):
+    """Structure of the final output
+    {
+        "label": a matrix of kappa stats in the form of another dict,
+        ...
+    }
+    """
+    all_pairs_of_users = list(itertools.combinations(user_ids, 2))
+    kappa_matrix = defaultdict(
+        lambda: defaultdict(lambda: defaultdict(float)))
+    for label, result_per_label in kappa_stats_raw_data.items():
+        for user_pair in all_pairs_of_users:
+            result_user1 = result_per_label[user_pair[0]]
+            result_user2 = result_per_label[user_pair[1]]
+            kappa_score = cohen_kappa_score(result_user1, result_user2)
+            kappa_matrix[label][user_pair[0]][user_pair[1]] = kappa_score
+            kappa_matrix[label][user_pair[1]][user_pair[0]] = kappa_score
+            kappa_matrix[label][user_pair[0]][user_pair[0]] = 1
+            kappa_matrix[label][user_pair[1]][user_pair[1]] = 1
+
+    logging.error(kappa_matrix)
+
+    kappa_dataframe = defaultdict(str)
+    for label, nested_dict in kappa_matrix.items():
+        kappa_dataframe[label] = pd.DataFrame.from_dict(nested_dict)\
+            .to_html(classes='kappa_table')
+    logging.error(kappa_dataframe)
+
+    return kappa_dataframe
+
+
+def _construct_per_label_per_user_result(task_id, user_ids,
+                                         total_non_overlapping_annotations):
+    """
+    Structure of the labeling results per label per user for the same set
+    of annotations:
+
+    {
+        "label1": {
+            "user_id1": [1, -1, 1, 1, -1],
+            "user_id2": [-1, 1, 1, -1, 1],
+            ...
+        },
+        "label12": {
+            "user_id1": [1, -1, 1, -1, 1],
+            "user_id2": [1, -1, -1, 1, 1],
+            ...
+        },
+        ...
+    }
+    """
+    logging.error("Construct raw data===================================")
+    kappa_stats_raw_data = defaultdict(lambda: defaultdict(lambda: []))
+    for anno_id in total_non_overlapping_annotations:
+        for user_id in user_ids:
+            anno = fetch_annotation(task_id, user_id, anno_id)
+            for label, result in anno['anno']['labels'].items():
+                kappa_stats_raw_data[label][user_id].append(result)
+
+    kappa_stats_raw_data["HEALTHCARE"]["fake_user"] = [1] * len(kappa_stats_raw_data["HEALTHCARE"]["jzhang"])
+    kappa_stats_raw_data["HEALTHCARE"]["fake_user"][0] = -1
+    kappa_stats_raw_data["HEALTHCARE"]["fake_user"][2] = -1
+
+    logging.error(kappa_stats_raw_data)
+    logging.error("Construct raw data Finished===================================")
+    return kappa_stats_raw_data
 
 
 def _majority_label(labels):

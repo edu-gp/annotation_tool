@@ -110,6 +110,9 @@
                 Total Annotated: {{annotation_statistics['total_annotations']}}
               </li>
               <li>
+                  Total Non-Overlapping Annotated: {{annotation_statistics['total_non_overlapping_annotations']}}
+              </li>
+              <li>
                 Annotated per label:
                 <ul>
                   {% for k in annotation_statistics['n_annotations_per_label'] %}
@@ -140,6 +143,20 @@
                 </ul>
               </li>
             </ul>
+          </div>
+        </div>
+
+       <div class="row">
+          <div class="col">
+            <h6>Annotator Kappa Score Matrix Per Label</h6>
+                <div>
+                  {% for k in annotation_statistics['kappa_table_per_label'] %}
+                  <div>
+                    <b>{{k}}</b>
+                    {{annotation_statistics['kappa_table_per_label'][k] | safe}}
+                  </div>
+                  {% endfor %}
+                </div>
           </div>
         </div>
 
