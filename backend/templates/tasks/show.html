@@ -110,7 +110,7 @@
                 Total Annotated: {{annotation_statistics['total_annotations']}}
               </li>
               <li>
-                  Total Non-Overlapping Annotated: {{annotation_statistics['total_non_overlapping_annotations']}}
+                  Total Distinct Annotated: {{annotation_statistics['total_distinct_annotations']}}
               </li>
               <li>
                 Annotated per label:
@@ -128,6 +128,7 @@
                     <span class='badge badge-pill badge-info'>{{resp}}</span>x{{n}}
                     {% endif %}
                     {% endfor %}
+                  </li>
                   </li>
                   {% endfor %}
                 </ul>
