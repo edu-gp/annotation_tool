@@ -274,6 +274,8 @@ def _calculate_per_label_kappa_stats_table(task_id, user_ids,
         user_ids,
         annotation_intersection
     )
+
+
     logging.info(kappa_stats_raw_data)
     kappa_matrices = _compute_kappa_matrix(user_ids, kappa_stats_raw_data)
     kappa_matrix_html_tables = _convert_html_tables(kappa_matrices)
@@ -284,7 +286,8 @@ def _convert_html_tables(kappa_matrices):
     float_formatter = "{:.2f}".format
     kappa_html_tables = defaultdict(str)
     for label, df in kappa_matrices.items():
-        kappa_html_tables[label] = df.to_html(classes='kappa_table', float_format=float_formatter)
+        kappa_html_tables[label] = df.to_html(classes='kappa_table',
+                                              float_format=float_formatter)
     return kappa_html_tables
 
 
