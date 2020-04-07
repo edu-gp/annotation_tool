@@ -110,6 +110,9 @@
                 Total Annotated: {{annotation_statistics['total_annotations']}}
               </li>
               <li>
+                  Total Distinct Annotated: {{annotation_statistics['total_distinct_annotations']}}
+              </li>
+              <li>
                 Annotated per label:
                 <ul>
                   {% for k in annotation_statistics['n_annotations_per_label'] %}
@@ -126,6 +129,7 @@
                     {% endif %}
                     {% endfor %}
                   </li>
+                  </li>
                   {% endfor %}
                 </ul>
               </li>
@@ -140,6 +144,20 @@
                 </ul>
               </li>
             </ul>
+          </div>
+        </div>
+
+       <div class="row">
+          <div class="col">
+            <h6>Annotator Kappa Score Matrix Per Label</h6>
+                <div>
+                  {% for k in annotation_statistics['kappa_table_per_label'] %}
+                  <div>
+                    <b>{{k}}</b>
+                    {{annotation_statistics['kappa_table_per_label'][k] | safe}}
+                  </div>
+                  {% endfor %}
+                </div>
           </div>
         </div>
 

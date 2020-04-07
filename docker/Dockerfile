@@ -4,6 +4,7 @@ RUN apt-get update
 RUN apt-get install -y redis-server vim
 
 RUN pip install redis pytest Flask supervisor Celery seaborn simpletransformers python-dotenv Flask-HTTPAuth
+RUN pip install mockito
 # Some error with latest pillow verison... downgrade pillow
 RUN conda install pillow=6.1
 
