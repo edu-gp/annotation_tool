@@ -8,7 +8,6 @@ from collections import defaultdict, Counter
 import logging
 
 import pandas as pd
-from flask import app
 from pandas import DataFrame
 from sklearn.metrics import cohen_kappa_score
 
@@ -240,9 +239,8 @@ def compute_annotation_statistics(task_id):
             set(ar_ids) - set(anno_ids))
 
     # kappa stats calculation
-    annotation_intersection = set.intersection(*annotations_from_all_users)
     kappa_table_per_label = _calculate_per_label_kappa_stats_table(
-        task_id, user_ids, annotation_intersection)
+        task_id, user_ids, annotations_from_all_users)
 
     return {
         'total_annotations': sum(n_annotations_per_user.values()),
@@ -256,30 +254,37 @@ def compute_annotation_statistics(task_id):
 
 
 def _calculate_per_label_kappa_stats_table(task_id, user_ids,
-                                           annotation_intersection):
+                                           annotations_from_all_users):
     """Calculate per label kappa matrix stats.
 
     :param task_id: the id of a task
     :param user_ids: the user id list
-    :param annotation_intersection: total intersected annotation id list
+    :param annotations_from_all_users: annotations from all users
     :return: the per label kappa matrix html table
     """
     if len(user_ids) == 1:
         return ['There is only one user {}'.format(list(user_ids)[0])]
+    if len(annotations_from_all_users) == 0:
+        return ['There are no annotations from any user yet.']
+    annotation_intersection = set.intersection(*annotations_from_all_users)
+    if len(annotation_intersection) == 0:
+        return ['No overlapping annotations found among users.']
     kappa_stats_raw_data = _construct_per_label_per_user_result(
         task_id,
         user_ids,
         annotation_intersection
     )
+    logging.info(kappa_stats_raw_data)
     kappa_matrices = _compute_kappa_matrix(user_ids, kappa_stats_raw_data)
     kappa_matrix_html_tables = _convert_html_tables(kappa_matrices)
     return kappa_matrix_html_tables
 
 
 def _convert_html_tables(kappa_matrices):
+    float_formatter = "{:.2f}".format
     kappa_html_tables = defaultdict(str)
     for label, df in kappa_matrices.items():
-        kappa_html_tables[label] = df.to_html(classes='kappa_table')
+        kappa_html_tables[label] = df.to_html(classes='kappa_table', float_format=float_formatter)
     return kappa_html_tables
 
 
@@ -309,6 +314,7 @@ def _construct_per_label_per_user_result(task_id, user_ids,
         ...
     }
     """
+
     kappa_stats_raw_data = defaultdict(lambda: defaultdict(lambda: []))
     for anno_id in annotation_intersection:
         for user_id in user_ids:
@@ -362,12 +368,9 @@ def _compute_kappa_matrix(user_ids, kappa_stats_raw_data):
             kappa_matrix[label][user_pair[0]][user_pair[0]] = 1
             kappa_matrix[label][user_pair[1]][user_pair[1]] = 1
 
-    logging.error(kappa_matrix)
-
     kappa_dataframe = defaultdict(DataFrame)
     for label, nested_dict in kappa_matrix.items():
         kappa_dataframe[label] = pd.DataFrame.from_dict(nested_dict)
-    logging.error(kappa_dataframe)
 
     return kappa_dataframe
 
