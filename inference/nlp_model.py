@@ -55,9 +55,9 @@ class NLPModel(ITextCatModel):
             pred = self._cache.get(_hash_text(text))
             if pred is None:
                 # TODO run any inferences that have not been ran, instead of silently erroring out
-                res.append({'score': 0.})
+                res.append({'score': 0., 'prob': None})
             else:
-                res.append({'score': _get_uncertainty(pred)})
+                res.append({'score': _get_uncertainty(pred), 'prob': pred})
 
         return res
 
