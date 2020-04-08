@@ -110,7 +110,7 @@
                 Total Annotated: {{annotation_statistics['total_annotations']}}
               </li>
               <li>
-                  Total Distinct Annotated: {{annotation_statistics['total_distinct_annotations']}}
+                Total Distinct Annotated: {{annotation_statistics['total_distinct_annotations']}}
               </li>
               <li>
                 Annotated per label:
@@ -129,35 +129,35 @@
                     {% endif %}
                     {% endfor %}
                   </li>
-                  </li>
-                  {% endfor %}
-                </ul>
               </li>
-              <li>
-                Annotated by each annotator:
-                <ul>
-                  {% for k in annotation_statistics['n_annotations_per_user'] %}
-                  <li>
-                    {{k}}: {{annotation_statistics['n_annotations_per_user'][k]}}
-                  </li>
-                  {% endfor %}
-                </ul>
-              </li>
+              {% endfor %}
+            </ul>
+            </li>
+            <li>
+              Annotated by each annotator:
+              <ul>
+                {% for k in annotation_statistics['n_annotations_per_user'] %}
+                <li>
+                  {{k}}: {{annotation_statistics['n_annotations_per_user'][k]}}
+                </li>
+                {% endfor %}
+              </ul>
+            </li>
             </ul>
           </div>
         </div>
 
-       <div class="row">
+        <div class="row">
           <div class="col">
             <h6>Annotator Kappa Score Matrix Per Label</h6>
-                <div>
-                  {% for k in annotation_statistics['kappa_table_per_label'] %}
-                  <div>
-                    <b>{{k}}</b>
-                    {{annotation_statistics['kappa_table_per_label'][k] | safe}}
-                  </div>
-                  {% endfor %}
-                </div>
+            <div>
+              {% for k in annotation_statistics['kappa_table_per_label'] %}
+              <div>
+                <b>{{k}}</b>
+                {{annotation_statistics['kappa_table_per_label'][k] | safe}}
+              </div>
+              {% endfor %}
+            </div>
           </div>
         </div>
 
@@ -249,6 +249,10 @@
                 <pre>
                       {{- metrics['test']|to_pretty_json -}}
                     </pre>
+              </div>
+              <div class="col-lg-3 col-md-6 col-sm-6">
+                <h6>Stats</h6>
+                Trained on {{ mv.get_len_data() }} datapoints.
               </div>
             </div>
 
