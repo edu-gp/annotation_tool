@@ -15,10 +15,16 @@ def test_pattern_model():
 
 def test_pattern_model_phrase():
     patterns = [
-        {"label": "HEALTHCARE", "pattern": [{"lower": "dog is healthy"}]},
+        {"label": "HEALTHCARE", "pattern": [{"lower": "is healthy"}]},
+        {"label": "HEALTHCARE", "pattern": [{"lower": "dog"}]},
+        {"label": "HEALTHCARE", "pattern": [{"lower": "dog is"}]},
     ]
 
     model = PatternModel(patterns)
-    preds = model.predict(['my dog is healthy'], fancy=True)
-    assert preds == [{'tokens': ['my', 'dog', 'is', 'healthy'],
-                      'matches': [(1, 4, 'dog is healthy')], 'score': 0.75}]
+
+    preds = model.predict(['my dog is healthy'], fancy=False)
+    assert preds == [{'score': 0.5}]
+
+    preds_fancy = model.predict(['my dog is healthy'], fancy=True)
+    assert preds_fancy == [{'tokens': ['my', 'dog', 'is', 'healthy'],
+                            'matches': [(2, 4, 'is healthy')], 'score': 0.5}]
