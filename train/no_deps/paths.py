@@ -48,3 +48,13 @@ def _get_all_plots(version_dir):
             if f.endswith('.histogram.png'):
                 res.append(f'{dirname}/{f}')
     return res
+
+
+def _get_all_inference_fnames(version_dir):
+    dirname = _get_inference_dir(version_dir)
+    res = []
+    if os.path.isdir(dirname):
+        for f in os.listdir(dirname):
+            if f.endswith('.pred.npy'):
+                res.append(f'{dirname}/{f}')
+    return res
