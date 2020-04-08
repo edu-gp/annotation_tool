@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import json
+from pathlib import Path
 
 
 def load_json(fname):
@@ -60,3 +61,9 @@ def get_env_int(key, default):
     if not isinstance(val, int):
         val = int(val)
     return val
+
+
+def stem(fname):
+    """/blah/my_file.json.gz --> my_file"""
+    stem = Path(fname).stem
+    return stem[:stem.index('.')] if '.' in stem else stem

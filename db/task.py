@@ -1,5 +1,6 @@
 from typing import List, Optional
 import os
+import re
 import shutil
 import uuid
 
@@ -44,6 +45,10 @@ class Task:
 
     def __str__(self):
         return self.name
+
+    def get_clean_name(self):
+        """Return a filesystem friendly (only alphanum chars) name."""
+        return re.sub('[^0-9a-zA-Z]+', '_', self.name).lower()
 
     def to_json(self):
         return {

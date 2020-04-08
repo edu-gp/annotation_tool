@@ -110,7 +110,7 @@
                 Total Annotated: {{annotation_statistics['total_annotations']}}
               </li>
               <li>
-                  Total Distinct Annotated: {{annotation_statistics['total_distinct_annotations']}}
+                Total Distinct Annotated: {{annotation_statistics['total_distinct_annotations']}}
               </li>
               <li>
                 Annotated per label:
@@ -129,35 +129,35 @@
                     {% endif %}
                     {% endfor %}
                   </li>
-                  </li>
-                  {% endfor %}
-                </ul>
               </li>
-              <li>
-                Annotated by each annotator:
-                <ul>
-                  {% for k in annotation_statistics['n_annotations_per_user'] %}
-                  <li>
-                    {{k}}: {{annotation_statistics['n_annotations_per_user'][k]}}
-                  </li>
-                  {% endfor %}
-                </ul>
-              </li>
+              {% endfor %}
+            </ul>
+            </li>
+            <li>
+              Annotated by each annotator:
+              <ul>
+                {% for k in annotation_statistics['n_annotations_per_user'] %}
+                <li>
+                  {{k}}: {{annotation_statistics['n_annotations_per_user'][k]}}
+                </li>
+                {% endfor %}
+              </ul>
+            </li>
             </ul>
           </div>
         </div>
 
-       <div class="row">
+        <div class="row">
           <div class="col">
             <h6>Annotator Kappa Score Matrix Per Label</h6>
-                <div>
-                  {% for k in annotation_statistics['kappa_table_per_label'] %}
-                  <div>
-                    <b>{{k}}</b>
-                    {{annotation_statistics['kappa_table_per_label'][k] | safe}}
-                  </div>
-                  {% endfor %}
-                </div>
+            <div>
+              {% for k in annotation_statistics['kappa_table_per_label'] %}
+              <div>
+                <b>{{k}}</b>
+                {{annotation_statistics['kappa_table_per_label'][k] | safe}}
+              </div>
+              {% endfor %}
+            </div>
           </div>
         </div>
 
@@ -225,6 +225,16 @@
         <div class="card">
           <div class="card-body">
             <h5>{{mv}}</h5>
+
+            {% for fname, stem in mv.get_inference_fnames_and_stems() %}
+            <div>
+              <form action="{{ url_for('tasks.download_prediction', id=mv.task_id) }}" method="POST">
+                <input type="hidden" name="version" value="{{mv.version}}">
+                <input type="hidden" name="inference_fname" value="{{fname}}">
+                <button type="submit" class="btn btn-sm btn-secondary">Download Prediction: "{{stem}}"</button>
+              </form>
+            </div>
+            {% endfor %}
 
             {% set metrics = mv.get_metrics() %}
 

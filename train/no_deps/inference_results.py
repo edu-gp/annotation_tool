@@ -12,4 +12,6 @@ class InferenceResults:
 
     @staticmethod
     def load(inf_fname):
-        return InferenceResults(load(inf_fname + '.npy', allow_pickle=True))
+        if not 'inf_fname'.endswith('.npy'):
+            inf_fname + '.npy'
+        return InferenceResults(load(inf_fname, allow_pickle=True))
