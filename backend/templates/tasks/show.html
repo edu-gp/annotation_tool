@@ -226,6 +226,16 @@
           <div class="card-body">
             <h5>{{mv}}</h5>
 
+            {% for fname, stem in mv.get_inference_fnames_and_stems() %}
+            <div>
+              <form action="{{ url_for('tasks.download_prediction', id=mv.task_id) }}" method="POST">
+                <input type="hidden" name="version" value="{{mv.version}}">
+                <input type="hidden" name="inference_fname" value="{{fname}}">
+                <button type="submit" class="btn btn-sm btn-secondary">Download Prediction: "{{stem}}"</button>
+              </form>
+            </div>
+            {% endfor %}
+
             {% set metrics = mv.get_metrics() %}
 
             <div class="row">

@@ -20,7 +20,7 @@ from shared.celery_job_status import (
     CeleryJobStatus, create_status, delete_status
 )
 from shared.frontend_user_password import generate_frontend_user_login_link
-from shared.utils import get_env_int
+from shared.utils import get_env_int, stem as _stem
 
 from .auth import auth
 
@@ -198,6 +198,31 @@ def train(id):
     # celery_id = str(async_result)
     # CeleryJobStatus(celery_id, f'assign:{id}').save()
     return redirect(url_for('tasks.show', id=id))
+
+
+@bp.route('/<string:id>/download_prediction', methods=['POST'])
+def download_prediction(id):
+    # Note: This function is allowed to fail loudly.
+
+    version = request.form['version']
+    inference_fname = request.form['inference_fname']
+
+    task = Task.fetch(id)
+    mv = ModelViewer(id, version)
+
+    # Create the dataframe for exporting
+    df = mv.create_exported_dataframe(inference_fname)
+
+    # Write it to a temp file and send it (Not sure if there's a better way?)
+    import tempfile
+    import os
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        stem = _stem(inference_fname)
+        name = f"{task.get_clean_name()}__{stem}.csv"
+        final_fname = os.path.join(tmpdirname, name)
+        df.to_csv(final_fname, index=False)
+        from flask import send_file
+        return send_file(final_fname, mimetype='text/csv', cache_timeout=0, as_attachment=True)
 
 
 # ----- FORM PARSING -----
