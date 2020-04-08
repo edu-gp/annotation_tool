@@ -4,7 +4,7 @@ from .paths import (
 )
 from .no_deps.paths import (
     _get_config_fname, _get_data_parser_fname, _get_metrics_fname,
-    _get_all_plots, _get_all_inference_fnames
+    _get_all_plots, _get_exported_data_fname, _get_all_inference_fnames
 )
 from .no_deps.inference_results import InferenceResults
 from shared.utils import load_json, load_jsonl, stem as _stem
@@ -80,3 +80,23 @@ class ModelViewer:
         df = df[['name', 'domain', 'probs']]
 
         return df
+
+    def get_len_data(self):
+        """Return how many datapoints were used to train this model"""
+        version_dir = _get_version_dir(self.task_id, self.version)
+        fname = _get_exported_data_fname(version_dir)
+
+        try:
+            import subprocess
+            import re
+            res = subprocess.run(['wc', '-l', fname], capture_output=True)
+            res = res.stdout.decode()
+            # `wc -l` returns output in the format of `<num> <filename>`
+            # only parse the `num` piece as an int.
+            res = int(re.match(r"^\s*(\d+?)\s+.*$", res).groups()[0])
+        except Exception as e:
+            raise e
+            res = -1
+
+        return res
+
