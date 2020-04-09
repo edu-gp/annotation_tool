@@ -41,6 +41,8 @@ def _compare_match_length(item1, item2):
 def _maximize_non_overlapping_matches(matches):
     # All matches are sorted in ascending order by their first matching index
     # and then by the length of the match.
+    if len(matches) == 0:
+        return {}
     matches.sort(key=cmp_to_key(_compare_matches))
     len_of_matches = [m[2] - m[1] for m in matches]
 
