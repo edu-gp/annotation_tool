@@ -81,3 +81,11 @@ def test_maximize_non_overlapping_matches():
         ("", 1, 2),
         ("", 4, 6),
     }
+
+    matches3 = []
+    selected_matches = _maximize_non_overlapping_matches(matches=matches3)
+    assert selected_matches == {}
+
+    matches4 = [("", 1, 2),]
+    selected_matches = _maximize_non_overlapping_matches(matches=matches4)
+    assert selected_matches == {("", 1, 2)}
