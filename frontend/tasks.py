@@ -1,5 +1,5 @@
 from ar.data import (
-    fetch_all_ar, fetch_ar, fetch_annotation, fetch_all_annotations, get_next_ar,
+    fetch_all_ar, fetch_ar, fetch_annotation, fetch_all_annotation_ids, get_next_ar,
     build_empty_annotation, annotate_ar
 )
 import json
@@ -39,7 +39,7 @@ def show(id):
 
     task = Task.fetch(id)
     ars = fetch_all_ar(id, user_id)
-    annotated = set(fetch_all_annotations(id, user_id))
+    annotated = set(fetch_all_annotation_ids(id, user_id))
     has_annotation = [x in annotated for x in ars]
 
     et = time.time()

@@ -1,4 +1,4 @@
-from ar.data import _export_labeled_examples
+from ar.data import _export_distinct_labeled_examples
 
 
 def test__export_labeled_examples__simple():
@@ -56,7 +56,7 @@ def test__export_labeled_examples__simple():
         },
     ]
 
-    result = _export_labeled_examples(sample_annotations)
+    result = _export_distinct_labeled_examples(sample_annotations)
     assert result == [
         {'text': 'sometext_1', 'labels': {'HEALTHCARE': 1, 'POP_HEALTH': -1}},
         {'text': 'sometext_2', 'labels': {'HEALTHCARE': -1}}
@@ -95,7 +95,7 @@ def test__export_labeled_examples__empty_text():
         },
     ]
 
-    result = _export_labeled_examples(sample_annotations)
+    result = _export_distinct_labeled_examples(sample_annotations)
 
     # Note the behaviour for missing text is not ideal, but this is the
     # 'official' behaviour for now.
