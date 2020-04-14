@@ -19,7 +19,8 @@ from db import _task_dir
 # I chose to write it all on disk for now - we can change it to a db later.
 
 
-def save_new_ar_for_user(task_id, user_id, annotation_requests, clean_existing=True):
+def save_new_ar_for_user(task_id, user_id, annotation_requests,
+                         clean_existing=True):
     '''
     Save a list of new annotation requests for a user (annotator).
     Args:
@@ -218,17 +219,20 @@ def compute_annotation_statistics(task_id):
         _get_all_annotators_from_annotated(task_id)
     )
 
-    total_distinct_annotations = _gather_labeled_examples(task_id)
-    annotations_per_user = dict()
+    total_distinct_annotations = _gather_distinct_labeled_examples(task_id)
+    anno_ids_per_user = dict()
+
+    results_per_task_user_anno_id = dict()
 
     for user_id in user_ids:
         anno_ids = fetch_all_annotations(task_id, user_id)
-        annotations_per_user[user_id] = set(anno_ids)
+        anno_ids_per_user[user_id] = set(anno_ids)
         n_annotations_per_user[user_id] = len(anno_ids)
 
         # TODO: slow
         for anno_id in anno_ids:
             anno = fetch_annotation(task_id, user_id, anno_id)
+            results_per_task_user_anno_id[(task_id, user_id, anno_id)] = anno
             for label, result in anno['anno']['labels'].items():
                 n_annotations_per_label[label][result] += 1
 
@@ -239,7 +243,8 @@ def compute_annotation_statistics(task_id):
 
     # kappa stats calculation
     kappa_table_per_label = _calculate_per_label_kappa_stats_table(
-        task_id, user_ids, annotations_per_user)
+        task_id, user_ids, anno_ids_per_user,
+        results_per_task_user_anno_id)
 
     return {
         'total_annotations': sum(n_annotations_per_user.values()),
@@ -247,13 +252,15 @@ def compute_annotation_statistics(task_id):
         'n_annotations_per_user': n_annotations_per_user,
         'n_annotations_per_label': n_annotations_per_label,
         'kappa_table_per_label': kappa_table_per_label,
-        'total_outstanding_requests': sum(n_outstanding_requests_per_user.values()),
+        'total_outstanding_requests': sum(
+            n_outstanding_requests_per_user.values()),
         'n_outstanding_requests_per_user': n_outstanding_requests_per_user,
     }
 
 
 def _calculate_per_label_kappa_stats_table(task_id, user_ids,
-                                           annotations_per_user):
+                                           anno_ids_per_user,
+                                           results_per_task_user_anno_id):
     """Calculate per label kappa matrix stats.
 
     Input structure of the annotations_per_user:
@@ -265,17 +272,18 @@ def _calculate_per_label_kappa_stats_table(task_id, user_ids,
 
     :param task_id: the id of a task
     :param user_ids: the user id list
-    :param annotations_per_user: annotations per user dictionary
+    :param anno_ids_per_user: annotation ids per user
     :return: the per label kappa matrix html table
     """
     if len(user_ids) == 1:
         return ['There is only one user {}'.format(list(user_ids)[0])]
-    if len(annotations_per_user) == 0:
+    if len(anno_ids_per_user) == 0:
         return ['There are no annotations from any user yet.']
     kappa_stats_raw_data = _construct_per_label_per_user_pair_result(
         task_id,
         user_ids,
-        annotations_per_user
+        anno_ids_per_user,
+        results_per_task_user_anno_id
     )
     kappa_matrices = _compute_kappa_matrix(kappa_stats_raw_data)
     kappa_matrix_html_tables = _convert_html_tables(kappa_matrices)
@@ -283,12 +291,13 @@ def _calculate_per_label_kappa_stats_table(task_id, user_ids,
 
 
 def _construct_per_label_per_user_pair_result(task_id, user_ids,
-                                              annotations_per_user):
+                                              annos_per_user,
+                                              results_per_task_user_anno_id):
     """Construct the per label per user_pair labeling result dictionary.
 
     :param task_id: the id of a task
     :param user_ids: the user ids
-    :param annotations_per_user: annotation ids of per user
+    :param annos_per_user: annotation ids per user
     :return: a dictionary of per label per user pair labeling result
 
     Input structure of the annotations_per_user:
@@ -328,16 +337,18 @@ def _construct_per_label_per_user_pair_result(task_id, user_ids,
     all_pairs_of_users = list(itertools.combinations(user_ids, 2))
 
     for user1, user2 in all_pairs_of_users:
-        annotations_user1 = annotations_per_user[user1]
-        annotations_user2 = annotations_per_user[user2]
+        annotations_user1 = annos_per_user[user1]
+        annotations_user2 = annos_per_user[user2]
 
         annotation_intersection = set.intersection(annotations_user1,
                                                    annotations_user2)
         # WE NEED TO SORT THIS. OTHERWISE WE GOT UNSTABLE OUTPUT WHICH FAILS
         # UNIT TESTS!
         for anno_id in sorted(annotation_intersection):
-            anno_by_user1 = fetch_annotation(task_id, user1, anno_id)
-            anno_by_user2 = fetch_annotation(task_id, user2, anno_id)
+            anno_by_user1 = results_per_task_user_anno_id[(task_id, user1,
+                                                           anno_id)]
+            anno_by_user2 = results_per_task_user_anno_id[(task_id, user2,
+                                                           anno_id)]
 
             for label, result in anno_by_user1['anno']['labels'].items():
                 kappa_stats_raw_data[label][(user1, user2)][user1].append(
@@ -397,6 +408,11 @@ def _compute_kappa_matrix(kappa_stats_raw_data):
                 result_per_user_pair_per_label.items():
             result_user1 = result_per_user[user_pair[0]]
             result_user2 = result_per_user[user_pair[1]]
+            logging.error("Calculating the kappa score for {} and {}".format(
+                user_pair[0], user_pair[1]))
+            result_user1, result_user2 = \
+                _exclude_unknowns_for_kappa_calculation(result_user1,
+                                                        result_user2)
             kappa_score = cohen_kappa_score(result_user1, result_user2)
             kappa_matrix[label][user_pair[0]][user_pair[1]] = kappa_score
             kappa_matrix[label][user_pair[1]][user_pair[0]] = kappa_score
@@ -407,6 +423,31 @@ def _compute_kappa_matrix(kappa_stats_raw_data):
     for label, nested_dict in kappa_matrix.items():
         kappa_dataframe[label] = pd.DataFrame.from_dict(nested_dict)
     return kappa_dataframe
+
+
+def _exclude_unknowns_for_kappa_calculation(result_user1, result_user2):
+    """Exclude unknowns for kappa calculation.
+
+    This means if either of the user's label result is unknown then we
+    should include neither in the final calculation.
+
+    :param result_user1: labeling results from user1 with potentially unknowns
+    :param result_user2: labeling results from user2 with potentially unknowns
+    :return: the labeling result tuple without unknowns
+    """
+    if len(result_user1) != len(result_user2):
+        raise ValueError("The number of labeling results should be the same.")
+    labeling_results1 = []
+    labeling_results2 = []
+    ignored_count = 0
+    for i in range(len(result_user1)):
+        if result_user1[i] != 0 and result_user2[i] != 0:
+            labeling_results1.append(result_user1[i])
+            labeling_results2.append(result_user2[i])
+        else:
+            ignored_count += 1
+    logging.error("Unknown ignored count: {}".format(ignored_count))
+    return labeling_results1, labeling_results2
 
 
 def _convert_html_tables(kappa_matrices):
@@ -437,7 +478,7 @@ def _majority_label(labels):
         return None
 
 
-def _export_labeled_examples(annotations_iterator):
+def _export_distinct_labeled_examples(annotations_iterator):
     """
     Inputs:
         annotations_iterator: A iterator that returns annotations.
@@ -451,7 +492,7 @@ def _export_labeled_examples(annotations_iterator):
                 }
             },
             'anno': {
-                'labels': {
+                'labels': {ƒ
                     'HEALTHCARE': 1,
                     'POP_HEALTH': -1,
                     'AI': 0,
@@ -525,7 +566,7 @@ def _export_labeled_examples(annotations_iterator):
     return final
 
 
-def _gather_labeled_examples(task_id):
+def _gather_distinct_labeled_examples(task_id):
     def annotations_iterator():
         for user_id in _get_all_annotators_from_annotated(task_id):
             for ar_id in fetch_all_annotations(task_id, user_id):
@@ -533,12 +574,12 @@ def _gather_labeled_examples(task_id):
 
                 yield anno
 
-    final = _export_labeled_examples(annotations_iterator())
+    final = _export_distinct_labeled_examples(annotations_iterator())
     return final
 
 
 def export_labeled_examples(task_id, outfile=None):
-    final = _gather_labeled_examples(task_id)
+    final = _gather_distinct_labeled_examples(task_id)
 
     if outfile is not None:
         save_jsonl(outfile, final)
