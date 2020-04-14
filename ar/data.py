@@ -107,7 +107,7 @@ def get_next_ar(task_id, user_id, ar_id):
         - If nothing left to label, return None
     '''
     ar_all = fetch_all_ar(task_id, user_id)
-    ar_done = set(fetch_all_annotations(task_id, user_id))
+    ar_done = set(fetch_all_annotation_ids(task_id, user_id))
 
     try:
         idx = ar_all.index(ar_id)
@@ -165,7 +165,7 @@ def fetch_annotation(task_id, user_id, ar_id):
         return None
 
 
-def fetch_all_annotations(task_id, user_id):
+def fetch_all_annotation_ids(task_id, user_id):
     '''
     Return a list of ar_id for this task that has been annotated by this user.
     '''
@@ -225,7 +225,7 @@ def compute_annotation_statistics(task_id):
     results_per_task_user_anno_id = dict()
 
     for user_id in user_ids:
-        anno_ids = fetch_all_annotations(task_id, user_id)
+        anno_ids = fetch_all_annotation_ids(task_id, user_id)
         anno_ids_per_user[user_id] = set(anno_ids)
         n_annotations_per_user[user_id] = len(anno_ids)
 
@@ -492,7 +492,7 @@ def _export_distinct_labeled_examples(annotations_iterator):
                 }
             },
             'anno': {
-                'labels': {ƒ
+                'labels': {
                     'HEALTHCARE': 1,
                     'POP_HEALTH': -1,
                     'AI': 0,
@@ -569,7 +569,7 @@ def _export_distinct_labeled_examples(annotations_iterator):
 def _gather_distinct_labeled_examples(task_id):
     def annotations_iterator():
         for user_id in _get_all_annotators_from_annotated(task_id):
-            for ar_id in fetch_all_annotations(task_id, user_id):
+            for ar_id in fetch_all_annotation_ids(task_id, user_id):
                 anno = fetch_annotation(task_id, user_id, ar_id)
 
                 yield anno

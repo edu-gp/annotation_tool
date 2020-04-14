@@ -4,7 +4,7 @@ from db.task import Task
 from ar.data import (
     save_new_ar_for_user,
     annotate_ar,
-    fetch_all_annotations
+    fetch_all_annotation_ids
 )
 from ar.utils import get_ar_id
 from train.prep import (
@@ -86,7 +86,7 @@ class TestTrainFlow:
 
     def test__test_setup_is_ok(self):
         task = self.task
-        assert len(fetch_all_annotations(task.task_id, 'eddie_test')) == 20
+        assert len(fetch_all_annotation_ids(task.task_id, 'eddie_test')) == 20
 
     def test__train_flow(self, tmpdir):
         task = self.task
