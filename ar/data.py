@@ -1,8 +1,10 @@
+import json
 import os
 import shutil
 import itertools
 import re
 import glob
+import sqlite3
 import time
 from collections import defaultdict, Counter
 import logging
@@ -17,6 +19,25 @@ from db import _task_dir
 
 ###############################################################################
 # I chose to write it all on disk for now - we can change it to a db later.
+
+
+def fetch_labels_by_entity(entity):
+    conn = sqlite3.connect('alchemy.db')
+    c = conn.cursor()
+    c.execute('SELECT labels FROM labels WHERE entity=?', (entity, ))
+    conn.commit()
+    res = c.fetchone()
+    conn.close()
+    return res
+
+
+def save_labels_by_entity(entity, labels):
+    logging.error(labels)
+    conn = sqlite3.connect('alchemy.db')
+    c = conn.cursor()
+    c.execute('INSERT INTO labels values (?, ?)', (entity, json.dumps(labels)))
+    conn.commit()
+    conn.close()
 
 
 def save_new_ar_for_user(task_id, user_id, annotation_requests,

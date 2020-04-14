@@ -4,8 +4,7 @@ from ar.data import (
 )
 import json
 from flask import (
-    Blueprint, g, render_template, request, url_for
-)
+    Blueprint, g, render_template, request, url_for)
 
 from db.task import Task
 

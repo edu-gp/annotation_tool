@@ -1,4 +1,5 @@
 import os
+import sqlite3
 
 from flask import (
     Flask, render_template, g
@@ -53,6 +54,20 @@ def create_app(test_config=None):
 
     from . import tasks
     app.register_blueprint(tasks.bp)
+
+    from . import labels
+    app.register_blueprint(labels.bp)
+
+    conn = sqlite3.connect('alchemy.db')
+    c = conn.cursor()
+
+    # Create table
+    # c.execute('''DROP TABLE IF EXISTS labels''')
+    c.execute('''CREATE TABLE IF NOT EXISTS labels 
+    (entity varchar(30), labels json)''')
+
+    conn.commit()
+    conn.close()
 
     return app
 
