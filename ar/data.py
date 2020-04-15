@@ -13,6 +13,7 @@ import pandas as pd
 from pandas import DataFrame
 from sklearn.metrics import cohen_kappa_score
 
+from frontend.model import db, EntityType, Label
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd
 from db.task import Task, DIR_ANNO, DIR_AREQ
 from db import _task_dir
@@ -21,23 +22,36 @@ from db import _task_dir
 # I chose to write it all on disk for now - we can change it to a db later.
 
 
-def fetch_labels_by_entity(entity):
-    conn = sqlite3.connect('alchemy.db')
-    c = conn.cursor()
-    c.execute('SELECT labels FROM labels WHERE entity=?', (entity, ))
-    conn.commit()
-    res = c.fetchone()
-    conn.close()
-    return res
+def fetch_labels_by_entity_type(entity_type_name):
+    # conn = sqlite3.connect('alchemy.db')
+    # c = conn.cursor()
+    # c.execute('SELECT labels FROM labels WHERE entity=?', (entity, ))
+    # conn.commit()
+    # res = c.fetchone()
+    # conn.close()
+    entity_type = EntityType.query.filter_by(name=entity_type_name).first()
+    labels = entity_type.labels
+    return labels
 
 
-def save_labels_by_entity(entity, labels):
-    logging.error(labels)
-    conn = sqlite3.connect('alchemy.db')
-    c = conn.cursor()
-    c.execute('INSERT INTO labels values (?, ?)', (entity, json.dumps(labels)))
-    conn.commit()
-    conn.close()
+def save_labels_by_entity_type(entity_type_name, labels):
+    # logging.error(labels)
+    # conn = sqlite3.connect('alchemy.db')
+    # c = conn.cursor()
+    # c.execute('INSERT INTO labels values (?, ?)', (entity, json.dumps(labels)))
+    # conn.commit()
+    # conn.close()
+    entity_type_id = EntityType.query(EntityType.id).filter_by(
+        name=entity_type_name).scalar()
+    if entity_type_id is None:
+        entity_type = EntityType(name=entity_type_name)
+        db.session.add(entity_type)
+        db.session.commit()
+        entity_type_id = entity_type.id
+    for label_name in labels:
+        label = Label(name=label_name, entity_type_id=entity_type_id)
+        db.session.add(label)
+    db.session.commit()
 
 
 def save_new_ar_for_user(task_id, user_id, annotation_requests,

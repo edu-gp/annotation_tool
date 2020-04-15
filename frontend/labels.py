@@ -4,7 +4,7 @@ from ar.data import (
     fetch_all_ar, fetch_ar, fetch_annotation, fetch_all_annotation_ids,
     get_next_ar,
     build_empty_annotation, annotate_ar,
-    fetch_labels_by_entity, save_labels_by_entity)
+    fetch_labels_by_entity_type, save_labels_by_entity_type)
 import json
 from flask import (
     Blueprint, g, render_template, request, url_for, jsonify, Response)
@@ -20,7 +20,7 @@ bp = Blueprint('labels', __name__, url_prefix='/labels')
 @login_required
 def fetch_all_labels():
     entity = request.args["entity"]
-    labels = fetch_labels_by_entity(entity)
+    labels = fetch_labels_by_entity_type(entity)
     return jsonify(labels)
 
 
@@ -30,10 +30,10 @@ def save_labels():
     data = json.loads(request.data)
     entity = data['entity']
     new_labels = data['labels']
-    labels = set(fetch_labels_by_entity(entity))
+    labels = set(fetch_labels_by_entity_type(entity))
     labels.update(new_labels)
     try:
-        save_labels_by_entity(entity, list(labels))
+        save_labels_by_entity_type(entity, list(labels))
         msg = "Labels for entity {} have been updated".format(entity)
         return Response(msg, status=200, mimetype='application/json')
     except Exception as e:
