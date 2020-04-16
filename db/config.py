@@ -6,8 +6,9 @@ class Config(object):
     """Base config, uses staging database server."""
     DEBUG = False
     TESTING = False
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-                              'sqlite:////annotation_tool/alchemy.db'
+    # SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+    #                           'sqlite:///alchemy.db'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:////annotation_tool/alchemy.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 
