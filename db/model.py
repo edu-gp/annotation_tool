@@ -8,7 +8,6 @@ class Label(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64), index=True, unique=True)
     entity_type_id = db.Column(db.Integer, db.ForeignKey('entity_type.id'))
-    fake_field = db.Column(db.String(64), nullable=True)
 
 
 class EntityType(db.Model):

@@ -5,6 +5,7 @@ RUN apt-get install -y redis-server vim
 
 RUN pip install redis pytest Flask supervisor Celery seaborn simpletransformers python-dotenv Flask-HTTPAuth
 RUN pip install mockito
+RUN pip install flask-sqlalchemy alembic Flask-Testing
 # Some error with latest pillow verison... downgrade pillow
 RUN conda install pillow=6.1
 
@@ -25,8 +26,6 @@ RUN wget -nv \
     ln -s /root/.config /config && \
     # Remove the backup directory that gcloud creates
     rm -rf /root/tools/google-cloud-sdk/.install/.backup
-
-RUN pip install flask-sqlalchemy alembic Flask-Testing
 
 # Path configuration
 ENV PATH $PATH:/root/tools/google-cloud-sdk/bin

@@ -19,7 +19,6 @@ def create_app(test_config=None):
     # TODO add credentials for sqlite, probably from os.environ
     app.config.from_mapping(
         SECRET_KEY='athena_todo_change_this_in_prod',
-        # DATABASE=os.path.join(app.instance_path, 'athena.sqlite'),
     )
 
     logging.error(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
