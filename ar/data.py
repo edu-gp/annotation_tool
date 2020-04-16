@@ -1,10 +1,8 @@
-import json
 import os
 import shutil
 import itertools
 import re
 import glob
-import sqlite3
 import time
 from collections import defaultdict, Counter
 import logging
@@ -13,7 +11,7 @@ import pandas as pd
 from pandas import DataFrame
 from sklearn.metrics import cohen_kappa_score
 
-from frontend.model import db, EntityType, Label
+from db.model import db, EntityType, Label
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd
 from db.task import Task, DIR_ANNO, DIR_AREQ
 from db import _task_dir
@@ -30,8 +28,11 @@ def fetch_labels_by_entity_type(entity_type_name):
     # res = c.fetchone()
     # conn.close()
     entity_type = EntityType.query.filter_by(name=entity_type_name).first()
-    labels = entity_type.labels
-    return labels
+    if entity_type:
+        labels = [label.name for label in entity_type.labels.all()]
+        return labels
+    else:
+        return []
 
 
 def save_labels_by_entity_type(entity_type_name, labels):
@@ -41,13 +42,17 @@ def save_labels_by_entity_type(entity_type_name, labels):
     # c.execute('INSERT INTO labels values (?, ?)', (entity, json.dumps(labels)))
     # conn.commit()
     # conn.close()
-    entity_type_id = EntityType.query(EntityType.id).filter_by(
+    logging.error("Finding the EntityType for {}".format(entity_type_name))
+    entity_type_id = db.session.query(EntityType.id).filter_by(
         name=entity_type_name).scalar()
     if entity_type_id is None:
         entity_type = EntityType(name=entity_type_name)
         db.session.add(entity_type)
         db.session.commit()
         entity_type_id = entity_type.id
+        logging.error("Created a new EntityType {} with id {}".format(
+            entity_type_name, entity_type_id
+        ))
     for label_name in labels:
         label = Label(name=label_name, entity_type_id=entity_type_id)
         db.session.add(label)

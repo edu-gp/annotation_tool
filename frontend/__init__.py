@@ -1,13 +1,11 @@
+import logging
 import os
-import sqlite3
 
 from flask import (
     Flask, render_template, g
 )
-from flask_migrate import Migrate
-from flask_sqlalchemy import SQLAlchemy
 
-from .model import db, migrate
+from db.model import db
 from .config import DevelopmentConfig
 from .auth import login_required
 
@@ -19,10 +17,12 @@ def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
     # TODO how do we add credentials for sqlite and specify them in the config
-    # app.config.from_mapping(
-    #     SECRET_KEY='athena_todo_change_this_in_prod',
-    #     DATABASE=os.path.join(app.instance_path, 'athena.sqlite'),
-    # )
+    app.config.from_mapping(
+        SECRET_KEY='athena_todo_change_this_in_prod',
+        DATABASE=os.path.join(app.instance_path, 'athena.sqlite'),
+    )
+
+    logging.error(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
 
     if test_config is None:
         # load the instance config, if it exists, when not testing
@@ -39,7 +39,7 @@ def create_app(test_config=None):
         pass
 
     db.init_app(app)
-    migrate.init_app(app=app)
+    # migrate.init_app(app=app)
 
     @app.route('/ok')
     def hello():

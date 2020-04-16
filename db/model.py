@@ -1,8 +1,8 @@
-from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
-migrate = Migrate(db=db)
+metadata = db.Model.metadata
+# migrate = Migrate(db=db)
 
 
 class Label(db.Model):

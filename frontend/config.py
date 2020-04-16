@@ -1,14 +1,14 @@
+import logging
 import os
 basedir = os.path.abspath(os.path.dirname(__file__))
-
+logging.error(basedir)
 
 class Config(object):
     """Base config, uses staging database server."""
     DEBUG = False
     TESTING = False
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-                              'sqlite:///' + os.path.join(basedir,
-                                                          'frontend.db')
+                              'sqlite:////annotation_tool/alchemy.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 
@@ -23,4 +23,3 @@ class TestingConfig(Config):
     DEBUG = True
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
-
