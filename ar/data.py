@@ -16,17 +16,15 @@ from shared.utils import save_jsonl, load_json, save_json, mkf, mkd
 from db.task import Task, DIR_ANNO, DIR_AREQ
 from db import _task_dir
 
+
 ###############################################################################
 # I chose to write it all on disk for now - we can change it to a db later.
 
 
 def fetch_labels_by_entity_type(entity_type_name):
-    entity_type = EntityType.query.filter_by(name=entity_type_name).first()
-    if entity_type:
-        labels = [label.name for label in entity_type.labels.all()]
-        return labels
-    else:
-        return []
+    labels = Label.query.join(EntityType).filter(EntityType.name ==
+                                                 entity_type_name).all()
+    return [label.name for label in labels]
 
 
 def save_labels_by_entity_type(entity_type_name, labels):
@@ -88,7 +86,7 @@ def save_new_ar_for_user(task_id, user_id, annotation_requests,
         # So I space out all the saves a little bit.
         # This means saving annotations for each user (for 100 tasks) takes a full second!
         # This is a temporary fix.
-        time.sleep(1/100.)
+        time.sleep(1 / 100.)
 
     # Return the dir holding all the AR's.
     return _basedir

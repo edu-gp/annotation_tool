@@ -16,7 +16,7 @@ from ar.data import fetch_tasks_for_user
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
-    # TODO how do we add credentials for sqlite and specify them in the config
+    # TODO add credentials for sqlite, probably from os.environ
     app.config.from_mapping(
         SECRET_KEY='athena_todo_change_this_in_prod',
         DATABASE=os.path.join(app.instance_path, 'athena.sqlite'),
