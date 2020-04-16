@@ -21,12 +21,6 @@ from db import _task_dir
 
 
 def fetch_labels_by_entity_type(entity_type_name):
-    # conn = sqlite3.connect('alchemy.db')
-    # c = conn.cursor()
-    # c.execute('SELECT labels FROM labels WHERE entity=?', (entity, ))
-    # conn.commit()
-    # res = c.fetchone()
-    # conn.close()
     entity_type = EntityType.query.filter_by(name=entity_type_name).first()
     if entity_type:
         labels = [label.name for label in entity_type.labels.all()]
@@ -36,12 +30,6 @@ def fetch_labels_by_entity_type(entity_type_name):
 
 
 def save_labels_by_entity_type(entity_type_name, labels):
-    # logging.error(labels)
-    # conn = sqlite3.connect('alchemy.db')
-    # c = conn.cursor()
-    # c.execute('INSERT INTO labels values (?, ?)', (entity, json.dumps(labels)))
-    # conn.commit()
-    # conn.close()
     logging.error("Finding the EntityType for {}".format(entity_type_name))
     entity_type_id = db.session.query(EntityType.id).filter_by(
         name=entity_type_name).scalar()

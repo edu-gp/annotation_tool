@@ -26,7 +26,7 @@ RUN wget -nv \
     # Remove the backup directory that gcloud creates
     rm -rf /root/tools/google-cloud-sdk/.install/.backup
 
-RUN pip install flask-sqlalchemy alembic
+RUN pip install flask-sqlalchemy alembic Flask-Testing
 
 # Path configuration
 ENV PATH $PATH:/root/tools/google-cloud-sdk/bin

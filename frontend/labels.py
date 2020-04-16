@@ -1,15 +1,10 @@
 import logging
 
 from ar.data import (
-    fetch_all_ar, fetch_ar, fetch_annotation, fetch_all_annotation_ids,
-    get_next_ar,
-    build_empty_annotation, annotate_ar,
     fetch_labels_by_entity_type, save_labels_by_entity_type)
 import json
 from flask import (
-    Blueprint, g, render_template, request, url_for, jsonify, Response)
-
-from db.task import Task
+    Blueprint, request, jsonify, Response)
 
 from .auth import login_required
 
