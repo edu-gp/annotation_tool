@@ -2,7 +2,6 @@ from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 metadata = db.Model.metadata
-# migrate = Migrate(db=db)
 
 
 class Label(db.Model):

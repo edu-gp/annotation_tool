@@ -6,7 +6,7 @@ from flask import (
 )
 
 from db.model import db
-from .config import DevelopmentConfig
+from db.config import DevelopmentConfig
 from .auth import login_required
 
 from db.task import Task
@@ -21,8 +21,6 @@ def create_app(test_config=None):
         SECRET_KEY='athena_todo_change_this_in_prod',
         DATABASE=os.path.join(app.instance_path, 'athena.sqlite'),
     )
-
-    logging.error(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
 
     if test_config is None:
         # load the instance config, if it exists, when not testing
@@ -66,17 +64,6 @@ def create_app(test_config=None):
 
     from . import labels
     app.register_blueprint(labels.bp)
-
-    # conn = sqlite3.connect('alchemy.db')
-    # c = conn.cursor()
-    #
-    # # Create table
-    # # c.execute('''DROP TABLE IF EXISTS labels''')
-    # c.execute('''CREATE TABLE IF NOT EXISTS labels
-    # (entity varchar(30), labels json)''')
-    #
-    # conn.commit()
-    # conn.close()
 
     return app
 

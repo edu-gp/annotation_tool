@@ -1,7 +1,6 @@
-import logging
 import os
 basedir = os.path.abspath(os.path.dirname(__file__))
-logging.error(basedir)
+
 
 class Config(object):
     """Base config, uses staging database server."""
