@@ -1,4 +1,4 @@
-# Two references:
+# References:
 - https://medium.com/@sutharprashant199722/how-to-use-alembic-for-your-database-migrations-d3e93cacf9e8
 - https://www.compose.com/articles/schema-migrations-with-alembic-python-and
 -postgresql/
