@@ -20,21 +20,8 @@ def get_next_version(task_id):
     return version
 
 
-def prepare_task_for_training(task_id, version):
-    """Exports the model and save config when the model is training it does
-    not need access to the Task object.
-
-    Returns the directory in which all the prepared info are stored.
-    """
-    version_dir = _get_version_dir(task_id, version)
-    print(f"Training model version={version} for task={task_id}")
-    print(f"Storing results in {version_dir}")
-
-    config_fname = _get_config_fname(version_dir)
-    data_fname = _get_exported_data_fname(version_dir)
-
-    # Save config
-    config = {
+def generate_config():
+    return {
         'created_at': time.time(),
         'test_size': 0.3,
         'random_state': 42,
@@ -53,10 +40,27 @@ def prepare_task_for_training(task_id, version):
             # 'eval_batch_size': get_env_int("TRANSFORMER_EVAL_BATCH_SIZE", 8),
         }
     }
+
+
+def save_config(version_dir):
+    config_fname = _get_config_fname(version_dir)
+    config = generate_config()
     save_json(config_fname, config)
 
-    # Export labeled examples
+
+def save_exported_data(task_id, version_dir):
     print("Export labeled examples...")
+    data_fname = _get_exported_data_fname(version_dir)
     export_labeled_examples(task_id, outfile=data_fname)
 
+
+def prepare_task_for_training(task_id, version):
+    """Exports the model and save config when the model is training it does
+    not need access to the Task object.
+
+    Returns the directory in which all the prepared info are stored.
+    """
+    version_dir = _get_version_dir(task_id, version)
+    save_config(version_dir)
+    save_exported_data(task_id, version_dir)
     return version_dir
