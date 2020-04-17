@@ -1,5 +1,5 @@
 import frontend
-from ar.data import fetch_labels_by_entity_type
+from ar.data import fetch_labels_by_entity_type, save_labels_by_entity_type
 from db.model import db, Label, EntityType
 from db.config import TestingConfig
 from flask_testing import TestCase
@@ -34,3 +34,28 @@ class FrontEndModelTest(TestCase):
         labels = fetch_labels_by_entity_type(entity_type_name="company")
         for label in test_labels:
             assert label in labels
+
+    def test_save_labels_for_existing_entity_type(self):
+        new_labels = ["logstic"]
+        entity_type_name = "company"
+        save_labels_by_entity_type(entity_type_name, new_labels)
+
+        exisiting_labels = fetch_labels_by_entity_type(
+            entity_type_name="company")
+
+        expected_label_set = set(test_labels)
+        expected_label_set.update(new_labels)
+
+        assert set(exisiting_labels) == expected_label_set
+
+    def test_save_labels_for_new_entity_type(self):
+        new_labels = ["startup", "x-googler"]
+        entity_type_name = "people"
+        save_labels_by_entity_type(entity_type_name, new_labels)
+
+        exisiting_labels = fetch_labels_by_entity_type(
+            entity_type_name=entity_type_name)
+
+        expected_label_set = set(new_labels)
+
+        assert set(exisiting_labels) == expected_label_set
