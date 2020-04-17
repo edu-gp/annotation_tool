@@ -7,6 +7,9 @@ metadata = db.Model.metadata
 class Label(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64), index=True, unique=True)
+    # A label can be part of many annotations.
+    annotations = db.relationship('Annotation', backref='label',
+                                  lazy='dynamic')
     entity_type_id = db.Column(db.Integer, db.ForeignKey('entity_type.id'))
 
 
@@ -24,7 +27,65 @@ class EntityType(db.Model):
 class Entity(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64), index=True, unique=True)
+    # An entity can have many annotations on it.
+    annotations = db.relationship('Annotation', backref='entity',
+                                  lazy='dynamic')
     entity_type_id = db.Column(db.Integer, db.ForeignKey('entity_type.id'))
 
     def __repr__(self):
         return '<Entity {}>'.format(self.name)
+
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64), index=True, unique=True)
+    # A user can do many annotations.
+    annotations = db.relationship('Annotation', backref='user', lazy='dynamic')
+
+    def __repr__(self):
+        return '<User {}>'.format(self.username)
+
+
+class Context(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    hash = db.Column(db.String(128), index=True, unique=True)
+    data = db.Column(db.TEXT)
+    # A context can be part of many annotations.
+    annotations = db.relationship('Annotation', backref='context',
+                                  lazy='dynamic')
+
+    def __repr__(self):
+        return '<Context {}: {}>'.format(self.id, self.data)
+
+
+class Annotation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    value = db.Column(db.Integer)
+    created_at = db.Column(db.DateTime)
+    last_updated_at = db.Column(db.DateTime)
+
+    entity_id = db.Column(db.Integer, db.ForeignKey('entity.id'))
+    label_id = db.Column(db.Integer, db.ForeignKey('label.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    context_id = db.Column(db.Integer, db.ForeignKey('context.id'))
+
+    def __repr__(self):
+        return """
+        Annotation {}:
+        Entity Id {}, 
+        Label Id {},
+        User Id {},
+        Context Id {},
+        Value {},
+        Created at {},
+        Last Updated at {}
+        """.format(
+            self.id,
+            self.entity_id,
+            self.label_id,
+            self.user_id,
+            self.context_id,
+            self.value,
+            self.created_at,
+            self.last_updated_at
+        )
