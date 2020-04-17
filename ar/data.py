@@ -28,7 +28,7 @@ def fetch_labels_by_entity_type(entity_type_name):
 
 
 def save_labels_by_entity_type(entity_type_name, labels):
-    logging.error("Finding the EntityType for {}".format(entity_type_name))
+    logging.info("Finding the EntityType for {}".format(entity_type_name))
     entity_type_id = db.session.query(EntityType.id).filter_by(
         name=entity_type_name).scalar()
     if entity_type_id is None:
@@ -36,7 +36,7 @@ def save_labels_by_entity_type(entity_type_name, labels):
         db.session.add(entity_type)
         db.session.commit()
         entity_type_id = entity_type.id
-        logging.error("Created a new EntityType {} with id {}".format(
+        logging.info("Created a new EntityType {} with id {}".format(
             entity_type_name, entity_type_id
         ))
     for label_name in labels:
