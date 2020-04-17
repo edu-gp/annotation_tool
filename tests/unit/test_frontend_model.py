@@ -35,6 +35,10 @@ class FrontEndModelTest(TestCase):
         for label in test_labels:
             assert label in labels
 
+    def test_fetch_labels_for_unknown_entity_type(self):
+        labels = fetch_labels_by_entity_type(entity_type_name="unknown")
+        assert len(labels) == 0
+
     def test_save_labels_for_existing_entity_type(self):
         new_labels = ["logstic"]
         entity_type_name = "company"

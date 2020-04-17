@@ -6,7 +6,7 @@ metadata = db.Model.metadata
 
 class Label(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), index=True, unique=True)
+    name = db.Column(db.String(64), index=True, unique=True, nullable=False)
     # A label can be part of many annotations.
     annotations = db.relationship('Annotation', backref='label',
                                   lazy='dynamic')
@@ -15,7 +15,7 @@ class Label(db.Model):
 
 class EntityType(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), index=True, unique=True)
+    name = db.Column(db.String(64), index=True, unique=True, nullable=False)
     # TODO how should we setup the lazy loading mode?
     labels = db.relationship('Label', backref='entity_type', lazy='dynamic')
     entities = db.relationship('Entity', backref='entity_type', lazy='dynamic')
@@ -26,7 +26,7 @@ class EntityType(db.Model):
 
 class Entity(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), index=True, unique=True)
+    name = db.Column(db.String(64), index=True, unique=True, nullable=False)
     # An entity can have many annotations on it.
     annotations = db.relationship('Annotation', backref='entity',
                                   lazy='dynamic')
@@ -38,7 +38,8 @@ class Entity(db.Model):
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), index=True, unique=True)
+    username = db.Column(db.String(64), index=True, unique=True,
+                         nullable=False)
     # A user can do many annotations.
     annotations = db.relationship('Annotation', backref='user', lazy='dynamic')
 
@@ -48,8 +49,8 @@ class User(db.Model):
 
 class Context(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    hash = db.Column(db.String(128), index=True, unique=True)
-    data = db.Column(db.TEXT)
+    hash = db.Column(db.String(128), index=True, unique=True, nullable=False)
+    data = db.Column(db.JSON, nullable=False)
     # A context can be part of many annotations.
     annotations = db.relationship('Annotation', backref='context',
                                   lazy='dynamic')
@@ -60,9 +61,9 @@ class Context(db.Model):
 
 class Annotation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    value = db.Column(db.Integer)
-    created_at = db.Column(db.DateTime)
-    last_updated_at = db.Column(db.DateTime)
+    value = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False)
+    last_updated_at = db.Column(db.DateTime, nullable=False)
 
     entity_id = db.Column(db.Integer, db.ForeignKey('entity.id'))
     label_id = db.Column(db.Integer, db.ForeignKey('label.id'))

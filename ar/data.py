@@ -22,8 +22,8 @@ from db import _task_dir
 
 
 def fetch_labels_by_entity_type(entity_type_name):
-    labels = db.session.query(EntityType).filter_by(
-        name=entity_type_name).first().labels.all()
+    labels = Label.query.join(EntityType).filter(EntityType.name ==
+                                                 entity_type_name).all()
     return [label.name for label in labels]
 
 
