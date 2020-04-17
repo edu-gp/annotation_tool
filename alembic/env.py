@@ -67,9 +67,16 @@ def run_migrations_online():
         poolclass=pool.NullPool,
     )
 
+    # For sqlite3 we need to enable batch mode (only work with online mode.
+    # Offline has a different configuration.) This does not effect other
+    # databases.
+    # https://github.com/miguelgrinberg/Flask-Migrate/issues/252
+    # https://alembic.sqlalchemy.org/en/latest/batch.html#batch-mode-with
+    # -autogenerate
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection, target_metadata=target_metadata,
+            render_as_batch=True
         )
 
         with context.begin_transaction():
