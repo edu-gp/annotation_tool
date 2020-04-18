@@ -1,74 +1,91 @@
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.schema import ForeignKey, Column
+from sqlalchemy.types import Integer, String, JSON, DateTime
+from sqlalchemy.orm import relationship
+from sqlalchemy.ext.declarative import declarative_base
 
-db = SQLAlchemy()
-metadata = db.Model.metadata
+Base = declarative_base()
+
+# This is a flask_sqlalchemy object; Only for use inside Flask
+db = SQLAlchemy(model_class=Base)
 
 
-class Label(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), index=True, unique=True, nullable=False)
+class Label(Base):
+    __tablename__ = 'label'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(64), index=True, unique=True, nullable=False)
     # A label can be part of many annotations.
-    annotations = db.relationship('Annotation', backref='label',
-                                  lazy='dynamic')
-    entity_type_id = db.Column(db.Integer, db.ForeignKey('entity_type.id'))
+    annotations = relationship('Annotation', backref='label',
+                               lazy='dynamic')
+    entity_type_id = Column(Integer, ForeignKey('entity_type.id'))
 
 
-class EntityType(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), index=True, unique=True, nullable=False)
+class EntityType(Base):
+    __tablename__ = 'entity_type'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(64), index=True, unique=True, nullable=False)
     # TODO how should we setup the lazy loading mode?
-    labels = db.relationship('Label', backref='entity_type', lazy='dynamic')
-    entities = db.relationship('Entity', backref='entity_type', lazy='dynamic')
+    labels = relationship('Label', backref='entity_type', lazy='dynamic')
+    entities = relationship('Entity', backref='entity_type', lazy='dynamic')
 
     def __repr__(self):
         return '<EntityType {}>'.format(self.name)
 
 
-class Entity(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), index=True, unique=True, nullable=False)
+class Entity(Base):
+    __tablename__ = 'entity'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(64), index=True, unique=True, nullable=False)
     # An entity can have many annotations on it.
-    annotations = db.relationship('Annotation', backref='entity',
-                                  lazy='dynamic')
-    entity_type_id = db.Column(db.Integer, db.ForeignKey('entity_type.id'))
+    annotations = relationship('Annotation', backref='entity',
+                               lazy='dynamic')
+    entity_type_id = Column(Integer, ForeignKey('entity_type.id'))
 
     def __repr__(self):
         return '<Entity {}>'.format(self.name)
 
 
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), index=True, unique=True,
-                         nullable=False)
+class User(Base):
+    __tablename__ = 'user'
+    id = Column(Integer, primary_key=True)
+    username = Column(String(64), index=True, unique=True,
+                      nullable=False)
     # A user can do many annotations.
-    annotations = db.relationship('Annotation', backref='user', lazy='dynamic')
+    annotations = relationship('Annotation', backref='user', lazy='dynamic')
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
 
 
-class Context(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    hash = db.Column(db.String(128), index=True, unique=True, nullable=False)
-    data = db.Column(db.JSON, nullable=False)
+class Context(Base):
+    __tablename__ = 'context'
+
+    id = Column(Integer, primary_key=True)
+    hash = Column(String(128), index=True, unique=True, nullable=False)
+    data = Column(JSON, nullable=False)
     # A context can be part of many annotations.
-    annotations = db.relationship('Annotation', backref='context',
-                                  lazy='dynamic')
+    annotations = relationship('Annotation', backref='context',
+                               lazy='dynamic')
 
     def __repr__(self):
         return '<Context {}: {}>'.format(self.id, self.data)
 
 
-class Annotation(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    value = db.Column(db.Integer, nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False)
-    last_updated_at = db.Column(db.DateTime, nullable=False)
+class Annotation(Base):
+    __tablename__ = 'annotation'
 
-    entity_id = db.Column(db.Integer, db.ForeignKey('entity.id'))
-    label_id = db.Column(db.Integer, db.ForeignKey('label.id'))
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    context_id = db.Column(db.Integer, db.ForeignKey('context.id'))
+    id = Column(Integer, primary_key=True)
+    value = Column(Integer, nullable=False)
+    created_at = Column(DateTime, nullable=False)
+    last_updated_at = Column(DateTime, nullable=False)
+
+    entity_id = Column(Integer, ForeignKey('entity.id'))
+    label_id = Column(Integer, ForeignKey('label.id'))
+    user_id = Column(Integer, ForeignKey('user.id'))
+    context_id = Column(Integer, ForeignKey('context.id'))
 
     def __repr__(self):
         return """
