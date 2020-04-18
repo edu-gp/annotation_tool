@@ -32,3 +32,7 @@ cache_dir
 runs
 
 .env
+
+alchemy.db
+.ipynb_checkpoints
+*.csv
