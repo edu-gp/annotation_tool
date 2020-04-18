@@ -8,6 +8,7 @@ Base = declarative_base()
 
 # This is a flask_sqlalchemy object; Only for use inside Flask
 db = SQLAlchemy(model_class=Base)
+metadata = db.Model.metadata
 
 
 class Label(Base):
