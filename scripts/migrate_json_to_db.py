@@ -1,18 +1,17 @@
 import copy
 import hashlib
 import json
-import sys
 from os import environ
 
-sys.path.append(".")
-
 from ar import fetch_all_ar_ids
-from ar.data import fetch_annotation, _get_all_annotators_from_annotated
+from ar.data import fetch_annotation, _get_all_annotators_from_annotated, \
+    get_or_create
 from db.config import DevelopmentConfig
 from db.model import Database, User, EntityType, Context, Entity, Label, \
-    ClassificationAnnotation
+    ClassificationAnnotation, EntityTypeEnum
+from shared.utils import generate_md5_hash
 
-ENTITY_TYPE_NAME = "company"
+ENTITY_TYPE_NAME = EntityTypeEnum.COMPANY
 db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
 
 
@@ -25,51 +24,32 @@ def convert_annotation_result_in_batch(task_id, username):
 
 
 def _convert_single_annotation(anno, username):
-    user = get_or_create(User, username=username)
+    user = get_or_create(db.session, User, username=username)
 
-    entity_type = get_or_create(EntityType, name=ENTITY_TYPE_NAME)
+    entity_type = get_or_create(db.session, EntityType, name=ENTITY_TYPE_NAME)
 
     annotation_context = json.dumps(anno["req"]["data"], sort_keys=True)
-    context = get_or_create(Context, exclude_keys_in_read=["data"],
-                            hash=hashlib.md5(
-                                annotation_context.encode()).hexdigest(),
+    context = get_or_create(db.session, Context, exclude_keys_in_retrieve=["data"],
+                            hash=generate_md5_hash(annotation_context),
                             data=annotation_context)
 
     company_name = anno["req"]["data"]["meta"]["name"]
     company_name = company_name if company_name is not None else "unknown"
     domain = anno["req"]["data"]["meta"].get("domain", company_name)
     domain = domain if domain is not None else company_name
-    entity = get_or_create(Entity, name=domain,
+    entity = get_or_create(db.session, Entity, name=domain,
                            entity_type_id=entity_type.id)
 
     for label_name, label_value in anno["anno"]["labels"].items():
-        label = get_or_create(Label, name=label_name,
+        label = get_or_create(db.session, Label, name=label_name,
                               entity_type_id=entity_type.id)
 
-        _ = get_or_create(ClassificationAnnotation,
+        _ = get_or_create(db.session, ClassificationAnnotation,
                           value=label_value,
                           entity_id=entity.id,
                           label_id=label.id,
                           user_id=user.id,
                           context_id=context.id)
-
-
-def get_or_create(model, exclude_keys_in_read=None, **kwargs):
-    if exclude_keys_in_read is None:
-        exclude_keys_in_read = []
-    read_kwargs = copy.copy(kwargs)
-    for key in exclude_keys_in_read:
-        read_kwargs.pop(key, None)
-
-    instance = db.session.query(model).filter_by(**read_kwargs).one_or_none()
-    if instance:
-        return instance
-    else:
-        instance = model(**kwargs)
-        db.session.add(instance)
-        db.session.commit()
-        print("Created a new instance of {}".format(instance))
-        return instance
 
 
 if __name__ == "__main__":

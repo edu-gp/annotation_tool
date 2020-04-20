@@ -147,6 +147,10 @@ class JobStatus:
     INIT = "init"
 
 
+class EntityTypeEnum:
+    COMPANY = "company"
+
+
 class BackgroundJob(Base):
     __tablename__ = 'background_job'
 
