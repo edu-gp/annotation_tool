@@ -1,3 +1,4 @@
+import hashlib
 import os
 import pandas as pd
 import json
@@ -67,3 +68,12 @@ def stem(fname):
     """/blah/my_file.json.gz --> my_file"""
     stem = Path(fname).stem
     return stem[:stem.index('.')] if '.' in stem else stem
+
+
+def generate_md5_hash(data: str):
+    """Generate a md5 hash of the input str
+
+    :param data: the input str
+    :return: the md5 hash string
+    """
+    return hashlib.md5(data.encode()).hexdigest()

@@ -1,3 +1,4 @@
+import copy
 import os
 import shutil
 import itertools
@@ -20,27 +21,56 @@ from db import _task_dir
 ###############################################################################
 # I chose to write it all on disk for now - we can change it to a db later.
 
+def get_or_create(db_session, model, exclude_keys_in_retrieve=None, **kwargs):
+    """Retrieve an instance from the database based on key and value
+    specified in kwargs but excluding those in the exclude_keys_in_retrieve.
+
+    :param db_session: database session
+    :param model: The db model class name
+    :param exclude_keys_in_retrieve: keys to exclude in retrieve
+    :param kwargs: key-value pairs to retrieve or create an instance
+    :return: a model instance
+    """
+    if exclude_keys_in_retrieve is None:
+        exclude_keys_in_retrieve = []
+    read_kwargs = copy.copy(kwargs)
+    for key in exclude_keys_in_retrieve:
+        read_kwargs.pop(key, None)
+
+    instance = db_session.query(model).filter_by(**read_kwargs).one_or_none()
+    if instance:
+        return instance
+    else:
+        instance = model(**kwargs)
+        db_session.add(instance)
+        db_session.commit()
+        logging.info("Created a new instance of {}".format(instance))
+        return instance
+
 
 def fetch_labels_by_entity_type(entity_type_name):
+    """Fetch all labels for an entity type.
+
+    :param entity_type_name: the entity type name
+    :return: all the labels under the entity type
+    """
     labels = Label.query.join(EntityType).filter(EntityType.name ==
                                                  entity_type_name).all()
     return [label.name for label in labels]
 
 
 def save_labels_by_entity_type(entity_type_name, labels):
+    """Update labels under the entity type.
+
+    If entity type doesn't exist, create it first.
+
+    :param entity_type_name: the entity type name
+    :param labels: labels to be saved
+    """
     logging.info("Finding the EntityType for {}".format(entity_type_name))
-    entity_type_id = db.session.query(EntityType.id).filter_by(
-        name=entity_type_name).scalar()
-    if entity_type_id is None:
-        entity_type = EntityType(name=entity_type_name)
-        db.session.add(entity_type)
-        db.session.commit()
-        entity_type_id = entity_type.id
-        logging.info("Created a new EntityType {} with id {}".format(
-            entity_type_name, entity_type_id
-        ))
+    entity_type = get_or_create(db.session, EntityType, name=entity_type_name)
     for label_name in labels:
-        label = Label(name=label_name, entity_type_id=entity_type_id)
+        label = Label(name=label_name, entity_type_id=entity_type.id)
         db.session.add(label)
     db.session.commit()
 
@@ -133,7 +163,7 @@ def get_next_ar(task_id, user_id, ar_id):
         - If nothing left to label, return None
     '''
     ar_all = fetch_all_ar(task_id, user_id)
-    ar_done = set(fetch_all_annotation_ids(task_id, user_id))
+    ar_done = set(fetch_all_ar_ids(task_id, user_id))
 
     try:
         idx = ar_all.index(ar_id)
@@ -191,7 +221,7 @@ def fetch_annotation(task_id, user_id, ar_id):
         return None
 
 
-def fetch_all_annotation_ids(task_id, user_id):
+def fetch_all_ar_ids(task_id, user_id):
     '''
     Return a list of ar_id for this task that has been annotated by this user.
     '''
@@ -251,7 +281,7 @@ def compute_annotation_statistics(task_id):
     results_per_task_user_anno_id = dict()
 
     for user_id in user_ids:
-        anno_ids = fetch_all_annotation_ids(task_id, user_id)
+        anno_ids = fetch_all_ar_ids(task_id, user_id)
         anno_ids_per_user[user_id] = set(anno_ids)
         n_annotations_per_user[user_id] = len(anno_ids)
 
@@ -595,7 +625,7 @@ def _export_distinct_labeled_examples(annotations_iterator):
 def _gather_distinct_labeled_examples(task_id):
     def annotations_iterator():
         for user_id in _get_all_annotators_from_annotated(task_id):
-            for ar_id in fetch_all_annotation_ids(task_id, user_id):
+            for ar_id in fetch_all_ar_ids(task_id, user_id):
                 anno = fetch_annotation(task_id, user_id, ar_id)
 
                 yield anno

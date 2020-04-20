@@ -6,7 +6,7 @@ from ar.data import (
     fetch_tasks_for_user,
     fetch_all_ar,
     fetch_ar,
-    fetch_all_annotation_ids,
+    fetch_all_ar_ids,
     fetch_annotation,
     annotate_ar,
     get_next_ar,
@@ -93,7 +93,7 @@ class TestARFlow:
         assert annotation_requests[2]['ar_id'] == all_ars[2]
 
         # User has not labeled anything yet.
-        assert len(fetch_all_annotation_ids(task_id, user_id)) == 0
+        assert len(fetch_all_ar_ids(task_id, user_id)) == 0
 
         ar_detail = fetch_ar(task_id, user_id, all_ars[0])
         assert ar_detail['ar_id'] == annotation_requests[0]['ar_id']
@@ -104,20 +104,20 @@ class TestARFlow:
         annotate_ar(task_id, user_id, all_ars[0], my_anno)
         assert fetch_annotation(task_id, user_id, all_ars[0])[
             'anno'] == my_anno
-        assert len(fetch_all_annotation_ids(task_id, user_id)) == 1
+        assert len(fetch_all_ar_ids(task_id, user_id)) == 1
 
         # Annotate the same thing again updates the annotation
         updated_anno = {'labels': {'FINTECH': 1, 'HEALTHCARE': 0}}
         annotate_ar(task_id, user_id, all_ars[0], updated_anno)
         assert fetch_annotation(task_id, user_id, all_ars[0])[
             'anno'] == updated_anno
-        assert len(fetch_all_annotation_ids(task_id, user_id)) == 1
+        assert len(fetch_all_ar_ids(task_id, user_id)) == 1
 
         # Annotate something that doesn't exist
         # (this might happen when master is updating - we'll try to avoid it)
         annotate_ar(task_id, user_id, 'doesnotexist',
                     {'labels': {'HEALTHCARE': 1}})
-        assert len(fetch_all_annotation_ids(task_id, user_id)) == 1
+        assert len(fetch_all_ar_ids(task_id, user_id)) == 1
 
         # Fetch next thing to be annotated
         # ar[0] is labeled, label ar[1]
@@ -170,7 +170,7 @@ class TestARFlow:
             fetch_all_ar(task_id, user_id))
 
         # Check existing annotations still exist
-        assert len(fetch_all_annotation_ids(task_id, user_id)) == 1
+        assert len(fetch_all_ar_ids(task_id, user_id)) == 1
 
         # Annotate something thing in the new batch
         my_anno = {'labels': {'MACHINELEARNING': 0,
@@ -179,7 +179,7 @@ class TestARFlow:
         annotate_ar(task_id, user_id, all_ars[0], my_anno)
         assert fetch_annotation(task_id, user_id, all_ars[0])[
             'anno'] == my_anno
-        assert len(fetch_all_annotation_ids(task_id, user_id)) == 2
+        assert len(fetch_all_ar_ids(task_id, user_id)) == 2
 
         # TODO: Write the test. When there is 1 thing left in queue, get_next_ar should return None.
         # assert get_next_ar(task_id, user_id, all_ars[-1]) == None
