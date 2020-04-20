@@ -43,8 +43,8 @@ class Label(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(64), index=True, unique=True, nullable=False)
     # A label can be part of many annotations.
-    annotations = relationship('Annotation', backref='label',
-                               lazy='dynamic')
+    classification_annotations = relationship('ClassificationAnnotation',
+                                              backref='label', lazy='dynamic')
     entity_type_id = Column(Integer, ForeignKey('entity_type.id'))
 
 
@@ -67,8 +67,8 @@ class Entity(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(64), index=True, unique=True, nullable=False)
     # An entity can have many annotations on it.
-    annotations = relationship('Annotation', backref='entity',
-                               lazy='dynamic')
+    classification_annotations = relationship('ClassificationAnnotation',
+                                              backref='entity', lazy='dynamic')
     entity_type_id = Column(Integer, ForeignKey('entity_type.id'))
 
     def __repr__(self):
@@ -81,7 +81,8 @@ class User(Base):
     username = Column(String(64), index=True, unique=True,
                       nullable=False)
     # A user can do many annotations.
-    annotations = relationship('Annotation', backref='user', lazy='dynamic')
+    classification_annotations = relationship('ClassificationAnnotation',
+                                              backref='user', lazy='dynamic')
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
@@ -94,20 +95,21 @@ class Context(Base):
     hash = Column(String(128), index=True, unique=True, nullable=False)
     data = Column(JSON, nullable=False)
     # A context can be part of many annotations.
-    annotations = relationship('Annotation', backref='context',
-                               lazy='dynamic')
+    classification_annotations = relationship('ClassificationAnnotation',
+                                              backref='context',
+                                              lazy='dynamic')
 
     def __repr__(self):
         return '<Context {}: {}>'.format(self.id, self.data)
 
 
-class Annotation(Base):
-    __tablename__ = 'annotation'
+class ClassificationAnnotation(Base):
+    __tablename__ = 'classification_annotation'
 
     id = Column(Integer, primary_key=True)
     value = Column(Integer, nullable=False)
-    created_at = Column(DateTime, nullable=False)
-    last_updated_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     entity_id = Column(Integer, ForeignKey('entity.id'))
     label_id = Column(Integer, ForeignKey('label.id'))
@@ -116,7 +118,7 @@ class Annotation(Base):
 
     def __repr__(self):
         return """
-        Annotation {}:
+        Classification Annotation {}:
         Entity Id {},
         Label Id {},
         User Id {},
