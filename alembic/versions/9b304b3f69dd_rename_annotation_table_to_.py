@@ -38,6 +38,8 @@ def upgrade():
     # TODO we may need to think about copying over data from the annotation
     #  table to the classification_annotation. We are OK for now since there
     #  are no data in the table anyway.
+    #  In case we need some guidance:
+    #  https://stackoverflow.com/questions/18726527/fetch-table-values-using-alembic-and-update-to-another-table 
     op.drop_table('annotation')
     # ### end Alembic commands ###
 
