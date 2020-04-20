@@ -117,7 +117,7 @@ class Annotation(Base):
     def __repr__(self):
         return """
         Annotation {}:
-        Entity Id {}, 
+        Entity Id {},
         Label Id {},
         User Id {},
         Context Id {},
@@ -188,3 +188,4 @@ class Task(Base):
         "BackgroundJob",
         primaryjoin="and_(Task.id==BackgroundJob.task_id, "
         f"BackgroundJob.type=={JobType.TextClassificationModelTraining})")
+
