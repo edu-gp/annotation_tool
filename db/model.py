@@ -247,6 +247,8 @@ class Task(Base):
 class AnnotationRequest(Base):
     __tablename__ = 'annotation_request'
 
+    # --------- REQUIRED ---------
+
     id = Column(Integer, primary_key=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -263,6 +265,12 @@ class AnnotationRequest(Base):
     # See the AnnotationType enum.
     annotation_type = Column(Integer, nullable=False)
 
+    # AnnotationRequestStatus
+    status = Column(Integer, index=True, nullable=False,
+                    default=AnnotationRequestStatus.Pending)
+
+    # --------- OPTIONAL ---------
+
     # Which task this request belongs to, so we can list all requests per task.
     # (If null, this request does not belong to any task)
     task_id = Column(Integer, ForeignKey('task.id'))
@@ -272,9 +280,7 @@ class AnnotationRequest(Base):
     # Index these because we will order by them.
     order = Column(Float, index=True)
 
-    # AnnotationRequestStatus
-    status = Column(Integer, index=True, nullable=False,
-                    default=AnnotationRequestStatus.Pending)
+    # --------- INFORMATIONAL ---------
 
     # Friendly name to show to the user
     name = Column(String)
