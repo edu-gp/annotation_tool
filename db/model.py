@@ -27,17 +27,8 @@ class Database:
         # instance per scope, until you explicitly call session.remove().
         session = scoped_session(session_factory)
 
-        # Adds Query Property to Models - enables `User.query.query_method()`
-        Base.query = session.query_property()
-
         self.session = session
         self.engine = engine
-
-    def create_all(self):
-        Base.metadata.create_all(bind=self.engine)
-
-    def drop_all(self):
-        Base.metadata.drop_all(bind=self.engine)
 
 
 # =============================================================================
