@@ -1,12 +1,15 @@
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.schema import ForeignKey, Column
-from sqlalchemy.types import Integer, String, JSON, DateTime
+from sqlalchemy.types import Integer, Float, String, JSON, DateTime
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 
 Base = declarative_base()
+
+# =============================================================================
+# DB Access
 
 # This is a flask_sqlalchemy object; Only for use inside Flask
 db = SQLAlchemy(model_class=Base)
@@ -35,6 +38,31 @@ class Database:
 
     def drop_all(self):
         Base.metadata.drop_all(bind=self.engine)
+
+
+# =============================================================================
+# Enums
+
+class AnnotationRequestStatus:
+    Pending = 0
+    Complete = 1
+    Stale = 2
+
+
+class AnnotationType:
+    ClassificationAnnotation = 1
+
+
+class JobType:
+    AnnotationRequestGenerator = 1
+    TextClassificationModelTraining = 2
+
+
+class JobStatus:
+    INIT = "init"
+
+# =============================================================================
+# Tables
 
 
 class Label(Base):
@@ -87,6 +115,34 @@ class User(Base):
     def __repr__(self):
         return '<User {}>'.format(self.username)
 
+    def fetch_ar_count_per_task(self):
+        """Returns a list of tuples (name, task_id, count)
+        """
+        session = inspect(self).session
+
+        q = session.query(
+            Task.name, Task.id, func.count(Task.id)
+        ).join(AnnotationRequest) \
+            .filter(AnnotationRequest.task_id == Task.id) \
+            .filter(AnnotationRequest.user == self) \
+            .group_by(Task.id) \
+            .order_by(Task.id)
+
+        return q.all()
+
+    def fetch_ar_for_task(self, task_id,
+                          status=AnnotationRequestStatus.Pending):
+        """Returns a list of AnnotationRequest objects"""
+        session = inspect(self).session
+
+        q = session.query(AnnotationRequest) \
+            .filter(AnnotationRequest.task_id == task_id) \
+            .filter(AnnotationRequest.user == self) \
+            .filter(AnnotationRequest.status == status) \
+            .order_by(AnnotationRequest.order)
+
+        return q.all()
+
 
 class Context(Base):
     __tablename__ = 'context'
@@ -138,15 +194,6 @@ class ClassificationAnnotation(Base):
         )
 
 
-class JobType:
-    AnnotationRequestGenerator = 1
-    TextClassificationModelTraining = 2
-
-
-class JobStatus:
-    INIT = "init"
-
-
 class BackgroundJob(Base):
     __tablename__ = 'background_job'
 
@@ -191,3 +238,44 @@ class Task(Base):
         primaryjoin="and_(Task.id==BackgroundJob.task_id, "
         f"BackgroundJob.type=={JobType.TextClassificationModelTraining})")
 
+
+class AnnotationRequest(Base):
+    __tablename__ = 'annotation_request'
+
+    id = Column(Integer, primary_key=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Who should annotate.
+    user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
+    user = relationship("User")
+
+    # What should the user annotate.
+    context_id = Column(Integer, ForeignKey('context.id'), nullable=False)
+    context = relationship("Context")
+
+    # What kind of annotation should the user be performing.
+    # See the AnnotationType enum.
+    annotation_type = Column(Integer, nullable=False)
+
+    # Which task this request belongs to, so we can list all requests per task.
+    # (If null, this request does not belong to any task)
+    task_id = Column(Integer, ForeignKey('task.id'))
+    task = relationship("Task")
+
+    # How the user should prioritize among many requests.
+    # Index these because we will order by them.
+    order = Column(Float, index=True)
+
+    # AnnotationRequestStatus
+    status = Column(Integer, index=True, nullable=False,
+                    default=AnnotationRequestStatus.Pending)
+
+    # Friendly name to show to the user
+    name = Column(String)
+
+    # Additional info to show to the user, e.g. the score, probability, etc.
+    additional_info = Column(JSON)
+
+    # Where this request came from. e.g. {'source': BackgroundJob, 'id': 123}
+    source = Column(JSON)
