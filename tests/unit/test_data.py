@@ -1,86 +1,13 @@
 import math
 
-import pytest
-from mockito import when2, unstub
-
-from db.model import User, ClassificationAnnotation
+from db.model import User, ClassificationAnnotation, Label, Context
+from shared.utils import generate_md5_hash
 from tests.sqlalchemy_conftest import *
 
-from ar.data import _compute_kappa_matrix, \
-    _calculate_per_label_kappa_stats_table, \
-    _exclude_unknowns_for_kappa_calculation, _groupby_count_join_with
-from ar.data import _construct_per_label_per_user_pair_result
-
-
-def test__construct_per_label_per_user_pair_result():
-    task_id = "fakeid"
-    user_ids = ["user1", "user2", "user3"]
-
-    anno_ids_per_user = {
-        "user1": {"a1", "a2", "a3"},
-        "user2": {"a1", "a3"},
-        "user3": {"a2", "a3"}
-    }
-
-    results_per_task_user_anno_id = {
-        (task_id, "user1", "a1"): {"anno": {"labels": {"HEALTHCARE": 1,
-                                                       "B2C": -1}}},
-        (task_id, "user1", "a2"): {"anno": {"labels": {"HEALTHCARE": -1,
-                                                       "B2C": 1}}},
-        (task_id, "user1", "a3"): {"anno": {"labels": {"HEALTHCARE": 1,
-                                                       "B2C": -1}}},
-        (task_id, "user2", "a1"): {"anno": {"labels": {"HEALTHCARE": 1,
-                                                      "B2C": -1}}},
-        (task_id, "user2", "a2"): {"anno": {"labels": {"HEALTHCARE": -1,
-                                                       "B2C": 1}}},
-        (task_id, "user2", "a3"): {"anno": {"labels": {"HEALTHCARE": 1,
-                                                       "B2C": -1}}},
-        (task_id, "user3", "a1"): {"anno": {"labels": {"HEALTHCARE": 1,
-                                                       "B2C": -1}}},
-        (task_id, "user3", "a2"): {"anno": {"labels": {"HEALTHCARE": -1,
-                                                       "B2C": 1}}},
-        (task_id, "user3", "a3"): {"anno": {"labels": {"HEALTHCARE": 1,
-                                                       "B2C": -1}}},
-    }
-
-    expected = {
-        "HEALTHCARE": {
-            ("user1", "user2"): {
-                "user1": [1, 1],
-                "user2": [1, 1]
-            },
-            ("user1", "user3"): {
-                "user1": [-1, 1],
-                "user3": [-1, 1]
-            },
-            ("user2", "user3"): {
-                "user2": [1],
-                "user3": [1]
-            }
-        },
-        "B2C": {
-            ("user1", "user2"): {
-                "user1": [-1, -1],
-                "user2": [-1, -1]
-            },
-            ("user1", "user3"): {
-                "user1": [1, -1],
-                "user3": [1, -1]
-            },
-            ("user2", "user3"): {
-                "user2": [-1],
-                "user3": [-1]
-            }
-        }
-    }
-
-    kappa_stats_raw_data = _construct_per_label_per_user_pair_result(
-        task_id=task_id, user_ids=user_ids,
-        annos_per_user=anno_ids_per_user,
-        results_per_task_user_anno_id=results_per_task_user_anno_id
-    )
-
-    assert kappa_stats_raw_data == expected
+from ar.data import _compute_kappa_matrix, _compute_total_annotations, \
+    _exclude_unknowns_for_kappa_calculation, \
+    _retrieve_annotation_with_same_context_shared_by_two_users, \
+    _construct_kappa_stats_raw_data
 
 
 def test__exclude_unknowns_for_kappa_calculation():
@@ -152,51 +79,26 @@ def test__compute_kappa_matrix_unknown():
                     assert math.isnan(matrix_per_label[user][user_id])
 
 
-
-@pytest.mark.parametrize("task_id,user_ids,annotations_per_user,"
-                         "results_lookup,expected",
-                         [
-                             ("FakeId", ["User1"], {"User1": ["anno1",
-                                                              "anno2"]}, {},
-                              ["There is only one user User1"]),
-                             ("FakeId", ["User1", "User2"], {}, {},
-                              ["There are no annotations from any user yet."]),
-                         ]
-                         )
-def test__calculate_per_label_kappa_stats_table_edge_cases(task_id, user_ids,
-                                                          annotations_per_user,
-                                                          results_lookup,
-                                                          expected):
-    kappa_matrix_html_tables = _calculate_per_label_kappa_stats_table(
-        task_id,
-        user_ids,
-        annotations_per_user,
-        results_lookup
-    )
-
-    assert kappa_matrix_html_tables == expected
-
-
-def test__groupby_count_join_with(dbsession):
+def test__compute_total_annotations(dbsession):
     def populate_annotations():
         user1 = User(username="ooo")
         user2 = User(username="ppp")
-        dbsession.add(user1)
-        dbsession.add(user2)
+        label = Label(name="whatever")
+        dbsession.add_all([user1, user2, label])
         dbsession.commit()
-        annotation1 = ClassificationAnnotation(value=1, user_id=user1.id)
-        annotation2 = ClassificationAnnotation(value=1, user_id=user1.id)
-        annotation3 = ClassificationAnnotation(value=1, user_id=user1.id)
-        annotation4 = ClassificationAnnotation(value=1, user_id=user2.id)
+        annotation1 = ClassificationAnnotation(value=1, user_id=user1.id,
+                                               label_id=label.id)
+        annotation2 = ClassificationAnnotation(value=1, user_id=user1.id,
+                                               label_id=label.id)
+        annotation3 = ClassificationAnnotation(value=1, user_id=user1.id,
+                                               label_id=label.id)
+        annotation4 = ClassificationAnnotation(value=1, user_id=user2.id,
+                                               label_id=label.id)
         dbsession.add_all([annotation1, annotation2, annotation3, annotation4])
 
     populate_annotations()
-
-    res = _groupby_count_join_with(
-        dbsession=dbsession,
-        to_count=ClassificationAnnotation.id,
-        join_with=User,
-        groupby_column=User.username
+    res = _compute_total_annotations(
+        dbsession=dbsession, label_name="whatever"
     )
     assert len(res) == 2
     for num, name in res:
@@ -204,3 +106,86 @@ def test__groupby_count_join_with(dbsession):
             assert num == 3
         elif name == "ppp":
             assert num == 1
+
+
+def test__construct_kappa_stats_raw_data(dbsession):
+    username1 = "ooo"
+    username2 = "ppp"
+    username3 = "qqq"
+    label_name = "whatever"
+    text1 = "whatever"
+    text2 = "SQL is no fun."
+    text3 = "Blahblah."
+
+    def populate_annotations():
+        user1 = User(username=username1)
+        user2 = User(username=username2)
+        user3 = User(username=username3)
+        label = Label(name=label_name)
+
+        context1 = Context(data=text1, hash=generate_md5_hash(text1))
+        context2 = Context(data=text2, hash=generate_md5_hash(text2))
+        context3 = Context(data=text3, hash=generate_md5_hash(text3))
+
+        dbsession.add_all([user1, user2, user3, label, context1, context2,
+                           context3])
+        dbsession.commit()
+
+        # A1 and A2 from user1 has the same context with A4 and A5 from user2.
+        # A3 from user1 has the same context with A6 from user3.
+        annotation1 = ClassificationAnnotation(value=1, user_id=user1.id,
+                                               label_id=label.id,
+                                               context_id=context1.id)
+        annotation2 = ClassificationAnnotation(value=1, user_id=user1.id,
+                                               label_id=label.id,
+                                               context_id=context2.id)
+        annotation3 = ClassificationAnnotation(value=-1, user_id=user1.id,
+                                               label_id=label.id,
+                                               context_id=context3.id)
+
+        annotation4 = ClassificationAnnotation(value=1, user_id=user2.id,
+                                               label_id=label.id,
+                                               context_id=context1.id)
+        annotation5 = ClassificationAnnotation(value=-1, user_id=user2.id,
+                                               label_id=label.id,
+                                               context_id=context2.id)
+        annotation6 = ClassificationAnnotation(value=-1, user_id=user3.id,
+                                               label_id=label.id,
+                                               context_id=context3.id)
+        dbsession.add_all([annotation1, annotation2, annotation3,
+                           annotation4, annotation5, annotation6])
+        return user1, user2, user3
+
+    user1, user2, user3 = populate_annotations()
+
+    res1 = _retrieve_annotation_with_same_context_shared_by_two_users(
+        user1=user1, user2=user2
+    )
+    assert res1 == {
+        username1: [1, 1],
+        username2: [1, -1]
+    }
+
+    res2 = _retrieve_annotation_with_same_context_shared_by_two_users(
+        user1=user1, user2=user3
+    )
+    assert res2 == {
+        username1: [-1],
+        username3: [-1]
+    }
+
+    res3 = _retrieve_annotation_with_same_context_shared_by_two_users(
+        user1=user2, user2=user3
+    )
+    assert res3 is None
+
+    kappa_raw_data = _construct_kappa_stats_raw_data(distinct_users={
+        user1, user2, user3}, label_name=label_name)
+
+    assert kappa_raw_data == {
+        label_name: {
+            tuple(sorted([username1, username2])): res1,
+            tuple(sorted([username1, username3])): res2,
+            tuple(sorted([username2, username3])): res3
+        }
+    }

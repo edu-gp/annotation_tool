@@ -1,12 +1,12 @@
 import copy
-import os
-import shutil
-import itertools
-import re
 import glob
+import itertools
+import logging
+import os
+import re
+import shutil
 import time
 from collections import defaultdict, Counter
-import logging
 from typing import List
 
 import pandas as pd
@@ -14,11 +14,11 @@ from pandas import DataFrame
 from sklearn.metrics import cohen_kappa_score
 from sqlalchemy import func
 
+from db import _task_dir
 from db.model import db, EntityType, Label, User, ClassificationAnnotation, \
     AnnotationRequest
-from shared.utils import save_jsonl, load_json, save_json, mkf, mkd
 from db.task import Task, DIR_ANNO, DIR_AREQ
-from db import _task_dir
+from shared.utils import save_jsonl, load_json, save_json, mkf, mkd
 
 
 ###############################################################################
@@ -301,18 +301,29 @@ def compute_annotation_statistics(task_id):
             set(ar_ids) - set(anno_ids))
 
     # kappa stats calculation
-    kappa_table_per_label = _calculate_per_label_kappa_stats_table(
-        task_id, user_ids, anno_ids_per_user,
-        results_per_task_user_anno_id)
+    # kappa_table_per_label = _calculate_per_label_kappa_stats_table(
+    #     task_id, user_ids, anno_ids_per_user,
+    #     results_per_task_user_anno_id)
+    kappa_table_per_label = None
 
-    # Using DB to calculate the stats
-    num_of_annotations_done_per_user = \
-        _groupby_count_join_with(
-            dbsession=db.session,
-            to_count=AnnotationRequest.id,
-            join_with=User,
-            groupby_column=User.username
-        )
+    return {
+        'total_annotations': sum(n_annotations_per_user.values()),
+        'total_distinct_annotations': len(total_distinct_annotations),
+        'n_annotations_per_user': n_annotations_per_user,
+        'n_annotations_per_label': n_annotations_per_label,
+        'kappa_table_per_label': kappa_table_per_label,
+        'total_outstanding_requests': sum(
+            n_outstanding_requests_per_user.values()),
+        'n_outstanding_requests_per_user': n_outstanding_requests_per_user,
+    }
+
+
+def compute_annotation_statistics_db(dbsession, label_name):
+    num_of_annotations_done_per_user = _compute_total_annotations(
+        dbsession=dbsession,
+        label_name=label_name
+    )
+
     total_num_of_annotations_done_by_users = sum(
         [num for num, user in num_of_annotations_done_per_user])
     n_annotations_done_per_user_dict = {
@@ -320,172 +331,83 @@ def compute_annotation_statistics(task_id):
         for num, user in num_of_annotations_done_per_user
     }
 
-    num_of_annotation_requests_per_user = \
-        _groupby_count_join_with(
-            dbsession=db.session,
-            to_count=AnnotationRequest.id,
-            join_with=User,
-            groupby_column=User.username
-        )
-    n_annotation_requests_per_user_dict = {
-        user: num
-        for num, user in num_of_annotation_requests_per_user
-    }
+    annotations = dbsession.query(ClassificationAnnotation).all()
 
-    n_outstanding_requests_per_user_dict = {
-        user: n_annotation_requests_per_user_dict[user] -
-              n_annotations_done_per_user_dict.get(user, 0)
-        for user in n_annotation_requests_per_user_dict
-    }
+    # kappa stats calculation
+    distinct_users = set([
+        annotation.user for annotation in annotations
+    ])
+    kappa_stats_raw_data = _construct_kappa_stats_raw_data(distinct_users,
+                                                           label_name)
 
-    num_of_annotations_per_label = \
-        _groupby_count_join_with(
-            dbsession=db.session,
-            to_count=ClassificationAnnotation.id,
-            join_with=Label,
-            groupby_column=Label.name
-        )
-    n_annotations_per_label_dict = {
-        label: num
-        for num, label in num_of_annotations_per_label
-    }
-
-    annotations = db.session.query(ClassificationAnnotation).all()
-    total_num_of_distinct_annotations = len(annotations)
-
-    # TODO calculate the kappa
-
-    # return {
-    #     'total_annotations': sum(n_annotations_per_user.values()),
-    #     'total_distinct_annotations': len(total_distinct_annotations),
-    #     'n_annotations_per_user': n_annotations_per_user,
-    #     'n_annotations_per_label': n_annotations_per_label,
-    #     'kappa_table_per_label': kappa_table_per_label,
-    #     'total_outstanding_requests': sum(
-    #         n_outstanding_requests_per_user.values()),
-    #     'n_outstanding_requests_per_user': n_outstanding_requests_per_user,
-    # }
+    kappa_table_per_label = _compute_kappa_matrix(kappa_stats_raw_data)
 
     return {
         'total_annotations': total_num_of_annotations_done_by_users,
-        'total_distinct_annotations': total_num_of_distinct_annotations,
+        'total_distinct_annotations': len(annotations),
         'n_annotations_per_user': n_annotations_done_per_user_dict,
-        'n_annotations_per_label': n_annotations_per_label_dict,
         'kappa_table_per_label': kappa_table_per_label,
-        'total_outstanding_requests': sum(
-            n_outstanding_requests_per_user_dict.values()),
-        'n_outstanding_requests_per_user': n_outstanding_requests_per_user_dict
     }
 
 
-def _groupby_count_join_with(dbsession, to_count, join_with, groupby_column):
-    num_of_annotations_per_category = dbsession.query(
-        func.count(to_count), groupby_column). \
-        join(join_with).group_by(groupby_column).all()
-    return num_of_annotations_per_category
+def _compute_total_annotations(dbsession, label_name):
+    num_of_annotations_done_per_user = dbsession.query(
+        func.count(ClassificationAnnotation.id),
+        User.username). \
+        join(User). \
+        join(Label). \
+        filter(Label.name == label_name). \
+        group_by(User.username).all()
+
+    return num_of_annotations_done_per_user
 
 
-def _calculate_per_label_kappa_stats_table(task_id, user_ids,
-                                           anno_ids_per_user,
-                                           results_per_task_user_anno_id):
-    """Calculate per label kappa matrix stats.
-
-    Input structure of the annotations_per_user:
-    {
-        "user1": set(anno1, anno2, anno3, anno4),
-        "user2": set(anno2, anno3, anno5, anno8),
-        ...
+def _construct_kappa_stats_raw_data(distinct_users, label_name):
+    user_pairs = list(itertools.combinations(distinct_users, 2))
+    kappa_stats_raw_data = {
+        label_name: {
+            tuple(sorted([user_pair[0].username, user_pair[1].username])):
+                _retrieve_annotation_with_same_context_shared_by_two_users(
+                    user_pair[0], user_pair[1])
+            for user_pair in user_pairs
+        }
     }
-
-    :param task_id: the id of a task
-    :param user_ids: the user id list
-    :param anno_ids_per_user: annotation ids per user
-    :return: the per label kappa matrix html table
-    """
-    if len(user_ids) == 1:
-        return ['There is only one user {}'.format(list(user_ids)[0])]
-    if len(anno_ids_per_user) == 0:
-        return ['There are no annotations from any user yet.']
-    kappa_stats_raw_data = _construct_per_label_per_user_pair_result(
-        task_id,
-        user_ids,
-        anno_ids_per_user,
-        results_per_task_user_anno_id
-    )
-    kappa_matrices = _compute_kappa_matrix(kappa_stats_raw_data)
-    kappa_matrix_html_tables = _convert_html_tables(kappa_matrices)
-    return kappa_matrix_html_tables
-
-
-def _construct_per_label_per_user_pair_result(task_id, user_ids,
-                                              annos_per_user,
-                                              results_per_task_user_anno_id):
-    """Construct the per label per user_pair labeling result dictionary.
-
-    :param task_id: the id of a task
-    :param user_ids: the user ids
-    :param annos_per_user: annotation ids per user
-    :return: a dictionary of per label per user pair labeling result
-
-    Input structure of the annotations_per_user:
-    {
-        "user1": [anno1, anno2, anno3, anno4],
-        "user2": [anno2, anno3, anno5, anno8],
-        ...
-    }
-
-    Output structure of the labeling results per label per user_pair for the
-    same set of annotations:
-    {
-        "label1": {
-            ("user_id1", "user_id2"): {
-                "user_id1": [1, -1, 1, 1, -1],
-                "user_id2": [-1, 1, 1, -1, 1]
-            },
-            ("user_id1", "user_id3"): {
-                "user_id1": [1, -1],
-                "user_id2": [-1, 1]
-            }
-            ...
-        },
-        "label12": {
-            ("user_id1", "user_id3"): {
-                "user_id1": [1, -1],
-                "user_id2": [-1, 1]
-            },
-            ...
-        },
-        ...
-    }
-    """
-    kappa_stats_raw_data = PrettyDefaultDict(
-        lambda: PrettyDefaultDict(lambda: PrettyDefaultDict(lambda: [])))
-
-    all_pairs_of_users = list(itertools.combinations(user_ids, 2))
-
-    for user1, user2 in all_pairs_of_users:
-        annotations_user1 = annos_per_user[user1]
-        annotations_user2 = annos_per_user[user2]
-
-        annotation_intersection = set.intersection(annotations_user1,
-                                                   annotations_user2)
-        # WE NEED TO SORT THIS. OTHERWISE WE GOT UNSTABLE OUTPUT WHICH FAILS
-        # UNIT TESTS!
-        for anno_id in sorted(annotation_intersection):
-            anno_by_user1 = results_per_task_user_anno_id[(task_id, user1,
-                                                           anno_id)]
-            anno_by_user2 = results_per_task_user_anno_id[(task_id, user2,
-                                                           anno_id)]
-
-            for label, result in anno_by_user1['anno']['labels'].items():
-                kappa_stats_raw_data[label][(user1, user2)][user1].append(
-                    result)
-
-            for label, result in anno_by_user2['anno']['labels'].items():
-                kappa_stats_raw_data[label][(user1, user2)][user2].append(
-                    result)
-
     return kappa_stats_raw_data
+
+
+def _retrieve_annotation_with_same_context_shared_by_two_users(user1, user2):
+    annotations_from_user1 = user1.classification_annotations
+    annotations_from_user2 = user2.classification_annotations
+
+    dict_of_context_value_from_user1 = {
+        annotation.context_id: annotation.value
+        for annotation in annotations_from_user1
+    }
+
+    dict_of_context_value_from_user2 = {
+        annotation.context_id: annotation.value
+        for annotation in annotations_from_user2
+    }
+    intersection = set(dict_of_context_value_from_user1.keys()).intersection(
+        set(dict_of_context_value_from_user2.keys()))
+    intersection = list(intersection)
+    if len(intersection) == 0:
+        return None
+
+    values_from_annotations_with_overlapping_context_user1 = [
+        dict_of_context_value_from_user1[context_id] for context_id in
+        intersection
+    ]
+
+    values_from_annotations_with_overlapping_context_user2 = [
+        dict_of_context_value_from_user2[context_id] for context_id in
+        intersection
+    ]
+
+    return {
+        user1.username: values_from_annotations_with_overlapping_context_user1,
+        user2.username: values_from_annotations_with_overlapping_context_user2
+    }
 
 
 def _compute_kappa_matrix(kappa_stats_raw_data):
@@ -533,6 +455,8 @@ def _compute_kappa_matrix(kappa_stats_raw_data):
     for label, result_per_user_pair_per_label in kappa_stats_raw_data.items():
         for user_pair, result_per_user in \
                 result_per_user_pair_per_label.items():
+            if result_per_user is None:
+                continue
             result_user1 = result_per_user[user_pair[0]]
             result_user2 = result_per_user[user_pair[1]]
             logging.error("Calculating the kappa score for {} and {}".format(
