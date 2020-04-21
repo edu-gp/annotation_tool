@@ -3,9 +3,12 @@ import math
 import pytest
 from mockito import when2, unstub
 
+from db.model import User, ClassificationAnnotation
+from tests.sqlalchemy_conftest import *
+
 from ar.data import _compute_kappa_matrix, \
     _calculate_per_label_kappa_stats_table, \
-    _exclude_unknowns_for_kappa_calculation
+    _exclude_unknowns_for_kappa_calculation, _groupby_count_join_with
 from ar.data import _construct_per_label_per_user_pair_result
 
 
@@ -172,3 +175,32 @@ def test__calculate_per_label_kappa_stats_table_edge_cases(task_id, user_ids,
     )
 
     assert kappa_matrix_html_tables == expected
+
+
+def test__groupby_count_join_with(dbsession):
+    def populate_annotations():
+        user1 = User(username="ooo")
+        user2 = User(username="ppp")
+        dbsession.add(user1)
+        dbsession.add(user2)
+        dbsession.commit()
+        annotation1 = ClassificationAnnotation(value=1, user_id=user1.id)
+        annotation2 = ClassificationAnnotation(value=1, user_id=user1.id)
+        annotation3 = ClassificationAnnotation(value=1, user_id=user1.id)
+        annotation4 = ClassificationAnnotation(value=1, user_id=user2.id)
+        dbsession.add_all([annotation1, annotation2, annotation3, annotation4])
+
+    populate_annotations()
+
+    res = _groupby_count_join_with(
+        dbsession=dbsession,
+        to_count=ClassificationAnnotation.id,
+        join_with=User,
+        groupby_column=User.username
+    )
+    assert len(res) == 2
+    for num, name in res:
+        if name == "ooo":
+            assert num == 3
+        elif name == "ppp":
+            assert num == 1
