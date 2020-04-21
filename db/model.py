@@ -61,6 +61,11 @@ class JobType:
 class JobStatus:
     INIT = "init"
 
+
+class EntityTypeEnum:
+    COMPANY = "company"
+
+
 # =============================================================================
 # Tables
 
@@ -190,7 +195,7 @@ class ClassificationAnnotation(Base):
             self.context_id,
             self.value,
             self.created_at,
-            self.last_updated_at
+            self.updated_at
         )
 
 

@@ -10,7 +10,7 @@ from inference.base import ITextCatModel
 from inference import get_predicted
 from inference.random_model import RandomModel
 
-from .data import fetch_all_annotation_ids
+from .data import fetch_all_ar_ids
 from .utils import get_ar_id, timeit
 
 Pred = namedtuple('Pred', ['score', 'fname', 'line_number'])
@@ -139,7 +139,7 @@ def generate_annotation_requests(task_id: str,
 
 def _build_blacklist_fn(task: Task):
     _lookup = {
-        user: set(fetch_all_annotation_ids(task.task_id, user))
+        user: set(fetch_all_ar_ids(task.task_id, user))
         for user in task.annotators
     }
 
