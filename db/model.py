@@ -289,11 +289,11 @@ class AnnotationRequest(Base):
 # Convenience Functions
 
 
-def get_or_create(db_session, model, exclude_keys_in_retrieve=None, **kwargs):
+def get_or_create(dbsession, model, exclude_keys_in_retrieve=None, **kwargs):
     """Retrieve an instance from the database based on key and value
     specified in kwargs but excluding those in the exclude_keys_in_retrieve.
 
-    :param db_session: database session
+    :param dbsession: database session
     :param model: The db model class name
     :param exclude_keys_in_retrieve: keys to exclude in retrieve
     :param kwargs: key-value pairs to retrieve or create an instance
@@ -305,13 +305,13 @@ def get_or_create(db_session, model, exclude_keys_in_retrieve=None, **kwargs):
     for key in exclude_keys_in_retrieve:
         read_kwargs.pop(key, None)
 
-    instance = db_session.query(model).filter_by(**read_kwargs).one_or_none()
+    instance = dbsession.query(model).filter_by(**read_kwargs).one_or_none()
     if instance:
         return instance
     else:
         instance = model(**kwargs)
-        db_session.add(instance)
-        db_session.commit()
+        dbsession.add(instance)
+        dbsession.commit()
         logging.info("Created a new instance of {}".format(instance))
         return instance
 
