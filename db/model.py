@@ -1,3 +1,5 @@
+import logging
+import copy
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.schema import ForeignKey, Column
@@ -281,3 +283,61 @@ class AnnotationRequest(Base):
 
     # Where this request came from. e.g. {'source': BackgroundJob, 'id': 123}
     source = Column(JSON)
+
+
+# =============================================================================
+# Convenience Functions
+
+
+def get_or_create(dbsession, model, exclude_keys_in_retrieve=None, **kwargs):
+    """Retrieve an instance from the database based on key and value
+    specified in kwargs but excluding those in the exclude_keys_in_retrieve.
+
+    :param dbsession: database session
+    :param model: The db model class name
+    :param exclude_keys_in_retrieve: keys to exclude in retrieve
+    :param kwargs: key-value pairs to retrieve or create an instance
+    :return: a model instance
+    """
+    if exclude_keys_in_retrieve is None:
+        exclude_keys_in_retrieve = []
+    read_kwargs = copy.copy(kwargs)
+    for key in exclude_keys_in_retrieve:
+        read_kwargs.pop(key, None)
+
+    instance = dbsession.query(model).filter_by(**read_kwargs).one_or_none()
+    if instance:
+        return instance
+    else:
+        instance = model(**kwargs)
+        dbsession.add(instance)
+        dbsession.commit()
+        logging.info("Created a new instance of {}".format(instance))
+        return instance
+
+
+def fetch_labels_by_entity_type(dbsession, entity_type_name):
+    """Fetch all labels for an entity type.
+
+    :param entity_type_name: the entity type name
+    :return: all the labels under the entity type
+    """
+    labels = dbsession.query(Label).join(EntityType) \
+        .filter(EntityType.name == entity_type_name).all()
+    return [label.name for label in labels]
+
+
+def save_labels_by_entity_type(dbsession, entity_type_name, label_names):
+    """Update labels under the entity type.
+
+    If entity type doesn't exist, create it first.
+
+    :param entity_type_name: the entity type name
+    :param label_names: labels to be saved
+    """
+    logging.info("Finding the EntityType for {}".format(entity_type_name))
+    entity_type = get_or_create(dbsession, EntityType, name=entity_type_name)
+    labels = [Label(name=name, entity_type_id=entity_type.id)
+              for name in label_names]
+    dbsession.add_all(labels)
+    dbsession.commit()
