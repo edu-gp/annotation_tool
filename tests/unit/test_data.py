@@ -104,9 +104,6 @@ def test__compute_total_annotations(dbsession):
     res = _compute_total_annotations(
         dbsession=dbsession, label_name="whatever"
     )
-
-    print(_compute_total_annotations2(dbsession=dbsession,
-                                      label_name="whatever"))
     for num, name, user_id in res:
         if name == "ooo":
             assert num == 3

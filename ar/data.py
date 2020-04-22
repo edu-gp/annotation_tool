@@ -1,4 +1,3 @@
-import copy
 import glob
 import itertools
 import logging
@@ -6,16 +5,15 @@ import os
 import re
 import shutil
 import time
-from collections import defaultdict, Counter
-from typing import List
+from collections import defaultdict, Counter, namedtuple
 
 import pandas as pd
 from pandas import DataFrame
 from sklearn.metrics import cohen_kappa_score
-from sqlalchemy import func, distinct
+from sqlalchemy import func
 
 from db import _task_dir
-from db.model import db, EntityType, Label, User, ClassificationAnnotation, \
+from db.model import db, Label, User, ClassificationAnnotation, \
     AnnotationRequest, AnnotationRequestStatus
 from db.task import Task, DIR_ANNO, DIR_AREQ
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd
@@ -23,6 +21,11 @@ from shared.utils import save_jsonl, load_json, save_json, mkf, mkd
 
 ###############################################################################
 # I chose to write it all on disk for now - we can change it to a db later.
+
+# Utility namedtuples
+UserNameAndIdPair = namedtuple('UserNameAndIdPair', ['username', 'id'])
+ContextAndAnnotationValuePair = namedtuple(
+    'ContextAndAnnotationValuePair', ['context_id', 'value'])
 
 
 def save_new_ar_for_user(task_id, user_id, annotation_requests,
@@ -354,9 +357,6 @@ def _construct_kappa_stats_raw_data(dbsession, distinct_users, label_name):
     return kappa_stats_raw_data
 
 
-
-
-
 def _retrieve_context_ids_and_annotation_values_by_user(dbsession, users):
     res = dbsession.query(
             ClassificationAnnotation.context_id,
@@ -642,38 +642,3 @@ def export_labeled_examples(task_id, outfile=None):
     return final
 
 
-class UserNameAndIdPair:
-    def __init__(self, username, id):
-        self.username = username
-        self.id = id
-
-    def __eq__(self, other):
-        if isinstance(other, UserNameAndIdPair):
-            return self.id == other.id and self.username == other.username
-        return NotImplementedError("{} is not an instance of {}".format(
-            str(other), self.__class__.__name__
-        ))
-
-    def __key(self):
-        return self.id, self.username
-
-    def __hash__(self):
-        return hash(self.__key())
-
-
-class ContextAndAnnotationValuePair:
-    def __init__(self, context_id, value):
-        self.context_id = context_id
-        self.value = value
-
-    def __repr__(self):
-        return "<Context Id {}, Annotation Value {}>".format(self.context_id,
-                                                             self.value)
-
-    def __eq__(self, other):
-        if isinstance(other, ContextAndAnnotationValuePair):
-            return self.context_id == other.context_id and self.value ==  \
-                   other.value
-        return NotImplementedError("{} is not an instance of {}".format(
-            str(other), self.__class__.__name__
-        ))
