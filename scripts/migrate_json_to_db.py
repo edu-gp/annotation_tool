@@ -168,7 +168,6 @@ if __name__ == "__main__":
     # Base.metadata.create_all(db.engine)
 
     # TODO run this on all tasks.
-    # TODO migrate over the ML models
     task_ids = ["8a79a035-56fa-415c-8202-9297652dfe75"]
     for task_id in task_ids:
         task = convert_task(task_id)
