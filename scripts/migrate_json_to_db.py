@@ -18,10 +18,7 @@ from ar.data import (
 from db.config import DevelopmentConfig
 from db.model import (
     BackgroundJob, Task, AnnotationRequest,
-
     AnnotationRequestStatus, AnnotationType,
-
-
 )
 from db.task import Task as _Task
 from db.model import Database, User, EntityType, Context, Entity, Label, \

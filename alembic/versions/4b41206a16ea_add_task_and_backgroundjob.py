@@ -32,7 +32,7 @@ def upgrade():
     op.create_table(
         'background_job',
         sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('type', sa.Integer(), nullable=False),
+        sa.Column('type', sa.String(length=64), nullable=False),
         sa.Column('params', sa.JSON(), nullable=False),
         sa.Column('output', sa.JSON(), nullable=False),
         sa.Column('status', sa.String(length=64), nullable=False),
