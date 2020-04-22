@@ -1,5 +1,7 @@
 import logging
 import copy
+import time
+from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.schema import ForeignKey, Column
@@ -46,13 +48,10 @@ class AnnotationType:
     ClassificationAnnotation = 1
 
 
-class JobType:
-    AnnotationRequestGenerator = 1
-    TextClassificationModelTraining = 2
-
-
 class JobStatus:
-    INIT = "init"
+    Init = "init"
+    Complete = "complete"
+    Failed = "failed"
 
 
 class EntityTypeEnum:
@@ -196,10 +195,10 @@ class BackgroundJob(Base):
     __tablename__ = 'background_job'
 
     id = Column(Integer, primary_key=True)
-    type = Column(Integer, index=True, nullable=False)
-    params = Column(JSON, nullable=False)
-    output = Column(JSON, nullable=False)
-    status = Column(String(64), nullable=False)
+    type = Column(String, index=True, nullable=False)
+    params = Column(JSON, nullable=False, default=lambda: {})
+    output = Column(JSON, nullable=False, default=lambda: {})
+    status = Column(String(64), nullable=False, default=JobStatus.Init)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -208,8 +207,83 @@ class BackgroundJob(Base):
     task_id = Column(Integer, ForeignKey('task.id'))
     task = relationship("Task", back_populates="background_jobs")
 
+    __mapper_args__ = {
+        'polymorphic_on': type,
+        'polymorphic_identity': 'background_job'
+    }
+
     def __repr__(self):
         return f'<BackgroundJob:{self.type}>'
+
+
+class DataSnapshotJob(BackgroundJob):
+    __mapper_args__ = {
+        'polymorphic_identity': 'data_snapshot_job'
+    }
+
+    @staticmethod
+    def create(label_name: str, now=None):
+        """Convert all the annotations associated with this label into data
+        ready to be used externally.
+        """
+        if now is None:
+            now = int(time.time())
+
+        output_fname = f"{now}_{secure_filename(label_name)}.jsonl"
+
+        return DataSnapshotJob(params={
+            'label_name': label_name,
+            'output_fname': output_fname
+        })
+
+    def get_output_fname(self):
+        return self.params.get('output_fname', None)
+
+    def get_error(self):
+        return self.output.get('error', None)
+
+    def run(self, execute_fn):
+        _prefix = f'DataSnapshotJob id={self.id}'
+
+        if self.status != JobStatus.Init:
+            logging.info(f'{_prefix} cannot run, status={self.status}')
+            return
+
+        label_name = self.params.get('label_name')
+        output_fname = self.params.get('output_fname')
+
+        try:
+            assert label_name, f'{_prefix} missing label_name'
+            assert output_fname, f'{_prefix} missing output_fname'
+            execute_fn(label_name, output_fname)
+        except Exception as e:
+            self.status = JobStatus.Failed
+            self.output = {
+                'error': str(e)
+            }
+        else:
+            self.status = JobStatus.Complete
+
+
+class AnnotationRequestJob(BackgroundJob):
+    __mapper_args__ = {
+        'polymorphic_identity': 'annotation_request_job'
+    }
+    # TODO implement
+
+
+class TextClassificationModelTrainingJob(BackgroundJob):
+    __mapper_args__ = {
+        'polymorphic_identity': 'text_classification_model_training_job'
+    }
+    # TODO implement
+
+
+class TextClassificationModelInferenceJob(BackgroundJob):
+    __mapper_args__ = {
+        'polymorphic_identity': 'text_classification_model_inference_job'
+    }
+    # TODO implement
 
 
 class Task(Base):
@@ -225,16 +299,13 @@ class Task(Base):
     # Useful for adding a new job, eg. task.background_jobs.append(job)
     background_jobs = relationship("BackgroundJob", back_populates="task")
 
-    # Useful for fetching different types of jobs
-    annotation_request_generator_jobs = relationship(
-        "BackgroundJob",
-        primaryjoin="and_(Task.id==BackgroundJob.task_id, "
-        f"BackgroundJob.type=={JobType.AnnotationRequestGenerator})")
-
-    text_classification_model_training_jobs = relationship(
-        "BackgroundJob",
-        primaryjoin="and_(Task.id==BackgroundJob.task_id, "
-        f"BackgroundJob.type=={JobType.TextClassificationModelTraining})")
+    # Useful for adding & fetching different types of jobs
+    data_snapshot_jobs = relationship("DataSnapshotJob")
+    annotation_request_jobs = relationship("AnnotationRequestJob")
+    text_classification_model_training_jobs = \
+        relationship("TextClassificationModelTrainingJob")
+    text_classification_model_inference_jobs = \
+        relationship("TextClassificationModelInferenceJob")
 
 
 class AnnotationRequest(Base):

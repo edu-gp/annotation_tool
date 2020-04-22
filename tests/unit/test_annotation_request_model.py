@@ -1,14 +1,12 @@
 from tests.sqlalchemy_conftest import *
 from db.model import (
-    AnnotationRequest, BackgroundJob, JobType, JobStatus,
+    AnnotationRequest, AnnotationRequestJob, JobStatus,
     User, Context, Task, AnnotationType
 )
 
 
 def _populate_db(dbsession):
-    job = BackgroundJob(
-        type=JobType.AnnotationRequestGenerator,
-        params={}, output={}, status=JobStatus.INIT)
+    job = AnnotationRequestJob()
     dbsession.add(job)
 
     user = User(username="foo")
@@ -24,7 +22,7 @@ def test_sanity(dbsession):
 
 def test_create_annotation_request(dbsession):
     _populate_db(dbsession)
-    job = dbsession.query(BackgroundJob).first()
+    job = dbsession.query(AnnotationRequestJob).first()
     user = dbsession.query(User).first()
 
     context = Context(
@@ -42,7 +40,7 @@ def test_create_annotation_request(dbsession):
         order=12,
         name="Testing",
         additional_info={'domain': 'www.google.com'},
-        source={'type': 'BackgroundJob', 'id': job.id}
+        source={'type': 'AnnotationRequestJob', 'id': job.id}
     )
     dbsession.add(req)
     dbsession.commit()
