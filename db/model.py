@@ -195,7 +195,7 @@ class BackgroundJob(Base):
     __tablename__ = 'background_job'
 
     id = Column(Integer, primary_key=True)
-    type = Column(String, index=True, nullable=False)
+    type = Column(String(64), index=True, nullable=False)
     params = Column(JSON, nullable=False, default=lambda: {})
     output = Column(JSON, nullable=False, default=lambda: {})
     status = Column(String(64), nullable=False, default=JobStatus.Init)
