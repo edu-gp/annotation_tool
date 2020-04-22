@@ -1,4 +1,3 @@
-import copy
 import glob
 import itertools
 import logging
@@ -6,23 +5,27 @@ import os
 import re
 import shutil
 import time
-from collections import defaultdict, Counter
-from typing import List
+from collections import defaultdict, Counter, namedtuple
 
 import pandas as pd
 from pandas import DataFrame
 from sklearn.metrics import cohen_kappa_score
-from sqlalchemy import func, distinct
+from sqlalchemy import func
 
 from db import _task_dir
-from db.model import db, EntityType, Label, User, ClassificationAnnotation, \
-    AnnotationRequest
+from db.model import db, Label, User, ClassificationAnnotation, \
+    AnnotationRequest, AnnotationRequestStatus
 from db.task import Task, DIR_ANNO, DIR_AREQ
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd
 
 
 ###############################################################################
 # I chose to write it all on disk for now - we can change it to a db later.
+
+# Utility namedtuples
+UserNameAndIdPair = namedtuple('UserNameAndIdPair', ['username', 'id'])
+ContextAndAnnotationValuePair = namedtuple(
+    'ContextAndAnnotationValuePair', ['context_id', 'value'])
 
 
 def save_new_ar_for_user(task_id, user_id, annotation_requests,
@@ -261,6 +264,31 @@ def compute_annotation_statistics(task_id):
     }
 
 
+def compute_annotation_request_statistics(dbsession, task_id):
+    total_number_of_outstanding_requests = dbsession.query(AnnotationRequest).\
+        filter(
+            AnnotationRequest.task_id == task_id,
+            AnnotationRequest.status == AnnotationRequestStatus.Pending
+        ).count()
+
+    n_outstanding_requests_per_user = dbsession.query(
+            func.count(AnnotationRequest.id),
+            User.username
+        ). \
+        join(User). \
+        filter(AnnotationRequest.status == AnnotationRequestStatus.Pending). \
+        group_by(User.username).all()
+    n_outstanding_requests_per_user_dict = {
+        username: num
+        for num, username in n_outstanding_requests_per_user
+    }
+
+    return {
+        'total_outstanding_requests': total_number_of_outstanding_requests,
+        'n_outstanding_requests_per_user': n_outstanding_requests_per_user_dict
+    }
+
+
 def compute_annotation_statistics_db(dbsession, label_name):
     total_distinct_annotations = dbsession.query(
         ClassificationAnnotation).filter_by(
@@ -298,40 +326,7 @@ def compute_annotation_statistics_db(dbsession, label_name):
     }
 
 
-class UserNameAndIdPair:
-    def __init__(self, username, id):
-        self.username = username
-        self.id = id
-
-    def __eq__(self, other):
-        if isinstance(other, UserNameAndIdPair):
-            return self.id == other.id and self.username == other.username
-        return NotImplementedError("{} is not an instance of {}".format(
-            str(other), self.__class__.__name__
-        ))
-
-    def __key(self):
-        return self.id, self.username
-
-    def __hash__(self):
-        return hash(self.__key())
-
-
 def _compute_total_annotations(dbsession, label_name):
-    num_of_annotations_done_per_user = dbsession.query(
-        func.count(ClassificationAnnotation.id),
-        User.username,
-        User.id
-    ). \
-        join(User). \
-        join(Label). \
-        filter(Label.name == label_name). \
-        group_by(User.username).all()
-
-    return num_of_annotations_done_per_user
-
-
-def _compute_total_annotations2(dbsession, label_name):
     num_of_annotations_done_per_user = dbsession.query(
         func.count(ClassificationAnnotation.id),
         User.username,
@@ -360,24 +355,6 @@ def _construct_kappa_stats_raw_data(dbsession, distinct_users, label_name):
         }
     }
     return kappa_stats_raw_data
-
-
-class ContextAndAnnotationValuePair:
-    def __init__(self, context_id, value):
-        self.context_id = context_id
-        self.value = value
-
-    def __repr__(self):
-        return "<Context Id {}, Annotation Value {}>".format(self.context_id,
-                                                             self.value)
-
-    def __eq__(self, other):
-        if isinstance(other, ContextAndAnnotationValuePair):
-            return self.context_id == other.context_id and self.value ==  \
-                   other.value
-        return NotImplementedError("{} is not an instance of {}".format(
-            str(other), self.__class__.__name__
-        ))
 
 
 def _retrieve_context_ids_and_annotation_values_by_user(dbsession, users):
@@ -663,3 +640,5 @@ def export_labeled_examples(task_id, outfile=None):
         save_jsonl(outfile, final)
 
     return final
+
+

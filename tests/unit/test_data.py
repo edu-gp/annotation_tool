@@ -6,8 +6,9 @@ from ar.data import _compute_kappa_matrix, _compute_total_annotations, \
     _retrieve_annotation_with_same_context_shared_by_two_users, \
     _construct_kappa_stats_raw_data, \
     _retrieve_context_ids_and_annotation_values_by_user, \
-    ContextAndAnnotationValuePair, _compute_total_annotations2
-from db.model import User, ClassificationAnnotation, Label, Context
+    ContextAndAnnotationValuePair, compute_annotation_request_statistics
+from db.model import User, ClassificationAnnotation, Label, Context, \
+    AnnotationRequest, AnnotationType, AnnotationRequestStatus, Task
 from shared.utils import generate_md5_hash
 
 
@@ -103,9 +104,6 @@ def test__compute_total_annotations(dbsession):
     res = _compute_total_annotations(
         dbsession=dbsession, label_name="whatever"
     )
-
-    print(_compute_total_annotations2(dbsession=dbsession,
-                                      label_name="whatever"))
     for num, name, user_id in res:
         if name == "ooo":
             assert num == 3
@@ -209,4 +207,94 @@ def test__construct_kappa_stats_raw_data(dbsession):
             tuple(sorted([username1, username3])): res2,
             tuple(sorted([username2, username3])): res3
         }
+    }
+
+
+def test_compute_annotation_request_statistics(dbsession):
+    username1 = "ooo"
+    username2 = "ppp"
+    text1 = "whatever"
+    text2 = "SQL is no fun."
+    text3 = "Blahblah."
+    taskname1 = "task1"
+    taskname2 = "task2"
+    default_params = "whatever"
+
+    def populate_annotation_requests():
+        user1 = User(username=username1)
+        user2 = User(username=username2)
+
+        context1 = Context(data=text1, hash=generate_md5_hash(text1))
+        context2 = Context(data=text2, hash=generate_md5_hash(text2))
+        context3 = Context(data=text3, hash=generate_md5_hash(text3))
+
+        task1 = Task(name=taskname1, default_params=default_params)
+        task2 = Task(name=taskname2, default_params=default_params)
+
+        dbsession.add_all([user1, user2, context1, context2,
+                           context3, task1, task2])
+        dbsession.commit()
+
+        # Requests for user 1
+        request1 = AnnotationRequest(
+            user_id=user1.id,
+            context_id=context1.id,
+            annotation_type=AnnotationType.ClassificationAnnotation,
+            status=AnnotationRequestStatus.Pending,
+            task_id=task1.id
+        )
+
+        request2 = AnnotationRequest(
+            user_id=user1.id,
+            context_id=context2.id,
+            annotation_type=AnnotationType.ClassificationAnnotation,
+            status=AnnotationRequestStatus.Complete,
+            task_id=task1.id
+        )
+
+        # Requests for user 2
+        request3 = AnnotationRequest(
+            user_id=user1.id,
+            context_id=context3.id,
+            annotation_type=AnnotationType.ClassificationAnnotation,
+            status=AnnotationRequestStatus.Stale,
+            task_id=task1.id
+        )
+
+        request4 = AnnotationRequest(
+            user_id=user2.id,
+            context_id=context1.id,
+            annotation_type=AnnotationType.ClassificationAnnotation,
+            status=AnnotationRequestStatus.Pending,
+            task_id=task1.id
+        )
+
+        request5 = AnnotationRequest(
+            user_id=user2.id,
+            context_id=context2.id,
+            annotation_type=AnnotationType.ClassificationAnnotation,
+            status=AnnotationRequestStatus.Pending,
+            task_id=task1.id
+        )
+
+        request6 = AnnotationRequest(
+            user_id=user2.id,
+            context_id=context3.id,
+            annotation_type=AnnotationType.ClassificationAnnotation,
+            status=AnnotationRequestStatus.Complete,
+            task_id=task1.id
+        )
+
+        dbsession.add_all([request1, request2, request3, request4, request5,
+                           request6])
+        dbsession.commit()
+        return task1, task2, user1, user2
+
+    task1, task2, user1, user2 = populate_annotation_requests()
+
+    res = compute_annotation_request_statistics(dbsession, task1.id)
+    assert res['total_outstanding_requests'] == 3
+    assert res['n_outstanding_requests_per_user'] == {
+        user1.username: 1,
+        user2.username: 2
     }
