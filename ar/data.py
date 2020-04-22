@@ -12,7 +12,7 @@ from typing import List
 import pandas as pd
 from pandas import DataFrame
 from sklearn.metrics import cohen_kappa_score
-from sqlalchemy import func
+from sqlalchemy import func, distinct
 
 from db import _task_dir
 from db.model import db, EntityType, Label, User, ClassificationAnnotation, \
@@ -247,10 +247,6 @@ def compute_annotation_statistics(task_id):
         n_outstanding_requests_per_user[user_id] = len(
             set(ar_ids) - set(anno_ids))
 
-    # kappa stats calculation
-    # kappa_table_per_label = _calculate_per_label_kappa_stats_table(
-    #     task_id, user_ids, anno_ids_per_user,
-    #     results_per_task_user_anno_id)
     kappa_table_per_label = None
 
     return {
@@ -278,20 +274,20 @@ def compute_annotation_statistics_db(dbsession, label_name):
         for num, user in num_of_annotations_done_per_user
     }
 
-    annotations = dbsession.query(ClassificationAnnotation).all()
+    total_distinct_annotations = dbsession.query(
+        ClassificationAnnotation).count()
 
     # kappa stats calculation
-    distinct_users = set([
-        annotation.user for annotation in annotations
-    ])
-    kappa_stats_raw_data = _construct_kappa_stats_raw_data(distinct_users,
-                                                           label_name)
+    distinct_users = dbsession.query(distinct(
+        ClassificationAnnotation.user)).all()
+    kappa_stats_raw_data = _construct_kappa_stats_raw_data(
+        db.session, distinct_users, label_name)
 
     kappa_table_per_label = _compute_kappa_matrix(kappa_stats_raw_data)
 
     return {
         'total_annotations': total_num_of_annotations_done_by_users,
-        'total_distinct_annotations': len(annotations),
+        'total_distinct_annotations': total_distinct_annotations,
         'n_annotations_per_user': n_annotations_done_per_user_dict,
         'kappa_table_per_label': kappa_table_per_label,
     }
@@ -300,7 +296,8 @@ def compute_annotation_statistics_db(dbsession, label_name):
 def _compute_total_annotations(dbsession, label_name):
     num_of_annotations_done_per_user = dbsession.query(
         func.count(ClassificationAnnotation.id),
-        User.username). \
+        User.username
+    ). \
         join(User). \
         join(Label). \
         filter(Label.name == label_name). \
@@ -309,22 +306,62 @@ def _compute_total_annotations(dbsession, label_name):
     return num_of_annotations_done_per_user
 
 
-def _construct_kappa_stats_raw_data(distinct_users, label_name):
+def _construct_kappa_stats_raw_data(dbsession, distinct_users, label_name):
+    contexts_and_annotation_values_by_user = \
+        _retrieve_context_ids_and_annotation_values_by_user(dbsession,
+                                                            distinct_users)
     user_pairs = list(itertools.combinations(distinct_users, 2))
     kappa_stats_raw_data = {
         label_name: {
             tuple(sorted([user_pair[0].username, user_pair[1].username])):
                 _retrieve_annotation_with_same_context_shared_by_two_users(
-                    user_pair[0], user_pair[1])
+                    user_pair[0], user_pair[1],
+                    contexts_and_annotation_values_by_user)
             for user_pair in user_pairs
         }
     }
     return kappa_stats_raw_data
 
 
-def _retrieve_annotation_with_same_context_shared_by_two_users(user1, user2):
-    annotations_from_user1 = user1.classification_annotations
-    annotations_from_user2 = user2.classification_annotations
+class ContextAndAnnotationValuePair:
+    def __init__(self, context_id, value):
+        self.context_id = context_id
+        self.value = value
+
+    def __repr__(self):
+        return "<Context Id {}, Annotation Value {}>".format(self.context_id,
+                                                             self.value)
+
+    def __eq__(self, other):
+        if self.context_id == other.context_id and self.value == other.value:
+            return True
+        return False
+
+
+def _retrieve_context_ids_and_annotation_values_by_user(dbsession, users):
+    res = dbsession.query(
+            ClassificationAnnotation.context_id,
+            ClassificationAnnotation.value,
+            ClassificationAnnotation.user_id
+        ). \
+        filter(ClassificationAnnotation.user_id.in_(
+            [user.id for user in users]
+        )
+    ).all()
+
+    data = PrettyDefaultDict(lambda: [])
+    for item in res:
+        data[item[2]].append(ContextAndAnnotationValuePair(
+            context_id=item[0],
+            value=item[1]
+        ))
+    return data
+
+
+def _retrieve_annotation_with_same_context_shared_by_two_users(user1, user2,
+                                                               contexts_and_annotation_values_by_user):
+    annotations_from_user1 = contexts_and_annotation_values_by_user[user1.id]
+    annotations_from_user2 = contexts_and_annotation_values_by_user[user2.id]
 
     dict_of_context_value_from_user1 = {
         annotation.context_id: annotation.value
@@ -338,6 +375,7 @@ def _retrieve_annotation_with_same_context_shared_by_two_users(user1, user2):
     intersection = set(dict_of_context_value_from_user1.keys()).intersection(
         set(dict_of_context_value_from_user2.keys()))
     intersection = list(intersection)
+
     if len(intersection) == 0:
         return None
 

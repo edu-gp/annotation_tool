@@ -1,13 +1,14 @@
 import math
 
-from db.model import User, ClassificationAnnotation, Label, Context
-from shared.utils import generate_md5_hash
 from tests.sqlalchemy_conftest import *
-
 from ar.data import _compute_kappa_matrix, _compute_total_annotations, \
     _exclude_unknowns_for_kappa_calculation, \
     _retrieve_annotation_with_same_context_shared_by_two_users, \
-    _construct_kappa_stats_raw_data
+    _construct_kappa_stats_raw_data, \
+    _retrieve_context_ids_and_annotation_values_by_user, \
+    ContextAndAnnotationValuePair
+from db.model import User, ClassificationAnnotation, Label, Context
+from shared.utils import generate_md5_hash
 
 
 def test__exclude_unknowns_for_kappa_calculation():
@@ -158,8 +159,23 @@ def test__construct_kappa_stats_raw_data(dbsession):
 
     user1, user2, user3 = populate_annotations()
 
+    res = _retrieve_context_ids_and_annotation_values_by_user(dbsession,
+                                                              [user1, user2,
+                                                               user3])
+    print(res)
+
+    assert res == {
+        1: [
+            ContextAndAnnotationValuePair(1, 1),
+            ContextAndAnnotationValuePair(2, 1),
+            ContextAndAnnotationValuePair(3, -1)],
+        2: [
+            ContextAndAnnotationValuePair(1, 1),
+            ContextAndAnnotationValuePair(2, -1)],
+        3: [ContextAndAnnotationValuePair(3, -1)]}
+
     res1 = _retrieve_annotation_with_same_context_shared_by_two_users(
-        user1=user1, user2=user2
+        user1=user1, user2=user2, contexts_and_annotation_values_by_user=res
     )
     assert res1 == {
         username1: [1, 1],
@@ -167,7 +183,7 @@ def test__construct_kappa_stats_raw_data(dbsession):
     }
 
     res2 = _retrieve_annotation_with_same_context_shared_by_two_users(
-        user1=user1, user2=user3
+        user1=user1, user2=user3, contexts_and_annotation_values_by_user=res
     )
     assert res2 == {
         username1: [-1],
@@ -175,12 +191,13 @@ def test__construct_kappa_stats_raw_data(dbsession):
     }
 
     res3 = _retrieve_annotation_with_same_context_shared_by_two_users(
-        user1=user2, user2=user3
+        user1=user2, user2=user3, contexts_and_annotation_values_by_user=res
     )
     assert res3 is None
 
-    kappa_raw_data = _construct_kappa_stats_raw_data(distinct_users={
-        user1, user2, user3}, label_name=label_name)
+    kappa_raw_data = _construct_kappa_stats_raw_data(
+        dbsession=dbsession, distinct_users={user1, user2, user3},
+        label_name=label_name)
 
     assert kappa_raw_data == {
         label_name: {
