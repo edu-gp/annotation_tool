@@ -69,7 +69,8 @@ class Label(Base):
     name = Column(String(64), index=True, unique=True, nullable=False)
     # A label can be part of many annotations.
     classification_annotations = relationship('ClassificationAnnotation',
-                                              backref='label', lazy='dynamic')
+                                              back_populates='label',
+                                              lazy='dynamic')
     entity_type_id = Column(Integer, ForeignKey('entity_type.id'))
 
 
@@ -107,7 +108,8 @@ class User(Base):
                       nullable=False)
     # A user can do many annotations.
     classification_annotations = relationship('ClassificationAnnotation',
-                                              backref='user', lazy='dynamic')
+                                              back_populates='user',
+                                              lazy='dynamic')
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
@@ -165,8 +167,13 @@ class ClassificationAnnotation(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     entity_id = Column(Integer, ForeignKey('entity.id'))
+
     label_id = Column(Integer, ForeignKey('label.id'))
+    label = relationship("Label", back_populates="classification_annotations")
+
     user_id = Column(Integer, ForeignKey('user.id'))
+    user = relationship("User", back_populates="classification_annotations")
+
     context_id = Column(Integer, ForeignKey('context.id'))
 
     def __repr__(self):

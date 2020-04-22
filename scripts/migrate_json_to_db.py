@@ -1,5 +1,3 @@
-import copy
-import hashlib
 import json
 import logging
 from os import environ
@@ -16,21 +14,16 @@ from ar.data import (
     fetch_all_ar_ids,
     fetch_annotation,
 )
-from db.task import Task as _Task
 
 from db.config import DevelopmentConfig
 from db.model import (
-    Database,
-
-    Label, EntityType, Entity, User, Context, ClassificationAnnotation,
     BackgroundJob, Task, AnnotationRequest,
-
-    AnnotationRequestStatus, AnnotationType, JobStatus, EntityTypeEnum,
-
-    get_or_create
+    AnnotationRequestStatus, AnnotationType,
 )
+from db.task import Task as _Task
+from db.model import Database, User, EntityType, Context, Entity, Label, \
+    ClassificationAnnotation, EntityTypeEnum, get_or_create
 from shared.utils import generate_md5_hash
-
 
 db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
 
@@ -47,7 +40,8 @@ def _get_or_create_company_entity(company_name, domain):
 
 def _get_or_create_anno_context(json_data):
     annotation_context = json.dumps(json_data, sort_keys=True)
-    context = get_or_create(db.session, Context, exclude_keys_in_retrieve=["data"],
+    context = get_or_create(db.session, Context,
+                            exclude_keys_in_retrieve=["data"],
                             hash=generate_md5_hash(annotation_context),
                             data=annotation_context)
     return context
@@ -153,6 +147,7 @@ if __name__ == "__main__":
     logging.info(f"Migrate json to db")
 
     import argparse
+
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('--tasks_dir', default="/annotation_tool/__tasks")
     args = parser.parse_args()
