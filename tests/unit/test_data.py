@@ -6,7 +6,7 @@ from ar.data import _compute_kappa_matrix, _compute_total_annotations, \
     _retrieve_annotation_with_same_context_shared_by_two_users, \
     _construct_kappa_stats_raw_data, \
     _retrieve_context_ids_and_annotation_values_by_user, \
-    ContextAndAnnotationValuePair
+    ContextAndAnnotationValuePair, _compute_total_annotations2
 from db.model import User, ClassificationAnnotation, Label, Context
 from shared.utils import generate_md5_hash
 
@@ -97,16 +97,22 @@ def test__compute_total_annotations(dbsession):
                                                label_id=label.id)
         dbsession.add_all([annotation1, annotation2, annotation3, annotation4])
 
-    populate_annotations()
+        return user1, user2
+
+    user1, user2 = populate_annotations()
     res = _compute_total_annotations(
         dbsession=dbsession, label_name="whatever"
     )
-    assert len(res) == 2
-    for num, name in res:
+
+    print(_compute_total_annotations2(dbsession=dbsession,
+                                      label_name="whatever"))
+    for num, name, user_id in res:
         if name == "ooo":
             assert num == 3
+            assert user_id == user1.id
         elif name == "ppp":
             assert num == 1
+            assert user_id == user2.id
 
 
 def test__construct_kappa_stats_raw_data(dbsession):
@@ -162,8 +168,6 @@ def test__construct_kappa_stats_raw_data(dbsession):
     res = _retrieve_context_ids_and_annotation_values_by_user(dbsession,
                                                               [user1, user2,
                                                                user3])
-    print(res)
-
     assert res == {
         user1.id: [
             ContextAndAnnotationValuePair(context1.id, 1),

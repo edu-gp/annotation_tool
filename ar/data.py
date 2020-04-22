@@ -262,24 +262,29 @@ def compute_annotation_statistics(task_id):
 
 
 def compute_annotation_statistics_db(dbsession, label_name):
+    total_distinct_annotations = dbsession.query(
+        ClassificationAnnotation).filter_by(
+        ClassificationAnnotation.label.name == label_name
+    ).count()
+
     num_of_annotations_done_per_user = _compute_total_annotations(
         dbsession=dbsession,
         label_name=label_name
     )
 
     total_num_of_annotations_done_by_users = sum(
-        [num for num, user in num_of_annotations_done_per_user])
+        [num for num, username, user_id in num_of_annotations_done_per_user])
     n_annotations_done_per_user_dict = {
-        user: num
-        for num, user in num_of_annotations_done_per_user
+        username: num
+        for num, username, user_id in num_of_annotations_done_per_user
     }
 
-    total_distinct_annotations = dbsession.query(
-        ClassificationAnnotation).count()
-
     # kappa stats calculation
-    distinct_users = dbsession.query(distinct(
-        ClassificationAnnotation.user)).all()
+    distinct_users = set([
+        UserNameAndIdPair(username=item[1], id=item[2]) for item in
+        num_of_annotations_done_per_user
+    ])
+
     kappa_stats_raw_data = _construct_kappa_stats_raw_data(
         db.session, distinct_users, label_name)
 
@@ -293,10 +298,44 @@ def compute_annotation_statistics_db(dbsession, label_name):
     }
 
 
+class UserNameAndIdPair:
+    def __init__(self, username, id):
+        self.username = username
+        self.id = id
+
+    def __eq__(self, other):
+        if isinstance(other, UserNameAndIdPair):
+            return self.id == other.id and self.username == other.username
+        return NotImplementedError("{} is not an instance of {}".format(
+            str(other), self.__class__.__name__
+        ))
+
+    def __key(self):
+        return self.id, self.username
+
+    def __hash__(self):
+        return hash(self.__key())
+
+
 def _compute_total_annotations(dbsession, label_name):
     num_of_annotations_done_per_user = dbsession.query(
         func.count(ClassificationAnnotation.id),
-        User.username
+        User.username,
+        User.id
+    ). \
+        join(User). \
+        join(Label). \
+        filter(Label.name == label_name). \
+        group_by(User.username).all()
+
+    return num_of_annotations_done_per_user
+
+
+def _compute_total_annotations2(dbsession, label_name):
+    num_of_annotations_done_per_user = dbsession.query(
+        func.count(ClassificationAnnotation.id),
+        User.username,
+        User.id
     ). \
         join(User). \
         join(Label). \
@@ -333,9 +372,12 @@ class ContextAndAnnotationValuePair:
                                                              self.value)
 
     def __eq__(self, other):
-        if self.context_id == other.context_id and self.value == other.value:
-            return True
-        return False
+        if isinstance(other, ContextAndAnnotationValuePair):
+            return self.context_id == other.context_id and self.value ==  \
+                   other.value
+        return NotImplementedError("{} is not an instance of {}".format(
+            str(other), self.__class__.__name__
+        ))
 
 
 def _retrieve_context_ids_and_annotation_values_by_user(dbsession, users):
