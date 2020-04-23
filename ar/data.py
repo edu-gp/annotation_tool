@@ -85,13 +85,26 @@ def fetch_tasks_for_user(user_id):
     return task_ids
 
 
-def fetch_all_ar(task_id, user_id):
+def fetch_ar_ids(dbsession, task_id, username):
+    res = dbsession.query(AnnotationRequest.id).join(User).filter(
+        User.username == username, AnnotationRequest.task_id == task_id).all()
+    return [
+        item[0] for item in res
+    ]
+
+
+# TODO delete after the migration to db is done.
+def fetch_all_ar(task_id, username):
     '''
     Return a list of ar_id for this task
     '''
-    _dir = os.path.join(_task_dir(task_id), DIR_AREQ, user_id)
+    _dir = os.path.join(_task_dir(task_id), DIR_AREQ, username)
     return _get_all_ar_ids_in_dir(_dir, sort_by_ctime=True)
 
+
+def fetch_ar_from_db(dbsession, ar_id):
+    request = dbsession.query(AnnotationRequest).filter(AnnotationRequest.id
+                                                        == ar_id).one_or_none()
 
 def fetch_ar(task_id, user_id, ar_id):
     '''
@@ -172,6 +185,16 @@ def fetch_annotation(task_id, user_id, ar_id):
         return load_json(fname)
     else:
         return None
+
+
+def fetch_annotated_ar_ids_from_db(dbsession, task_id, username):
+    res = dbsession.query(AnnotationRequest.id).join(User).filter(
+        AnnotationRequest.task_id == task_id,
+        AnnotationRequest.status == AnnotationRequestStatus.Complete,
+        User.username == username
+    ).all()
+
+    return [item[0] for item in res]
 
 
 def fetch_all_ar_ids(task_id, user_id):

@@ -10,7 +10,8 @@ from ar.data import _compute_kappa_matrix, \
     _retrieve_entity_ids_and_annotation_values_by_user, \
     EntityAndAnnotationValuePair, compute_annotation_request_statistics, \
     _compute_total_distinct_number_of_annotations_for_label, \
-    _compute_num_of_annotations_per_value, PrettyDefaultDict
+    _compute_num_of_annotations_per_value, PrettyDefaultDict, fetch_ar_ids, \
+    fetch_annotated_ar_ids_from_db
 from db.model import User, ClassificationAnnotation, Label, Entity, \
     AnnotationRequest, AnnotationType, AnnotationRequestStatus, Task
 
@@ -267,7 +268,7 @@ def _populate_annotation_requests(dbsession):
         task_id=task1.id
     )
 
-    # Requests for user 2
+
     request3 = AnnotationRequest(
         user_id=user1.id,
         entity_id=entity3.id,
@@ -276,6 +277,7 @@ def _populate_annotation_requests(dbsession):
         task_id=task1.id
     )
 
+    # Requests for user 2
     request4 = AnnotationRequest(
         user_id=user2.id,
         entity_id=entity1.id,
@@ -321,3 +323,32 @@ def test_compute_annotation_request_statistics(dbsession):
         user1.username: expected[user1.username],
         user2.username: expected[user2.username]
     }
+
+
+def test_fetch_ar_ids(dbsession):
+    task1, task2, user1, user2, requests = _populate_annotation_requests(
+        dbsession)
+    res = fetch_ar_ids(dbsession=dbsession, task_id=task1.id,
+                       username=user1.username)
+
+    for request in requests:
+        if request.task_id == task1.id and request.user.username == \
+                user1.username:
+            assert request.id in set(res)
+        else:
+            assert request.id not in set(res)
+
+
+def test_fetch_annotated_ar_ids_from_db(dbsession):
+    task1, task2, user1, user2, requests = _populate_annotation_requests(
+        dbsession)
+    res = fetch_annotated_ar_ids_from_db(dbsession=dbsession, task_id=task1.id,
+                                         username=user1.username)
+
+    for request in requests:
+        if request.task_id == task1.id and request.user.username == \
+                user1.username and request.status == \
+                AnnotationRequestStatus.Complete:
+            assert request.id in set(res)
+        else:
+            assert request.id not in set(res)

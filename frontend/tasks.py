@@ -1,11 +1,12 @@
 from ar.data import (
     fetch_all_ar, fetch_ar, fetch_annotation, fetch_all_ar_ids, get_next_ar,
-    build_empty_annotation, annotate_ar
-)
+    build_empty_annotation, annotate_ar,
+    fetch_ar_ids, fetch_annotated_ar_ids_from_db)
 import json
 from flask import (
     Blueprint, g, render_template, request, url_for)
 
+from db.model import db, AnnotationRequest, User
 from db.task import Task
 
 from .auth import login_required
@@ -31,14 +32,18 @@ bp = Blueprint('tasks', __name__, url_prefix='/tasks')
 @bp.route('/<string:id>')
 @login_required
 def show(id):
-    user_id = g.user['username']
+    username = g.user['username']
 
     import time
     st = time.time()
 
     task = Task.fetch(id)
-    ars = fetch_all_ar(id, user_id)
-    annotated = set(fetch_all_ar_ids(id, user_id))
+    # ars = fetch_all_ar(id, user_id)
+    ars = fetch_ar_ids(dbsession=db.session, task_id=id, username=username)
+    # annotated = set(fetch_all_ar_ids(id, username))
+    annotated = set(fetch_annotated_ar_ids_from_db(dbsession=db.session,
+                                                   task_id=id,
+                                                   username=username))
     has_annotation = [x in annotated for x in ars]
 
     et = time.time()
