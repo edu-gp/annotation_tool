@@ -16,8 +16,8 @@ from db import _task_dir
 from db.model import db, Label, User, ClassificationAnnotation, \
     AnnotationRequest, AnnotationRequestStatus
 from db.task import Task, DIR_ANNO, DIR_AREQ
-from shared.utils import save_jsonl, load_json, save_json, mkf, mkd
-
+from shared.utils import save_jsonl, load_json, save_json, mkf, mkd, \
+    PrettyDefaultDict
 
 ###############################################################################
 # I chose to write it all on disk for now - we can change it to a db later.
@@ -250,7 +250,7 @@ def compute_annotation_statistics(task_id):
         n_outstanding_requests_per_user[user_id] = len(
             set(ar_ids) - set(anno_ids))
 
-    kappa_table_per_label = None
+    kappa_table_per_label = {}
 
     return {
         'total_annotations': sum(n_annotations_per_user.values()),
@@ -290,15 +290,17 @@ def compute_annotation_request_statistics(dbsession, task_id):
 
 
 def compute_annotation_statistics_db(dbsession, label_name):
-    total_distinct_annotations = dbsession.query(
-        ClassificationAnnotation).filter_by(
-        ClassificationAnnotation.label.name == label_name
-    ).count()
+    total_distinct_annotations = \
+        _compute_total_distinct_number_of_annotations_for_label(
+            dbsession=dbsession,
+            label_name=label_name
+        )
 
-    num_of_annotations_done_per_user = _compute_total_annotations(
-        dbsession=dbsession,
-        label_name=label_name
-    )
+    num_of_annotations_done_per_user = \
+        _compute_number_of_annotations_done_per_user(
+            dbsession=dbsession,
+            label_name=label_name
+        )
 
     total_num_of_annotations_done_by_users = sum(
         [num for num, username, user_id in num_of_annotations_done_per_user])
@@ -306,6 +308,10 @@ def compute_annotation_statistics_db(dbsession, label_name):
         username: num
         for num, username, user_id in num_of_annotations_done_per_user
     }
+
+    num_of_annotations_per_value = _compute_num_of_annotations_per_value(
+        dbsession=dbsession, label_name=label_name
+    )
 
     # kappa stats calculation
     distinct_users = set([
@@ -316,17 +322,43 @@ def compute_annotation_statistics_db(dbsession, label_name):
     kappa_stats_raw_data = _construct_kappa_stats_raw_data(
         db.session, distinct_users, label_name)
 
-    kappa_table_per_label = _compute_kappa_matrix(kappa_stats_raw_data)
+    kappa_table_per_label = _convert_html_tables(
+        kappa_matrices=_compute_kappa_matrix(kappa_stats_raw_data)
+    )
 
     return {
         'total_annotations': total_num_of_annotations_done_by_users,
         'total_distinct_annotations': total_distinct_annotations,
+        'n_annotations_per_value': num_of_annotations_per_value,
         'n_annotations_per_user': n_annotations_done_per_user_dict,
-        'kappa_table_per_label': kappa_table_per_label,
+        'kappa_table': kappa_table_per_label,
     }
 
 
-def _compute_total_annotations(dbsession, label_name):
+def _compute_num_of_annotations_per_value(dbsession, label_name):
+    res = dbsession.query(
+            func.count(ClassificationAnnotation.id),
+            ClassificationAnnotation.value
+        ).\
+        join(Label).\
+        filter(Label.name == label_name).\
+        group_by(ClassificationAnnotation.value).all()
+    data = PrettyDefaultDict(lambda: 0)
+    for item in res:
+        data[item[1]] = item[0]
+    return data
+
+
+def _compute_total_distinct_number_of_annotations_for_label(dbsession,
+                                                            label_name):
+    total_distinct_annotations = dbsession.query(
+        ClassificationAnnotation).join(Label).filter(
+        Label.name == label_name
+    ).count()
+    return total_distinct_annotations
+
+
+def _compute_number_of_annotations_done_per_user(dbsession, label_name):
     num_of_annotations_done_per_user = dbsession.query(
         func.count(ClassificationAnnotation.id),
         User.username,
@@ -512,12 +544,6 @@ def _convert_html_tables(kappa_matrices):
         kappa_html_tables[label] = df.to_html(classes='kappa_table',
                                               float_format=float_formatter)
     return kappa_html_tables
-
-
-class PrettyDefaultDict(defaultdict):
-    """An wrapper around defaultdict so the print out looks like
-    a normal dict."""
-    __repr__ = dict.__repr__
 
 
 def _majority_label(labels):

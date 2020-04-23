@@ -21,8 +21,6 @@ def create_app(test_config=None):
         SECRET_KEY='athena_todo_change_this_in_prod',
     )
 
-    logging.error(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
-
     if test_config is None:
         # load the instance config, if it exists, when not testing
         # app.config.from_pyfile('config.py', silent=True)
@@ -38,7 +36,6 @@ def create_app(test_config=None):
         pass
 
     db.init_app(app)
-    # migrate.init_app(app=app)
 
     @app.route('/ok')
     def hello():

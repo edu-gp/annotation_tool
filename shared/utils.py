@@ -1,5 +1,7 @@
 import hashlib
 import os
+from collections import defaultdict
+
 import pandas as pd
 import json
 from pathlib import Path
@@ -77,3 +79,9 @@ def generate_md5_hash(data: str):
     :return: the md5 hash string
     """
     return hashlib.md5(data.encode()).hexdigest()
+
+
+class PrettyDefaultDict(defaultdict):
+    """An wrapper around defaultdict so the print out looks like
+    a normal dict."""
+    __repr__ = dict.__repr__
