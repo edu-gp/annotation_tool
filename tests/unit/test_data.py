@@ -1,12 +1,16 @@
 import math
+from collections import namedtuple
 
 from tests.sqlalchemy_conftest import *
-from ar.data import _compute_kappa_matrix, _compute_total_annotations, \
+from ar.data import _compute_kappa_matrix, \
+    _compute_number_of_annotations_done_per_user, \
     _exclude_unknowns_for_kappa_calculation, \
     _retrieve_annotation_with_same_context_shared_by_two_users, \
     _construct_kappa_stats_raw_data, \
     _retrieve_context_ids_and_annotation_values_by_user, \
-    ContextAndAnnotationValuePair, compute_annotation_request_statistics
+    ContextAndAnnotationValuePair, compute_annotation_request_statistics, \
+    _compute_total_distinct_number_of_annotations_for_label, \
+    _compute_num_of_annotations_per_value, PrettyDefaultDict
 from db.model import User, ClassificationAnnotation, Label, Context, \
     AnnotationRequest, AnnotationType, AnnotationRequestStatus, Task
 from shared.utils import generate_md5_hash
@@ -81,39 +85,7 @@ def test__compute_kappa_matrix_unknown():
                     assert math.isnan(matrix_per_label[user][user_id])
 
 
-def test__compute_total_annotations(dbsession):
-    def populate_annotations():
-        user1 = User(username="ooo")
-        user2 = User(username="ppp")
-        label = Label(name="whatever")
-        dbsession.add_all([user1, user2, label])
-        dbsession.commit()
-        annotation1 = ClassificationAnnotation(value=1, user_id=user1.id,
-                                               label_id=label.id)
-        annotation2 = ClassificationAnnotation(value=1, user_id=user1.id,
-                                               label_id=label.id)
-        annotation3 = ClassificationAnnotation(value=1, user_id=user1.id,
-                                               label_id=label.id)
-        annotation4 = ClassificationAnnotation(value=1, user_id=user2.id,
-                                               label_id=label.id)
-        dbsession.add_all([annotation1, annotation2, annotation3, annotation4])
-
-        return user1, user2
-
-    user1, user2 = populate_annotations()
-    res = _compute_total_annotations(
-        dbsession=dbsession, label_name="whatever"
-    )
-    for num, name, user_id in res:
-        if name == "ooo":
-            assert num == 3
-            assert user_id == user1.id
-        elif name == "ppp":
-            assert num == 1
-            assert user_id == user2.id
-
-
-def test__construct_kappa_stats_raw_data(dbsession):
+def _populate_annotation_data(dbsession):
     username1 = "ooo"
     username2 = "ppp"
     username3 = "qqq"
@@ -122,50 +94,95 @@ def test__construct_kappa_stats_raw_data(dbsession):
     text2 = "SQL is no fun."
     text3 = "Blahblah."
 
-    def populate_annotations():
-        user1 = User(username=username1)
-        user2 = User(username=username2)
-        user3 = User(username=username3)
-        label = Label(name=label_name)
+    user1 = User(username=username1)
+    user2 = User(username=username2)
+    user3 = User(username=username3)
+    label = Label(name=label_name)
 
-        context1 = Context(data=text1, hash=generate_md5_hash(text1))
-        context2 = Context(data=text2, hash=generate_md5_hash(text2))
-        context3 = Context(data=text3, hash=generate_md5_hash(text3))
+    context1 = Context(data=text1, hash=generate_md5_hash(text1))
+    context2 = Context(data=text2, hash=generate_md5_hash(text2))
+    context3 = Context(data=text3, hash=generate_md5_hash(text3))
 
-        dbsession.add_all([user1, user2, user3, label, context1, context2,
-                           context3])
-        dbsession.commit()
+    dbsession.add_all([user1, user2, user3, label, context1, context2,
+                       context3])
+    dbsession.commit()
 
-        # A1 and A2 from user1 has the same context with A4 and A5 from user2.
-        # A3 from user1 has the same context with A6 from user3.
-        annotation1 = ClassificationAnnotation(value=1, user_id=user1.id,
-                                               label_id=label.id,
-                                               context_id=context1.id)
-        annotation2 = ClassificationAnnotation(value=1, user_id=user1.id,
-                                               label_id=label.id,
-                                               context_id=context2.id)
-        annotation3 = ClassificationAnnotation(value=-1, user_id=user1.id,
-                                               label_id=label.id,
-                                               context_id=context3.id)
+    # A1 and A2 from user1 has the same context with A4 and A5 from user2.
+    # A3 from user1 has the same context with A6 from user3.
+    annotation1 = ClassificationAnnotation(value=1, user_id=user1.id,
+                                           label_id=label.id,
+                                           context_id=context1.id)
+    annotation2 = ClassificationAnnotation(value=1, user_id=user1.id,
+                                           label_id=label.id,
+                                           context_id=context2.id)
+    annotation3 = ClassificationAnnotation(value=-1, user_id=user1.id,
+                                           label_id=label.id,
+                                           context_id=context3.id)
 
-        annotation4 = ClassificationAnnotation(value=1, user_id=user2.id,
-                                               label_id=label.id,
-                                               context_id=context1.id)
-        annotation5 = ClassificationAnnotation(value=-1, user_id=user2.id,
-                                               label_id=label.id,
-                                               context_id=context2.id)
-        annotation6 = ClassificationAnnotation(value=-1, user_id=user3.id,
-                                               label_id=label.id,
-                                               context_id=context3.id)
-        dbsession.add_all([annotation1, annotation2, annotation3,
-                           annotation4, annotation5, annotation6])
-        return user1, user2, user3, context1, context2, context3
+    annotation4 = ClassificationAnnotation(value=1, user_id=user2.id,
+                                           label_id=label.id,
+                                           context_id=context1.id)
+    annotation5 = ClassificationAnnotation(value=-1, user_id=user2.id,
+                                           label_id=label.id,
+                                           context_id=context2.id)
+    annotation6 = ClassificationAnnotation(value=-1, user_id=user3.id,
+                                           label_id=label.id,
+                                           context_id=context3.id)
+    annotations = [
+        annotation1, annotation2, annotation3, annotation4, annotation5,
+        annotation6
+    ]
+    dbsession.add_all([annotation1, annotation2, annotation3,
+                       annotation4, annotation5, annotation6])
+    dbsession.commit()
 
-    user1, user2, user3, context1, context2, context3 = populate_annotations()
+    return user1, user2, user3, context1, context2, context3, label, \
+        annotations
 
-    res = _retrieve_context_ids_and_annotation_values_by_user(dbsession,
-                                                              [user1, user2,
-                                                               user3])
+
+def test__compute_num_of_annotations_per_value(dbsession):
+    user1, user2, user3, _, _, _, label, annotations = \
+        _populate_annotation_data(dbsession)
+
+    num_of_annotations_per_value = _compute_num_of_annotations_per_value(
+        dbsession=dbsession, label_name=label.name
+    )
+
+    expected = PrettyDefaultDict(lambda: 0)
+    for annotation in annotations:
+        expected[annotation.value] += 1
+    assert num_of_annotations_per_value == expected
+
+
+def test__compute_total_annotations(dbsession):
+    user1, user2, user3, _, _, _, label, annotations = \
+        _populate_annotation_data(dbsession)
+
+    total_distinct_annotations = \
+        _compute_total_distinct_number_of_annotations_for_label(
+            dbsession=dbsession, label_name=label.name
+        )
+
+    assert total_distinct_annotations == len(annotations)
+
+    expected = PrettyDefaultDict(lambda: 0)
+    UserNameIdPair = namedtuple('UserNameIdPair', ['name', 'id'])
+    for annotation in annotations:
+        expected[UserNameIdPair(annotation.user.username,
+                                 annotation.user_id)] += 1
+    res = _compute_number_of_annotations_done_per_user(
+        dbsession=dbsession, label_name=label.name
+    )
+    for num, name, user_id in res:
+        assert expected[UserNameIdPair(name, user_id)] == num
+
+
+def test__construct_kappa_stats_raw_data(dbsession):
+    user1, user2, user3, context1, context2, context3, label, _ \
+        = _populate_annotation_data(dbsession)
+
+    res = _retrieve_context_ids_and_annotation_values_by_user(
+        dbsession=dbsession, users=[user1, user2, user3])
     assert res == {
         user1.id: [
             ContextAndAnnotationValuePair(context1.id, 1),
@@ -180,16 +197,16 @@ def test__construct_kappa_stats_raw_data(dbsession):
         user1=user1, user2=user2, contexts_and_annotation_values_by_user=res
     )
     assert res1 == {
-        username1: [1, 1],
-        username2: [1, -1]
+        user1.username: [1, 1],
+        user2.username: [1, -1]
     }
 
     res2 = _retrieve_annotation_with_same_context_shared_by_two_users(
         user1=user1, user2=user3, contexts_and_annotation_values_by_user=res
     )
     assert res2 == {
-        username1: [-1],
-        username3: [-1]
+        user1.username: [-1],
+        user3.username: [-1]
     }
 
     res3 = _retrieve_annotation_with_same_context_shared_by_two_users(
@@ -199,18 +216,18 @@ def test__construct_kappa_stats_raw_data(dbsession):
 
     kappa_raw_data = _construct_kappa_stats_raw_data(
         dbsession=dbsession, distinct_users={user1, user2, user3},
-        label_name=label_name)
+        label_name=label.name)
 
     assert kappa_raw_data == {
-        label_name: {
-            tuple(sorted([username1, username2])): res1,
-            tuple(sorted([username1, username3])): res2,
-            tuple(sorted([username2, username3])): res3
+        label.name: {
+            tuple(sorted([user1.username, user2.username])): res1,
+            tuple(sorted([user1.username, user3.username])): res2,
+            tuple(sorted([user2.username, user3.username])): res3
         }
     }
 
 
-def test_compute_annotation_request_statistics(dbsession):
+def _populate_annotation_requests(dbsession):
     username1 = "ooo"
     username2 = "ppp"
     text1 = "whatever"
@@ -220,81 +237,88 @@ def test_compute_annotation_request_statistics(dbsession):
     taskname2 = "task2"
     default_params = "whatever"
 
-    def populate_annotation_requests():
-        user1 = User(username=username1)
-        user2 = User(username=username2)
+    user1 = User(username=username1)
+    user2 = User(username=username2)
 
-        context1 = Context(data=text1, hash=generate_md5_hash(text1))
-        context2 = Context(data=text2, hash=generate_md5_hash(text2))
-        context3 = Context(data=text3, hash=generate_md5_hash(text3))
+    context1 = Context(data=text1, hash=generate_md5_hash(text1))
+    context2 = Context(data=text2, hash=generate_md5_hash(text2))
+    context3 = Context(data=text3, hash=generate_md5_hash(text3))
 
-        task1 = Task(name=taskname1, default_params=default_params)
-        task2 = Task(name=taskname2, default_params=default_params)
+    task1 = Task(name=taskname1, default_params=default_params)
+    task2 = Task(name=taskname2, default_params=default_params)
 
-        dbsession.add_all([user1, user2, context1, context2,
-                           context3, task1, task2])
-        dbsession.commit()
+    dbsession.add_all([user1, user2, context1, context2,
+                       context3, task1, task2])
+    dbsession.commit()
 
-        # Requests for user 1
-        request1 = AnnotationRequest(
-            user_id=user1.id,
-            context_id=context1.id,
-            annotation_type=AnnotationType.ClassificationAnnotation,
-            status=AnnotationRequestStatus.Pending,
-            task_id=task1.id
-        )
+    # Requests for user 1
+    request1 = AnnotationRequest(
+        user_id=user1.id,
+        context_id=context1.id,
+        annotation_type=AnnotationType.ClassificationAnnotation,
+        status=AnnotationRequestStatus.Pending,
+        task_id=task1.id
+    )
 
-        request2 = AnnotationRequest(
-            user_id=user1.id,
-            context_id=context2.id,
-            annotation_type=AnnotationType.ClassificationAnnotation,
-            status=AnnotationRequestStatus.Complete,
-            task_id=task1.id
-        )
+    request2 = AnnotationRequest(
+        user_id=user1.id,
+        context_id=context2.id,
+        annotation_type=AnnotationType.ClassificationAnnotation,
+        status=AnnotationRequestStatus.Complete,
+        task_id=task1.id
+    )
 
-        # Requests for user 2
-        request3 = AnnotationRequest(
-            user_id=user1.id,
-            context_id=context3.id,
-            annotation_type=AnnotationType.ClassificationAnnotation,
-            status=AnnotationRequestStatus.Stale,
-            task_id=task1.id
-        )
+    # Requests for user 2
+    request3 = AnnotationRequest(
+        user_id=user1.id,
+        context_id=context3.id,
+        annotation_type=AnnotationType.ClassificationAnnotation,
+        status=AnnotationRequestStatus.Stale,
+        task_id=task1.id
+    )
 
-        request4 = AnnotationRequest(
-            user_id=user2.id,
-            context_id=context1.id,
-            annotation_type=AnnotationType.ClassificationAnnotation,
-            status=AnnotationRequestStatus.Pending,
-            task_id=task1.id
-        )
+    request4 = AnnotationRequest(
+        user_id=user2.id,
+        context_id=context1.id,
+        annotation_type=AnnotationType.ClassificationAnnotation,
+        status=AnnotationRequestStatus.Pending,
+        task_id=task1.id
+    )
 
-        request5 = AnnotationRequest(
-            user_id=user2.id,
-            context_id=context2.id,
-            annotation_type=AnnotationType.ClassificationAnnotation,
-            status=AnnotationRequestStatus.Pending,
-            task_id=task1.id
-        )
+    request5 = AnnotationRequest(
+        user_id=user2.id,
+        context_id=context2.id,
+        annotation_type=AnnotationType.ClassificationAnnotation,
+        status=AnnotationRequestStatus.Pending,
+        task_id=task1.id
+    )
 
-        request6 = AnnotationRequest(
-            user_id=user2.id,
-            context_id=context3.id,
-            annotation_type=AnnotationType.ClassificationAnnotation,
-            status=AnnotationRequestStatus.Complete,
-            task_id=task1.id
-        )
+    request6 = AnnotationRequest(
+        user_id=user2.id,
+        context_id=context3.id,
+        annotation_type=AnnotationType.ClassificationAnnotation,
+        status=AnnotationRequestStatus.Complete,
+        task_id=task1.id
+    )
 
-        dbsession.add_all([request1, request2, request3, request4, request5,
-                           request6])
-        dbsession.commit()
-        return task1, task2, user1, user2
+    requests = [request1, request2, request3, request4, request5, request6]
+    dbsession.add_all(requests)
+    dbsession.commit()
+    return task1, task2, user1, user2, requests
 
-    task1, task2, user1, user2 = populate_annotation_requests()
+
+def test_compute_annotation_request_statistics(dbsession):
+    task1, task2, user1, user2, requests = _populate_annotation_requests(
+        dbsession)
 
     res = compute_annotation_request_statistics(dbsession, task1.id)
-    assert res['total_outstanding_requests'] == 3
+
+    expected = PrettyDefaultDict(lambda: 0)
+    for request in requests:
+        if request.status == AnnotationRequestStatus.Pending:
+            expected[request.user.username] += 1
+    assert res['total_outstanding_requests'] == sum(expected.values())
     assert res['n_outstanding_requests_per_user'] == {
-        user1.username: 1,
-        user2.username: 2
+        user1.username: expected[user1.username],
+        user2.username: expected[user2.username]
     }

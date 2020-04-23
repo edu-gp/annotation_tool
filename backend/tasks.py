@@ -4,9 +4,11 @@ from flask import (
     Blueprint, flash, redirect, render_template, request, url_for
 )
 
+from db.model import db
 from db.utils import get_all_data_files, get_all_pattern_files
 from db.task import Task
-from ar.data import compute_annotation_statistics
+from ar.data import compute_annotation_statistics, \
+    compute_annotation_statistics_db, compute_annotation_request_statistics
 
 from ar.ar_celery import generate_annotation_requests
 
@@ -97,7 +99,15 @@ def show(id):
 
     # -------------------------------------------------------------------------
     # Annotations
-    annotation_statistics = compute_annotation_statistics(task.task_id)
+    annotation_statistics_per_label = dict()
+    for label in task.labels:
+        annotation_statistics_per_label[label] = \
+            compute_annotation_statistics_db(dbsession=db.session,
+                                             label_name=label)
+
+    annotation_request_statistics = compute_annotation_request_statistics(
+        dbsession=db.session, task_id=id)
+    # annotation_statistics = compute_annotation_statistics(task.task_id)
 
     status_assign_jobs_active = []
     status_assign_jobs_stale = []
@@ -125,7 +135,8 @@ def show(id):
     return render_template(
         'tasks/show.html',
         task=task,
-        annotation_statistics=annotation_statistics,
+        annotation_statistics_per_label=annotation_statistics_per_label,
+        annotation_request_statistics=annotation_request_statistics,
         status_assign_jobs=status_assign_jobs_active,
         model_viewers=model_viewers,
         active_model=active_model,
