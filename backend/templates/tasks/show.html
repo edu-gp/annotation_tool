@@ -106,7 +106,48 @@
                     </ul>
                   </div>
             </div>
+
+            <div class="row">
+              <div class="col">
+                <h6>Annotator Login Links</h6>
+                <ul>
+                  {% for user, link in annotator_login_links %}
+                  <li>
+                    <b>{{user}}</b>: <span onclick="selectText(this.id)" id="{{link}}">{{link}}</span>
+                  </li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
+
+
           </div>
+          <div class="col">
+        <div>
+          <form action="{{ url_for('tasks.assign', id=task.task_id) }}" method="POST">
+            <button type="submit" class="btn btn-sm btn-secondary">Request More Annotations</button>
+          </form>
+        </div>
+
+        <p>
+          <a href="{{ url_for('admin_view_ar_logs') }}" target="_blank">View Annotation Worker Logs</a>
+        </p>
+
+        {% if status_assign_jobs is defined and status_assign_jobs | length > 0 %}
+        <i class='small'>Refresh page to see updates</i>
+        <ul>
+          {% for status in status_assign_jobs %}
+          <li>
+            <h6>
+              <span class="badge badge-info">{{status}}</span>
+            </h6>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        No Recent Jobs
+        {% endif %}
+      </div>
         </div>
     </div>
 </div>
@@ -178,48 +219,9 @@
           </div>
         </div>
 
-        <div class="row">
-          <div class="col">
-            <h6>Annotator Login Links</h6>
-            <ul>
-              {% for user, link in annotator_login_links %}
-              <li>
-                <b>{{user}}</b>: <span onclick="selectText(this.id)" id="{{link}}">{{link}}</span>
-              </li>
-              {% endfor %}
-            </ul>
-          </div>
-        </div>
-
         <!-- <code>
             {{annotation_statistics}}
           </code> -->
-      </div>
-      <div class="col">
-        <div>
-          <form action="{{ url_for('tasks.assign', id=task.task_id) }}" method="POST">
-            <button type="submit" class="btn btn-sm btn-secondary">Request More Annotations</button>
-          </form>
-        </div>
-
-        <p>
-          <a href="{{ url_for('admin_view_ar_logs') }}" target="_blank">View Annotation Worker Logs</a>
-        </p>
-
-        {% if status_assign_jobs is defined and status_assign_jobs | length > 0 %}
-        <i class='small'>Refresh page to see updates</i>
-        <ul>
-          {% for status in status_assign_jobs %}
-          <li>
-            <h6>
-              <span class="badge badge-info">{{status}}</span>
-            </h6>
-          </li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        No Recent Jobs
-        {% endif %}
       </div>
     </div>
   {% endfor %}
