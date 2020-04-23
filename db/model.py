@@ -1,11 +1,9 @@
 import logging
 import copy
-import time
-from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.schema import ForeignKey, Column
-from sqlalchemy.types import Integer, Float, String, JSON, DateTime
+from sqlalchemy.types import Integer, Float, String, JSON, DateTime, Text
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
@@ -198,99 +196,62 @@ class ClassificationAnnotation(Base):
         )
 
 
-class BackgroundJob(Base):
-    __tablename__ = 'background_job'
+class ClassificationTrainingData(Base):
+    __tablename__ = 'classification_training_data'
+
+    id = Column(Integer, primary_key=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    label_id = Column(Integer, ForeignKey('label.id'), nullable=False)
+    label = relationship("Label")
+
+    output_filename = Column(Text, nullable=False)
+
+
+class Model(Base):
+    __tablename__ = 'model'
 
     id = Column(Integer, primary_key=True)
     type = Column(String(64), index=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
     params = Column(JSON, nullable=False, default=lambda: {})
     output = Column(JSON, nullable=False, default=lambda: {})
-    status = Column(String(64), nullable=False, default=JobStatus.Init)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    # All the inferences we have ran on files
+    file_inferences = relationship("FileInference", back_populates="model")
 
-    # A BackgroundJob can optionally be associated with a Task
+    # Optionally associated with a Task
     task_id = Column(Integer, ForeignKey('task.id'))
-    task = relationship("Task", back_populates="background_jobs")
+    task = relationship("Task", back_populates="models")
 
     __mapper_args__ = {
         'polymorphic_on': type,
-        'polymorphic_identity': 'background_job'
+        'polymorphic_identity': 'model'
     }
 
     def __repr__(self):
-        return f'<BackgroundJob:{self.type}>'
+        return f'<Model:{self.type}>'
 
 
-class DataSnapshotJob(BackgroundJob):
+class TextClassificationModel(Model):
     __mapper_args__ = {
-        'polymorphic_identity': 'data_snapshot_job'
+        'polymorphic_identity': 'text_classification_model'
     }
 
-    @staticmethod
-    def create(label_name: str, now=None):
-        """Convert all the annotations associated with this label into data
-        ready to be used externally.
-        """
-        if now is None:
-            now = int(time.time())
 
-        output_fname = f"{now}_{secure_filename(label_name)}.jsonl"
+class FileInference(Base):
+    __tablename__ = 'file_inference'
 
-        return DataSnapshotJob(params={
-            'label_name': label_name,
-            'output_fname': output_fname
-        })
+    id = Column(Integer, primary_key=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    def get_output_fname(self):
-        return self.params.get('output_fname', None)
+    model_id = Column(Integer, ForeignKey('model.id'), nullable=False)
+    model = relationship("Model", back_populates="file_inferences")
 
-    def get_error(self):
-        return self.output.get('error', None)
-
-    def run(self, execute_fn):
-        _prefix = f'DataSnapshotJob id={self.id}'
-
-        if self.status != JobStatus.Init:
-            logging.info(f'{_prefix} cannot run, status={self.status}')
-            return
-
-        label_name = self.params.get('label_name')
-        output_fname = self.params.get('output_fname')
-
-        try:
-            assert label_name, f'{_prefix} missing label_name'
-            assert output_fname, f'{_prefix} missing output_fname'
-            execute_fn(label_name, output_fname)
-        except Exception as e:
-            self.status = JobStatus.Failed
-            self.output = {
-                'error': str(e)
-            }
-        else:
-            self.status = JobStatus.Complete
-
-
-class AnnotationRequestJob(BackgroundJob):
-    __mapper_args__ = {
-        'polymorphic_identity': 'annotation_request_job'
-    }
-    # TODO implement
-
-
-class TextClassificationModelTrainingJob(BackgroundJob):
-    __mapper_args__ = {
-        'polymorphic_identity': 'text_classification_model_training_job'
-    }
-    # TODO implement
-
-
-class TextClassificationModelInferenceJob(BackgroundJob):
-    __mapper_args__ = {
-        'polymorphic_identity': 'text_classification_model_inference_job'
-    }
-    # TODO implement
+    # We want to be able to see, for a given file, all the inferences on it.
+    input_filename = Column(Text, index=True, nullable=False)
+    output_filename = Column(Text, nullable=False)
 
 
 class Task(Base):
@@ -303,16 +264,8 @@ class Task(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Useful for adding a new job, eg. task.background_jobs.append(job)
-    background_jobs = relationship("BackgroundJob", back_populates="task")
-
-    # Useful for adding & fetching different types of jobs
-    data_snapshot_jobs = relationship("DataSnapshotJob")
-    annotation_request_jobs = relationship("AnnotationRequestJob")
-    text_classification_model_training_jobs = \
-        relationship("TextClassificationModelTrainingJob")
-    text_classification_model_inference_jobs = \
-        relationship("TextClassificationModelInferenceJob")
+    models = relationship("Model", back_populates="task")
+    text_classification_models = relationship("TextClassificationModel")
 
 
 class AnnotationRequest(Base):
