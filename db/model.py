@@ -3,7 +3,7 @@ import copy
 import os
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import create_engine, inspect, UniqueConstraint
+from sqlalchemy import create_engine, inspect, UniqueConstraint, MetaData
 from sqlalchemy.schema import ForeignKey, Column
 from sqlalchemy.types import Integer, Float, String, JSON, DateTime, Text
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
@@ -12,7 +12,14 @@ from sqlalchemy.sql import func
 from shared.utils import gen_uuid, stem
 from db.fs import MODELS_DIR, TRAINING_DATA_DIR
 
-Base = declarative_base()
+meta = MetaData(naming_convention={
+        "ix": "ix_%(column_0_label)s",
+        "uq": "uq_%(table_name)s_%(column_0_name)s",
+        "ck": "ck_%(table_name)s_%(constraint_name)s",
+        "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+        "pk": "pk_%(table_name)s"
+      })
+Base = declarative_base(metadata=meta)
 
 # =============================================================================
 # DB Access
@@ -321,6 +328,10 @@ class AnnotationRequest(Base):
     # What kind of annotation should the user be performing.
     # See the AnnotationType enum.
     annotation_type = Column(Integer, nullable=False)
+
+    classification_annotation_id = Column(Integer, ForeignKey(
+        'classification_annotation.id'))
+    classification_annotation = relationship("ClassificationAnnotation")
 
     # AnnotationRequestStatus
     status = Column(Integer, index=True, nullable=False,
