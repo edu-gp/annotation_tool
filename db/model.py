@@ -331,7 +331,8 @@ class AnnotationRequest(Base):
 
     classification_annotation_id = Column(Integer, ForeignKey(
         'classification_annotation.id'))
-    classification_annotation = relationship("ClassificationAnnotation")
+    classification_annotation = relationship("ClassificationAnnotation",
+                                             uselist=False)
 
     # AnnotationRequestStatus
     status = Column(Integer, index=True, nullable=False,
