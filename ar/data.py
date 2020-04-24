@@ -11,11 +11,11 @@ from typing import Tuple, Dict
 import pandas as pd
 from pandas import DataFrame
 from sklearn.metrics import cohen_kappa_score
-from sqlalchemy import func
+from sqlalchemy import func, distinct
 
 from db import _task_dir
 from db.model import db, Label, User, ClassificationAnnotation, \
-    AnnotationRequest, AnnotationRequestStatus, Context
+    AnnotationRequest, AnnotationRequestStatus, Context, Task as NewTask
 from db.task import Task, DIR_ANNO, DIR_AREQ
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd, \
     PrettyDefaultDict
@@ -86,9 +86,22 @@ def fetch_tasks_for_user(user_id):
     return task_ids
 
 
+def fetch_tasks_for_user_from_db(dbsession, username):
+    res = dbsession.query(AnnotationRequest.task_id, NewTask.name).distinct(
+        AnnotationRequest.task_id, NewTask.name).join(NewTask).join(
+        User).filter(User.username == username).all()
+    TaskIdAndNamePair = namedtuple('TaskIdAndNamePair', ['task_id', 'name'])
+    return [
+        TaskIdAndNamePair(item[0], item[1]) for item in res
+    ]
+
+
 def fetch_ar_names(dbsession, task_id, username):
-    res = dbsession.query(AnnotationRequest.name).join(User).filter(
-        User.username == username, AnnotationRequest.task_id == task_id).all()
+    logging.error(task_id)
+    query = dbsession.query(AnnotationRequest.name).join(User).filter(
+        User.username == username, AnnotationRequest.task_id == task_id)
+    logging.error(query)
+    res = query.all()
     return [
         item[0] for item in res
     ]
@@ -104,32 +117,37 @@ def fetch_all_ar(task_id, username):
 
 
 def fetch_ar_by_name_from_db(dbsession, task_id, user_id, ar_name) -> Dict:
-    request_id, request_additional_info, context_id, context_data = \
-        dbsession.query(AnnotationRequest.id,
-                        AnnotationRequest.additional_info,
-                        Context.id,
-                        Context.data).\
+    request_id, classification_annotation_id, request_additional_info, \
+        context_data = dbsession.query(
+            AnnotationRequest.id,
+            AnnotationRequest.classification_annotation_id,
+            AnnotationRequest.additional_info,
+            Context.data).\
         join(Context).\
         filter(
             AnnotationRequest.task_id == task_id,
             AnnotationRequest.name == ar_name,
             AnnotationRequest.user_id == user_id
         ).one_or_none()
-    return _construct_ar_request_json(request_id, request_additional_info,
-                                      context_id, context_data)
+    return _construct_ar_request_json(request_id,
+                                      classification_annotation_id,
+                                      request_additional_info,
+                                      context_data)
 
 
-def _construct_ar_request_json(ar_id, ar_additional_info, context_id,
-                               context_data):
+def _construct_ar_request_json(ar_id, classification_annotation_id,
+                               ar_additional_info, context_data):
     return {
         'ar_id': ar_id,
-        'fname': ar_additional_info.get('fname', None),
-        'line_number': ar_additional_info.get('line_number', None),
-        'score': ar_additional_info.get('score', None),
-        'data': context_data,
-        'context_id': context_id
+        'classification_annotation_id': classification_annotation_id,
+        'fname': ar_additional_info.get('fname', None) if ar_additional_info
+        is not None else None,
+        'line_number': ar_additional_info.get('line_number', None) if
+        ar_additional_info is not None else None,
+        'score': ar_additional_info.get('score', None) if ar_additional_info
+        is not None else None,
+        'data': context_data
     }
-
 
 
 def fetch_ar(task_id, user_id, ar_id):
@@ -213,8 +231,11 @@ def fetch_user_id_by_username(dbsession, username):
     return dbsession.query(User.id).filter(User.username ==
                                            username).one_or_none()
 
-def fetch_existing_annotation_from_db(dbsession, user_id, context_id, label):
-    pass
+
+def fetch_existing_classification_annotation_from_db(dbsession, annotation_id):
+    return dbsession.query(Label.name, ClassificationAnnotation.value).\
+        join(Label).filter(ClassificationAnnotation.id == annotation_id).\
+        one_or_None()
 
 
 def fetch_annotation(task_id, user_id, ar_id):

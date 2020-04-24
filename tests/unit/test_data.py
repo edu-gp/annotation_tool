@@ -1,6 +1,8 @@
 import math
 from collections import namedtuple
 
+from sqlalchemy import distinct
+
 from tests.sqlalchemy_conftest import *
 from ar.data import _compute_kappa_matrix, \
     _compute_number_of_annotations_done_per_user, \
@@ -363,6 +365,16 @@ def test_fetch_ar_from_db(dbsession):
     res = fetch_ar_by_name_from_db(dbsession, task_id=task1.id,
                                    user_id=user1.id, ar_name=requests[0].name)
     print(res)
+
+    query = dbsession.query(Label.name, ClassificationAnnotation.value).\
+        join(Label).filter(ClassificationAnnotation.id == 1)
+    print(query)
+    print(query.one_or_none())
+
+    query2 = dbsession.query(AnnotationRequest.task_id, Task.name).distinct(
+        AnnotationRequest.task_id, Task.name).join(Task).join(
+        User).filter(User.username == "username")
+    print(query2)
 
     # query = dbsession.query(AnnotationRequest).filter(
     #     AnnotationRequest.name == "name1")

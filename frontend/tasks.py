@@ -1,9 +1,11 @@
+import logging
+
 from ar.data import (
     fetch_all_ar, fetch_ar, fetch_annotation, fetch_all_ar_ids, get_next_ar,
     build_empty_annotation, annotate_ar,
     fetch_ar_names, fetch_annotated_ar_names_from_db, fetch_ar_by_name_from_db,
     get_next_ar_name_from_db, fetch_user_id_by_username,
-    construct_ar_request_json)
+    fetch_existing_classification_annotation_from_db)
 import json
 from flask import (
     Blueprint, g, render_template, request, url_for)
@@ -40,8 +42,10 @@ def show(id):
     st = time.time()
 
     task = Task.fetch(id)
+    logging.error(task)
     # ars = fetch_all_ar(id, user_id)
     ars = fetch_ar_names(dbsession=db.session, task_id=id, username=username)
+    logging.error(ars)
     # annotated = set(fetch_all_ar_ids(id, username))
     annotated = set(fetch_annotated_ar_names_from_db(dbsession=db.session,
                                                      task_id=id,
@@ -76,11 +80,16 @@ def annotate(task_id, ar_name):
         current_ar_id=ar_dict.get['ar_id']
     )
     # next_ar_id = get_next_ar(task_id, username, ar_name)
+    annotation_id = ar_dict.pop('classification_annotation_id', None)
+    # anno = fetch_annotation(task_id, username, ar_name)
 
-    anno = fetch_annotation(task_id, username, ar_name)
-
-    if anno is None:
-        anno = build_empty_annotation(ar_dict)
+    anno = build_empty_annotation(ar_dict)
+    if annotation_id is None:
+        label, value = \
+            fetch_existing_classification_annotation_from_db(db.session,
+                                                             annotation_id)
+        logging.error(label, value)
+        anno['anno']['labels'][label] = value
 
     anno['suggested_labels'] = task.labels
     anno['task_id'] = task.task_id
