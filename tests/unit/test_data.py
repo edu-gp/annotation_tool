@@ -10,8 +10,8 @@ from ar.data import _compute_kappa_matrix, \
     _retrieve_entity_ids_and_annotation_values_by_user, \
     EntityAndAnnotationValuePair, compute_annotation_request_statistics, \
     _compute_total_distinct_number_of_annotations_for_label, \
-    _compute_num_of_annotations_per_value, PrettyDefaultDict, fetch_ar_ids, \
-    fetch_annotated_ar_ids_from_db
+    _compute_num_of_annotations_per_value, PrettyDefaultDict, fetch_ar_by_name_from_db, \
+    fetch_annotated_ar_names_from_db, fetch_ar_names
 from db.model import User, ClassificationAnnotation, Label, Entity, \
     AnnotationRequest, AnnotationType, AnnotationRequestStatus, Task
 
@@ -236,6 +236,7 @@ def _populate_annotation_requests(dbsession):
     taskname1 = "task1"
     taskname2 = "task2"
     default_params = "whatever"
+    request_name = "name1"
 
     user1 = User(username=username1)
     user2 = User(username=username2)
@@ -257,7 +258,8 @@ def _populate_annotation_requests(dbsession):
         entity_id=entity1.id,
         annotation_type=AnnotationType.ClassificationAnnotation,
         status=AnnotationRequestStatus.Pending,
-        task_id=task1.id
+        task_id=task1.id,
+        name=request_name
     )
 
     request2 = AnnotationRequest(
@@ -325,11 +327,11 @@ def test_compute_annotation_request_statistics(dbsession):
     }
 
 
-def test_fetch_ar_ids(dbsession):
+def test_fetch_ar_names(dbsession):
     task1, task2, user1, user2, requests = _populate_annotation_requests(
         dbsession)
-    res = fetch_ar_ids(dbsession=dbsession, task_id=task1.id,
-                       username=user1.username)
+    res = fetch_ar_names(dbsession=dbsession, task_id=task1.id,
+                         username=user1.username)
 
     for request in requests:
         if request.task_id == task1.id and request.user.username == \
@@ -339,11 +341,12 @@ def test_fetch_ar_ids(dbsession):
             assert request.id not in set(res)
 
 
-def test_fetch_annotated_ar_ids_from_db(dbsession):
+def test_fetch_annotated_ar_names_from_db(dbsession):
     task1, task2, user1, user2, requests = _populate_annotation_requests(
         dbsession)
-    res = fetch_annotated_ar_ids_from_db(dbsession=dbsession, task_id=task1.id,
-                                         username=user1.username)
+    res = fetch_annotated_ar_names_from_db(dbsession=dbsession,
+                                           task_id=task1.id,
+                                           username=user1.username)
 
     for request in requests:
         if request.task_id == task1.id and request.user.username == \
@@ -352,3 +355,25 @@ def test_fetch_annotated_ar_ids_from_db(dbsession):
             assert request.id in set(res)
         else:
             assert request.id not in set(res)
+
+
+def test_fetch_ar_from_db(dbsession):
+    task1, task2, user1, user2, requests = _populate_annotation_requests(
+        dbsession)
+    res = fetch_ar_by_name_from_db(dbsession, task_id=task1.id,
+                                   user_id=user1.id, ar_name=requests[0].name)
+    print(res)
+
+    # query = dbsession.query(AnnotationRequest).filter(
+    #     AnnotationRequest.name == "name1")
+    # print(query)
+    # print(query.one_or_none().name)
+    #
+    # query2 = dbsession.query(AnnotationRequest.name).join(User).filter(
+    #     AnnotationRequest.task_id == task1.id,
+    #     User.username == user1.username,
+    #     AnnotationRequest.id > requests[0].id).order_by(
+    #     AnnotationRequest.id.asc())
+    #
+    # print(query2.first())
+

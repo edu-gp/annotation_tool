@@ -1,7 +1,9 @@
 from ar.data import (
     fetch_all_ar, fetch_ar, fetch_annotation, fetch_all_ar_ids, get_next_ar,
     build_empty_annotation, annotate_ar,
-    fetch_ar_ids, fetch_annotated_ar_ids_from_db)
+    fetch_ar_names, fetch_annotated_ar_names_from_db, fetch_ar_by_name_from_db,
+    get_next_ar_name_from_db, fetch_user_id_by_username,
+    construct_ar_request_json)
 import json
 from flask import (
     Blueprint, g, render_template, request, url_for)
@@ -39,11 +41,11 @@ def show(id):
 
     task = Task.fetch(id)
     # ars = fetch_all_ar(id, user_id)
-    ars = fetch_ar_ids(dbsession=db.session, task_id=id, username=username)
+    ars = fetch_ar_names(dbsession=db.session, task_id=id, username=username)
     # annotated = set(fetch_all_ar_ids(id, username))
-    annotated = set(fetch_annotated_ar_ids_from_db(dbsession=db.session,
-                                                   task_id=id,
-                                                   username=username))
+    annotated = set(fetch_annotated_ar_names_from_db(dbsession=db.session,
+                                                     task_id=id,
+                                                     username=username))
     has_annotation = [x in annotated for x in ars]
 
     et = time.time()
@@ -55,22 +57,30 @@ def show(id):
                            has_annotation=has_annotation)
 
 
-@bp.route('/<string:id>/annotate/<string:ar_id>')
+@bp.route('/<string:task_id>/annotate/<string:ar_name>')
 @login_required
-def annotate(id, ar_id):
-    user_id = g.user['username']
+def annotate(task_id, ar_name):
+    username = g.user['username']
+    user_id = fetch_user_id_by_username(username=username)
 
     # import time
     # st = time.time()
 
-    task = Task.fetch(id)
-    ar = fetch_ar(id, user_id, ar_id)
-    next_ar_id = get_next_ar(id, user_id, ar_id)
+    task = Task.fetch(task_id)
+    # ar = fetch_ar(id, user_id, ar_name)
+    ar_dict = fetch_ar_by_name_from_db(db.session, task_id, user_id, ar_name)
+    next_ar_name = get_next_ar_name_from_db(
+        dbsession=db.session,
+        task_id=task_id,
+        user_id=user_id,
+        current_ar_id=ar_dict.get['ar_id']
+    )
+    # next_ar_id = get_next_ar(task_id, username, ar_name)
 
-    anno = fetch_annotation(id, user_id, ar_id)
+    anno = fetch_annotation(task_id, username, ar_name)
 
     if anno is None:
-        anno = build_empty_annotation(ar)
+        anno = build_empty_annotation(ar_dict)
 
     anno['suggested_labels'] = task.labels
     anno['task_id'] = task.task_id
@@ -86,7 +96,7 @@ def annotate(id, ar_id):
                            # 0. Create a test kitchen sink page.
                            # 1. Make sure the buttons remember state.
                            data=json.dumps([anno]),
-                           next_ar_id=next_ar_id)
+                           next_ar_id=next_ar_name)
 
 
 @bp.route('/receive_annotation', methods=['POST'])
