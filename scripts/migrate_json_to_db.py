@@ -70,27 +70,30 @@ def _convert_single_annotation(anno, username):
 
     context = _get_or_create_anno_context(anno["req"]["data"])
 
+    # TODO WARNING: This only works for this migration where there is only
+    #  one label in the annotation result.
     for label_name, label_value in anno["anno"]["labels"].items():
         label = get_or_create(db.session, Label, name=label_name,
                               entity_type_id=entity_type.id)
 
-        _ = get_or_create(db.session, ClassificationAnnotation,
+        annotation = get_or_create(db.session, ClassificationAnnotation,
                           value=label_value,
                           entity_id=entity.id,
                           label_id=label.id,
                           user_id=user.id,
                           context_id=context.id)
+        return annotation.id
 
 
 def convert_annotation_request_in_batch(task_uuid, task, username):
     requested_ar_ids = fetch_all_ar(task_uuid, username)
     for idx, ar_id in enumerate(requested_ar_ids):
         req = fetch_ar(task_uuid, username, ar_id)
-        _convert_single_request(req, username, task_uuid, task.id, order=idx)
+        _convert_single_request_with_annotated_result(req, username, task_uuid, task.id, order=idx)
         print("Converted request with ar_id {}".format(ar_id))
 
 
-def _convert_single_request(req, username, task_uuid, task_id, order):
+def _convert_single_request_with_annotated_result(req, username, task_uuid, task_id, order):
     user = get_or_create(db.session, User, username=username)
 
     '''
@@ -115,11 +118,22 @@ def _convert_single_request(req, username, task_uuid, task_id, order):
 
     context = _get_or_create_anno_context(req["data"])
 
+    anno_from_file = fetch_annotation(task_uuid, username, ar_id=req['ar_id'])
+    if anno_from_file:
+        annotation_id = _convert_single_annotation(anno_from_file, username)
+        logging.info("Converted annotation {} with ar_id {}".format(
+            annotation_id, req['ar_id']))
+    else:
+        annotation_id = None
+        logging.info("No annotation results found for this request {}".
+                     format(req['ar_id']))
+
     get_or_create(
         db.session, AnnotationRequest,
         user_id=user.id,
         context_id=context.id,
         annotation_type=AnnotationType.ClassificationAnnotation,
+        classification_annotation_id=annotation_id,
         status=AnnotationRequestStatus.Pending,
         task_id=task_id,
         order=order,
@@ -203,7 +217,8 @@ if __name__ == "__main__":
             exclude_keys_in_retrieve=['default_params']
         )
 
-        # Annotation Requests
+        # Annotation Requests (annotation results that are associated with
+        # the requests will be created here so we can associate them together.)
         usernames = _get_all_annotators_from_requested(task_uuid)
         for username in usernames:
             convert_annotation_request_in_batch(
@@ -212,7 +227,9 @@ if __name__ == "__main__":
                 username=username
             )
 
-        # Annotations
+        # Annotations (There are overlaps with the annotation requests
+        # migration. The rest of the annotations are not associated with
+        # requests.)
         usernames = _get_all_annotators_from_annotated(task_uuid)
         for username in usernames:
             convert_annotation_result_in_batch(
