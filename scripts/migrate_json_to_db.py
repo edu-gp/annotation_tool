@@ -53,10 +53,10 @@ def _get_or_create_anno_context(json_data):
     return context
 
 
-def convert_annotation_result_in_batch(task_id, username):
-    annotated_ar_ids = fetch_all_ar_ids(task_id, username)
+def convert_annotation_result_in_batch(task_uuid, username):
+    annotated_ar_ids = fetch_all_ar_ids(task_uuid, username)
     for ar_id in annotated_ar_ids:
-        anno = fetch_annotation(task_id, username, ar_id)
+        anno = fetch_annotation(task_uuid, username, ar_id)
         _convert_single_annotation(anno, username)
         print("Converted annotation with ar_id {}".format(ar_id))
 
@@ -82,15 +82,15 @@ def _convert_single_annotation(anno, username):
                           context_id=context.id)
 
 
-def convert_annotation_request_in_batch(task_id, username):
-    requested_ar_ids = fetch_all_ar(task_id, username)
+def convert_annotation_request_in_batch(task_uuid, task, username):
+    requested_ar_ids = fetch_all_ar(task_uuid, username)
     for idx, ar_id in enumerate(requested_ar_ids):
-        req = fetch_ar(task_id, username, ar_id)
-        _convert_single_request(req, username, task_id, order=idx)
+        req = fetch_ar(task_uuid, username, ar_id)
+        _convert_single_request(req, username, task_uuid, task.id, order=idx)
         print("Converted request with ar_id {}".format(ar_id))
 
 
-def _convert_single_request(req, username, task_id, order):
+def _convert_single_request(req, username, task_uuid, task_id, order):
     user = get_or_create(db.session, User, username=username)
 
     '''
@@ -134,17 +134,6 @@ def _convert_single_request(req, username, task_id, order):
             'source': 'db-migration'
         },
         exclude_keys_in_retrieve=['additional_info', 'source']
-    )
-
-
-def convert_task(task_id):
-    _task = _Task.fetch(task_id)
-    # Although names are not forced to be unique, I doubt any existing use case
-    # has a duplicate name.
-    return get_or_create(
-        db.session, Task,
-        name=_task.name, default_params=_task.to_json(),
-        exclude_keys_in_retrieve=['default_params']
     )
 
 
@@ -196,35 +185,43 @@ if __name__ == "__main__":
 
     mock_time = 1000000000
 
-    # task_ids = ["8a79a035-56fa-415c-8202-9297652dfe75"]
-    task_ids = os.listdir(tasks_dir)
+    # task_uuids = ["8a79a035-56fa-415c-8202-9297652dfe75"]
+    task_uuids = os.listdir(tasks_dir)
 
-    for task_id in task_ids:
+    for task_uuid in task_uuids:
         # Check if this is a proper task.
-        if not os.path.isfile(tasks_dir + '/' + task_id + '/config.json'):
+        if not os.path.isfile(tasks_dir + '/' + task_uuid + '/config.json'):
             continue
 
         # Task
-        task = convert_task(task_id)
+        _task = _Task.fetch(task_uuid)
+        # Although names are not forced to be unique, I doubt any existing use case
+        # has a duplicate name.
+        task = get_or_create(
+            db.session, Task,
+            name=_task.name, default_params=_task.to_json(),
+            exclude_keys_in_retrieve=['default_params']
+        )
 
         # Annotation Requests
-        usernames = _get_all_annotators_from_requested(task_id)
+        usernames = _get_all_annotators_from_requested(task_uuid)
         for username in usernames:
             convert_annotation_request_in_batch(
-                task_id=task_id,
+                task_uuid=task_uuid,
+                task=task,
                 username=username
             )
 
         # Annotations
-        usernames = _get_all_annotators_from_annotated(task_id)
+        usernames = _get_all_annotators_from_annotated(task_uuid)
         for username in usernames:
             convert_annotation_result_in_batch(
-                task_id=task_id,
+                task_uuid=task_uuid,
                 username=username,
             )
 
         # Models
-        models_dir = os.path.join(tasks_dir, task_id, 'models')
+        models_dir = os.path.join(tasks_dir, task_uuid, 'models')
         print("models_dir", models_dir)
         if os.path.isdir(models_dir):
             for model_version in os.listdir(models_dir):
@@ -276,7 +273,8 @@ if __name__ == "__main__":
                 db_model = get_or_create(
                     db.session,
                     TextClassificationModel,
-                    uuid=task_id,
+                    task_id=task.id,
+                    uuid=task_uuid,
                     version=int(model_version),
                     data=model_data,
                     exclude_keys_in_retrieve=['data']
