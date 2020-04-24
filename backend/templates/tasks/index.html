@@ -21,7 +21,7 @@
 </div>
 
 {% for task in tasks %}
-<a href="{{ url_for('tasks.show', id=task.task_id) }}"">
+<a href="{{ url_for('tasks.show', id=task.id) }}"">
     <div class=" card my-2">
   <div class="card-body">
     <h5 class="card-title">{{task}}</h5>

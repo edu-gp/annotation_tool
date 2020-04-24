@@ -9,8 +9,16 @@ from sqlalchemy.types import Integer, Float, String, JSON, DateTime, Text
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
-from shared.utils import gen_uuid, stem
-from db.fs import MODELS_DIR, TRAINING_DATA_DIR
+from shared.utils import (
+    gen_uuid, stem, file_len, load_json, load_jsonl, safe_getattr
+)
+from db.fs import (
+    filestore_base_dir, RAW_DATA_DIR, MODELS_DIR, TRAINING_DATA_DIR
+)
+from train.no_deps.paths import (
+    _get_config_fname, _get_data_parser_fname, _get_metrics_fname,
+    _get_all_plots, _get_exported_data_fname, _get_all_inference_fnames
+)
 
 Base = declarative_base()
 
@@ -216,6 +224,9 @@ class ClassificationTrainingData(Base):
         return os.path.join(TRAINING_DATA_DIR, self.label.file_friendly_name(),
                             str(int(self.created_at.timestamp())) + '.jsonl')
 
+    def length(self):
+        return file_len(self.path())
+
 
 class Model(Base):
     __tablename__ = 'model'
@@ -248,7 +259,7 @@ class Model(Base):
     )
 
     def __repr__(self):
-        return f'<Model:{self.type}>'
+        return f'<Model:{self.type}:{self.uuid}:{self.version}>'
 
     @staticmethod
     def get_latest_version(dbsession, uuid):
@@ -263,11 +274,54 @@ class Model(Base):
     def inference_dir(self):
         return os.path.join(self.dir(), "inference")
 
+    def _load_json(self, fname_fn):
+        model_dir = os.path.join(filestore_base_dir(), self.dir())
+        fname = fname_fn(model_dir)
+        if os.path.isfile(fname):
+            return load_json(fname)
+        else:
+            return None
+
+    def get_metrics(self):
+        return self._load_json(_get_metrics_fname)
+
+    def get_config(self):
+        return self._load_json(_get_config_fname)
+
+    def get_data_parser(self):
+        return self._load_json(_get_data_parser_fname)
+
+    def get_plots(self):
+        """Return a list of urls for plots"""
+        model_dir = os.path.join(filestore_base_dir(), self.dir())
+        return _get_all_plots(model_dir)
+
+    def get_inference_fname_paths(self):
+        model_dir = os.path.join(filestore_base_dir(), self.dir())
+        return _get_all_inference_fnames(model_dir)
+
+    def get_inference_fnames(self):
+        """Special function to put together information for the UI"""
+        return [stem(path) + '.jsonl'
+                for path in self.get_inference_fname_paths()]
+
+    def get_len_data(self):
+        """Return how many datapoints were used to train this model.
+        We measure the size of the file in the model directory, not to be
+        confused with the file from a ClassificationTrainingData instance!
+        """
+        model_dir = os.path.join(filestore_base_dir(), self.dir())
+        fname = _get_exported_data_fname(model_dir)
+        return file_len(fname)
+
 
 class TextClassificationModel(Model):
     __mapper_args__ = {
         'polymorphic_identity': 'text_classification_model'
     }
+
+    def __str__(self):
+        return f'TextClassificationModel:{self.uuid}:v{self.version}'
 
 
 class FileInference(Base):
@@ -286,6 +340,30 @@ class FileInference(Base):
         return os.path.join(self.model.inference_dir(),
                             stem(self.input_filename) + '.pred.npy')
 
+    def create_exported_dataframe(self):
+        from train.no_deps.inference_results import InferenceResults
+
+        _base = filestore_base_dir()
+
+        # Load Inference Results
+        ir = InferenceResults.load(os.path.join(_base, self.path()))
+
+        # Load Original Data
+        df = load_jsonl(
+            os.path.join(_base, RAW_DATA_DIR, self.input_filename), to_df=True)
+
+        # Check they're the same size
+        assert len(df) == len(ir.probs)
+
+        # Combine the two together.
+        df['probs'] = ir.probs
+        df['domain'] = df['meta'].apply(lambda x: x.get('domain'))
+        df['name'] = df['meta'].apply(lambda x: x.get('name'))
+        # Note: We don't keep the 'text' column on purpose!
+        df = df[['name', 'domain', 'probs']]
+
+        return df
+
 
 class Task(Base):
     __tablename__ = 'task'
@@ -293,12 +371,76 @@ class Task(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(128), nullable=False)
     default_params = Column(JSON, nullable=False)
+    """
+    Example default_params:
+    {
+        "data_filenames": [
+            "my_data.jsonl"
+        ],
+        "annotators": [
+            "ann", "ben"
+        ],
+        "labels": [
+            "hotdog"
+        ],
+        "patterns_file": "my_patterns.jsonl",
+        "patterns": ["bun", "sausage"]
+    }
+    """
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     models = relationship("Model", back_populates="task")
-    text_classification_models = relationship("TextClassificationModel")
+    text_classification_models = relationship(
+        "TextClassificationModel",
+        order_by="desc(TextClassificationModel.version)",
+        lazy="dynamic")
+
+    def __str__(self):
+        return self.name
+
+    def get_labels(self):
+        return self.default_params.get('labels', [])
+
+    def get_annotators(self):
+        return self.default_params.get('annotators', [])
+
+    def get_data_filenames(self):
+        return self.default_params.get('data_filenames', [])
+
+    def get_pattern_model(self):
+        from inference.pattern_model import PatternModel
+        from db.task import _convert_to_spacy_patterns
+
+        if safe_getattr(self, '__cached_pattern_model') is None:
+            patterns = []
+
+            _patterns_file = self.default_params.get('patterns_file')
+            if _patterns_file:
+                patterns += load_jsonl(
+                    os.path.join(filestore_base_dir(),
+                                 RAW_DATA_DIR, _patterns_file),
+                    to_df=False)
+
+            _patterns = self.default_params.get('patterns')
+            if _patterns is not None:
+                patterns += _convert_to_spacy_patterns(_patterns)
+
+            self.__cached_pattern_model = PatternModel(patterns)
+
+        return self.__cached_pattern_model
+
+    def get_active_nlp_model(self):
+        # TODO refactor this to a different name later (e.g. get_latest_model)
+        from inference.nlp_model import NLPModel
+
+        latest_model = self.text_classification_models.first()
+
+        if latest_model is not None:
+            return NLPModel(latest_model.uuid, latest_model.version)
+        else:
+            return None
 
 
 class AnnotationRequest(Base):

@@ -56,7 +56,7 @@ def create_app(test_config=None):
 
     # TODO insecure way to access local files
     from flask import request, send_file
-    from db import _task_dir
+    from db.fs import filestore_base_dir
     @app.route('/file', methods=['GET'])
     @auth.login_required
     def get_file():
@@ -64,7 +64,10 @@ def create_app(test_config=None):
         localhost:5000/tasks/file?f=/tmp/output.png
         '''
         path = request.args.get('f')
-        if path.startswith(_task_dir()):
+        if path.startswith(filestore_base_dir()):
+            if path[0] != '/':
+                # Relative path. Set it to project root.
+                path = '../' + path
             return send_file(path)
         else:
             raise Exception(f"Not allowed to send {path}")
