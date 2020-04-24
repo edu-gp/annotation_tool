@@ -1,12 +1,16 @@
 import logging
 import copy
+import os
+from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, UniqueConstraint
 from sqlalchemy.schema import ForeignKey, Column
 from sqlalchemy.types import Integer, Float, String, JSON, DateTime, Text
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
+from shared.utils import gen_uuid, stem
+from db.fs import MODELS_DIR, TRAINING_DATA_DIR
 
 Base = declarative_base()
 
@@ -70,6 +74,9 @@ class Label(Base):
                                               back_populates='label',
                                               lazy='dynamic')
     entity_type_id = Column(Integer, ForeignKey('entity_type.id'))
+
+    def file_friendly_name(self):
+        return secure_filename(self.name)
 
 
 class EntityType(Base):
@@ -205,7 +212,9 @@ class ClassificationTrainingData(Base):
     label_id = Column(Integer, ForeignKey('label.id'), nullable=False)
     label = relationship("Label")
 
-    output_filename = Column(Text, nullable=False)
+    def path(self):
+        return os.path.join(TRAINING_DATA_DIR, self.label.file_friendly_name(),
+                            str(int(self.created_at.timestamp())) + '.jsonl')
 
 
 class Model(Base):
@@ -215,8 +224,12 @@ class Model(Base):
     type = Column(String(64), index=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    params = Column(JSON, nullable=False, default=lambda: {})
-    output = Column(JSON, nullable=False, default=lambda: {})
+    # It's useful to submit jobs from various systems to the same remote
+    # training system. UUID makes sure those jobs don't clash.
+    uuid = Column(String(64), index=True, nullable=False, default=gen_uuid)
+    version = Column(Integer, index=True, nullable=False, default=1)
+
+    data = Column(JSON, nullable=False, default=lambda: {})
 
     # All the inferences we have ran on files
     file_inferences = relationship("FileInference", back_populates="model")
@@ -230,8 +243,25 @@ class Model(Base):
         'polymorphic_identity': 'model'
     }
 
+    __table_args__ = (
+        UniqueConstraint('uuid', 'version', name='_uuid_version_uc'),
+    )
+
     def __repr__(self):
         return f'<Model:{self.type}>'
+
+    @staticmethod
+    def get_latest_version(dbsession, uuid):
+        return dbsession.query(Model.version) \
+            .filter(Model.uuid == uuid) \
+            .order_by(Model.version.desc()).first()[0]
+
+    def dir(self):
+        """Returns the directory location relative to the filestore root"""
+        return os.path.join(MODELS_DIR, self.uuid, str(self.version))
+
+    def inference_dir(self):
+        return os.path.join(self.dir(), "inference")
 
 
 class TextClassificationModel(Model):
@@ -249,9 +279,12 @@ class FileInference(Base):
     model_id = Column(Integer, ForeignKey('model.id'), nullable=False)
     model = relationship("Model", back_populates="file_inferences")
 
-    # We want to be able to see, for a given file, all the inferences on it.
+    # We want to be able to query, for a given file, all the inferences on it.
     input_filename = Column(Text, index=True, nullable=False)
-    output_filename = Column(Text, nullable=False)
+
+    def path(self):
+        return os.path.join(self.model.inference_dir(),
+                            stem(self.input_filename) + '.pred.npy')
 
 
 class Task(Base):

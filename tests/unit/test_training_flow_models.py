@@ -34,12 +34,12 @@ def test_flow(dbsession):
     # snapshot and convert it to training data.
     training_data = ClassificationTrainingData()
     training_data.label = label
-    training_data.output_filename = '/tmp/blah.csv'
 
     dbsession.add(training_data)
     dbsession.commit()
     dbsession.refresh(training_data)
 
+    assert training_data.path() is not None
     assert training_data.label == label
 
     # A model training job is kicked off. A background job runs it and in the
@@ -48,8 +48,8 @@ def test_flow(dbsession):
 
     model = TextClassificationModel(
         task=task,
-        params={
-            'data_fname': training_data.output_filename,
+        data={
+            'data_fname': training_data.path(),
         }
     )
 
@@ -57,8 +57,7 @@ def test_flow(dbsession):
 
     inference = FileInference(
         model=model,
-        input_filename='/my_raw_data.jsonl',
-        output_filename='/inferred_123.csv'
+        input_filename='/my_raw_data.jsonl'
     )
 
     dbsession.add(inference)
@@ -66,6 +65,8 @@ def test_flow(dbsession):
     dbsession.commit()
     dbsession.refresh(model)
     dbsession.refresh(inference)
+
+    assert inference.path() is not None
 
     # After everything, check if the relationships are right.
     dbsession.refresh(task)

@@ -30,6 +30,10 @@ Descriptions of the env vars:
 - `GOOGLE_AI_PLATFORM_DOCKER_IMAGE_URI`: Distributed Training - pre-built training image URI.
 - `CLOUDSDK_COMPUTE_REGION`: The GCP region, e.g. "us-central1". You must set this in order for Google AI Platform to work.
 
+New env vars:
+
+- `ALCHEMY_FILESTORE_DIR`: Local filestore location.
+
 # Exposing Port on Google Cloud
 
 Add a Firewall group, then tag your instance with that group.
