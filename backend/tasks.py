@@ -8,7 +8,6 @@ from db.model import (
     db, Task, TextClassificationModel, FileInference
 )
 from db.utils import get_all_data_files, get_all_pattern_files
-from db.task import Task as _Task
 from ar.data import compute_annotation_statistics, \
     compute_annotation_statistics_db, compute_annotation_request_statistics
 
