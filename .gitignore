@@ -36,3 +36,5 @@ runs
 alchemy.db
 .ipynb_checkpoints
 *.csv
+
+__filestore

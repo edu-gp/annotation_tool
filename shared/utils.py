@@ -1,9 +1,9 @@
 import hashlib
 import os
 from collections import defaultdict
-
 import pandas as pd
 import json
+import uuid
 from pathlib import Path
 
 
@@ -85,3 +85,7 @@ class PrettyDefaultDict(defaultdict):
     """An wrapper around defaultdict so the print out looks like
     a normal dict."""
     __repr__ = dict.__repr__
+
+
+def gen_uuid():
+    return str(uuid.uuid4())
