@@ -283,7 +283,6 @@ def _populate_annotation_requests(dbsession):
         name=request_name2
     )
 
-
     request3 = AnnotationRequest(
         user_id=user1.id,
         entity_id=entity3.id,

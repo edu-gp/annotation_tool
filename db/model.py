@@ -603,6 +603,10 @@ class Task(Base):
         return "<Task with id {}, \nname {}, \ndefault_params {}>".format(
             self.id, self.name, self.default_params)
 
+    def __repr__(self):
+        return "<Task with id {}, \nname {}, \ndefault_params {}>".format(
+            self.id, self.name, self.default_params)
+
 
 class AnnotationRequest(Base):
     __tablename__ = 'annotation_request'
