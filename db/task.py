@@ -213,22 +213,9 @@ class Task:
 
     def get_model_viewers(self) -> List[TextClassificationModel]:
         raise Exception("Deprecated Function")
-        # mvs = ModelViewer.fetch_all_for_task(self.task_id)
-        # return mvs[::-1]  # Reverse list so latest is first
 
     def get_active_model_viewer(self) -> TextClassificationModel:
         raise Exception("Deprecated Function")
-        # # TODO logic to get active model will change.
-        # models = self.get_model_viewers()
-        # if len(models) > 0:
-        #     return models[0]
-        # else:
-        #     return None
 
     def get_active_nlp_model(self) -> Optional[NLPModel]:
         raise Exception("Deprecated Function")
-        # mv = self.get_active_model_viewer()
-        # if mv is not None:
-        #     return NLPModel(self.task_id, mv.version)
-        # else:
-        #     return None

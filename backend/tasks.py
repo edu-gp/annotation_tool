@@ -220,7 +220,7 @@ def download_prediction(id):
     inf = db.session.query(FileInference).filter_by(
         model_id=model_id, input_filename=fname).first()
 
-    if inf is not None:
+    if task is not None and inf is not None:
         df = inf.create_exported_dataframe()
 
         # Write it to a temp file and send it.
@@ -236,7 +236,7 @@ def download_prediction(id):
             return send_file(final_fname, mimetype='text/csv', cache_timeout=0,
                              as_attachment=True)
     else:
-        return "Inference file not found", 404
+        return "Task or Inference file not found", 404
 
 
 # ----- FORM PARSING -----
