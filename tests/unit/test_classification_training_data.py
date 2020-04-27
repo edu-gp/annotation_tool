@@ -1,5 +1,8 @@
 from tests.sqlalchemy_conftest import *
-from db.model import Label, ClassificationTrainingData
+from db.model import (
+    User, EntityType, Entity, Label, Context, ClassificationAnnotation,
+    ClassificationTrainingData
+)
 
 
 def test_path(dbsession):

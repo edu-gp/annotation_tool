@@ -21,12 +21,12 @@ from train.no_deps.paths import (
 )
 
 meta = MetaData(naming_convention={
-        "ix": "ix_%(column_0_label)s",
-        "uq": "uq_%(table_name)s_%(column_0_name)s",
-        "ck": "ck_%(table_name)s_%(constraint_name)s",
-        "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-        "pk": "pk_%(table_name)s"
-      })
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s"
+})
 Base = declarative_base(metadata=meta)
 
 # =============================================================================
@@ -79,6 +79,7 @@ class EntityTypeEnum:
 # Tables
 
 
+# TODO Label should be unique per name and entity_type_id
 class Label(Base):
     __tablename__ = 'label'
 
@@ -169,6 +170,17 @@ class Context(Base):
     id = Column(Integer, primary_key=True)
     hash = Column(String(128), index=True, unique=True, nullable=False)
     data = Column(JSON, nullable=False)
+    """
+    Example:
+    {
+        "text": "A quick brown fox",
+        "meta": {
+            "name": "Blah",
+            "domain": "foo.com"
+        }
+    }
+    """
+
     # A context can be part of many annotations.
     classification_annotations = relationship('ClassificationAnnotation',
                                               backref='context',
@@ -219,6 +231,10 @@ class ClassificationAnnotation(Base):
 
 
 class ClassificationTrainingData(Base):
+    """
+    E.g.
+    {"text": "A quick brown fox", "labels": {"bear": -1}}
+    """
     __tablename__ = 'classification_training_data'
 
     id = Column(Integer, primary_key=True)
@@ -270,14 +286,28 @@ class Model(Base):
 
     @staticmethod
     def get_latest_version(dbsession, uuid):
-        return dbsession.query(Model.version) \
+        res = dbsession.query(Model.version) \
             .filter(Model.uuid == uuid) \
-            .order_by(Model.version.desc()).first()[0]
+            .order_by(Model.version.desc()).first()
+        if res is None:
+            version = None
+        else:
+            version = res[0]
+        return version
+
+    @staticmethod
+    def get_next_version(dbsession, uuid):
+        version = Model.get_latest_version(dbsession, uuid)
+        if version is None:
+            return 1
+        else:
+            return version + 1
 
     def dir(self):
         """Returns the directory location relative to the filestore root"""
         return os.path.join(MODELS_DIR, self.uuid, str(self.version))
 
+    # TODO deprecate in favor of global value
     def inference_dir(self):
         return os.path.join(self.dir(), "inference")
 
@@ -303,14 +333,22 @@ class Model(Base):
         model_dir = os.path.join(filestore_base_dir(), self.dir())
         return _get_all_plots(model_dir)
 
-    def get_inference_fname_paths(self):
-        model_dir = os.path.join(filestore_base_dir(), self.dir())
-        return _get_all_inference_fnames(model_dir)
+    # # TODO deprecate in favor of InferenceResult
+    # def get_inference_fname_paths(self):
+    #     """Get all the inference result file paths"""
+    #     model_dir = os.path.join(filestore_base_dir(), self.dir())
+    #     return _get_all_inference_fnames(model_dir)
+
+    # # TODO deprecate in favor of InferenceResult
+    # def get_inference_fnames(self):
+    #     """Get all the inference result filenames"""
+    #     return [stem(path) + '.jsonl'
+    #             for path in self.get_inference_fname_paths()]
 
     def get_inference_fnames(self):
-        """Special function to put together information for the UI"""
-        return [stem(path) + '.jsonl'
-                for path in self.get_inference_fname_paths()]
+        """Get all the files to run inference on after training"""
+        # TODO do they need abs paths? Do it elsewhere
+        return self.model_data.get('data_fnames_for_inference', [])
 
     def get_len_data(self):
         """Return how many datapoints were used to train this model.
@@ -329,6 +367,31 @@ class TextClassificationModel(Model):
 
     def __str__(self):
         return f'TextClassificationModel:{self.uuid}:v{self.version}'
+
+    @staticmethod
+    def create_for_task(dbsession, task: 'Task'):
+        uuid = task.get_uuid()
+        version = TextClassificationModel.get_next_version(dbsession, uuid)
+
+        label_name = task.get_labels()[0]
+        Label
+
+        # TODO XXX left off here: after ClassificationTrainingData.create_for_label
+        # TODO eddie implement
+        # prepare_task_for_training(uuid, version)
+
+        model_data = {
+            'data_fnames_for_inference': task.get_data_filenames(),
+            'training_data': _data_path,
+            'config': _config
+        }
+
+        return TextClassificationModel(
+            uuid=uuid,
+            version=version,
+            data=model_data,
+            task=task,
+        )
 
 
 class FileInference(Base):
@@ -381,6 +444,7 @@ class Task(Base):
     """
     Example default_params:
     {
+        "uuid": "...",
         "data_filenames": [
             "my_data.jsonl"
         ],
@@ -406,6 +470,18 @@ class Task(Base):
 
     def __str__(self):
         return self.name
+
+    @staticmethod
+    def create(name, data_filenames=None):
+        # TODO eddie WIP
+        default_params = {
+            'uuid': gen_uuid(),
+            'data_filenames': data_filenames or [],
+        }
+        return Task(name=name, default_params=default_params)
+
+    def get_uuid(self):
+        return self.default_params.get('uuid')
 
     def get_labels(self):
         return self.default_params.get('labels', [])

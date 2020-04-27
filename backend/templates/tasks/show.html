@@ -245,12 +245,13 @@ length > 0 %}
           <div class="card-body">
             <h5>{{mv}}</h5>
 
-            {% for fname in mv.get_inference_fnames() %}
+            {% for inf in mv.file_inferences %}
             <div>
               <form action="{{ url_for('tasks.download_prediction', id=mv.task_id) }}" method="POST">
                 <input type="hidden" name="model_id" value="{{mv.id}}">
-                <input type="hidden" name="fname" value="{{fname}}">
-                <button type="submit" class="btn btn-sm btn-secondary">Download Prediction: "{{fname}}"</button>
+                <input type="hidden" name="fname" value="{{inf.input_filename}}">
+                <button type="submit" class="btn btn-sm btn-secondary">Download Prediction:
+                  "{{inf.input_filename}}"</button>
               </form>
             </div>
             {% endfor %}

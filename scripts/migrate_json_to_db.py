@@ -212,9 +212,11 @@ if __name__ == "__main__":
         _task = _Task.fetch(task_uuid)
         # Although names are not forced to be unique, I doubt any existing use case
         # has a duplicate name.
+        default_params = _task.to_json()
+        default_params['uuid'] = task_uuid
         task = get_or_create(
             db.session, Task,
-            name=_task.name, default_params=_task.to_json(),
+            name=_task.name, default_params=default_params,
             exclude_keys_in_retrieve=['default_params']
         )
 

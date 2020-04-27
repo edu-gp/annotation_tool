@@ -128,6 +128,7 @@ def show(id):
 
     # -------------------------------------------------------------------------
     # Models
+    # TODO fetch all the file_inferences together with this call.
     models = task.text_classification_models.all()
     active_model: NLPModel = task.get_active_nlp_model()
 
@@ -190,20 +191,28 @@ def assign(id):
 
 @bp.route('/<string:id>/train', methods=['POST'])
 def train(id):
+    task = db.session.query(Task).filter_by(id=id).first()
+
+    if task is None:
+        return "No such task", 404
+
+    model = TextClassificationModel.create_for_task(task)
+    db.session.add(model)
+    db.session.commit()
+
     if get_env_bool('GOOGLE_AI_PLATFORM_ENABLED', False):
         # TODO use gcp_celery.train_model synchronously
-        from train.prep import get_next_version, prepare_task_for_training
         from train.gcp_job import GCPJob
-        task_id = id
-        version = get_next_version(task_id)
-        prepare_task_for_training(task_id, version)
-        job = GCPJob(task_id, version)
+        job = GCPJob(model.uuid, model.version)
         # TODO: A duplicate job would error out.
-        job.submit()
+        job.submit(
+            # TODO implement
+            for_inference_file_paths=model.get_files_for_inference(full_path=True))
 
-        async_result = gcp_poll_status.delay(id, version)
+        async_result = gcp_poll_status.delay(model.id)
     else:
-        async_result = local_train_model.delay(id)
+        # TODO
+        async_result = local_train_model.delay(model.id)
     # TODO
     # celery_id = str(async_result)
     # CeleryJobStatus(celery_id, f'assign:{id}').save()

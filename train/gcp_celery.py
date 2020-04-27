@@ -30,8 +30,12 @@ app = Celery(
 
 
 @app.task
-def poll_status(task_id, version):
-    job = GCPJob(task_id, version)
+def poll_status(model_id):
+    model = db.session.query(Model).filter_by(id=model_id).first()
+
+    assert model, f"Model not found id={model_id}"
+
+    job = GCPJob(model.uuid, model.version)
 
     while True:
         status = job.get_status()

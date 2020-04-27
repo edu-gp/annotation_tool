@@ -25,7 +25,7 @@ def test_model_unique_on_uuid_and_version(dbsession):
         dbsession.commit()
 
 
-def test_get_latest_version(dbsession):
+def test_get_version(dbsession):
     dbsession.add_all([
         TextClassificationModel(uuid='123', version=1),
         TextClassificationModel(uuid='123', version=2),
@@ -35,6 +35,15 @@ def test_get_latest_version(dbsession):
 
     assert TextClassificationModel.get_latest_version(
         dbsession, uuid='123') == 3
+
+    assert TextClassificationModel.get_latest_version(
+        dbsession, uuid='blah') is None
+
+    assert TextClassificationModel.get_next_version(
+        dbsession, uuid='123') == 4
+
+    assert TextClassificationModel.get_next_version(
+        dbsession, uuid='blah') == 1
 
 
 def test_dir(dbsession):
