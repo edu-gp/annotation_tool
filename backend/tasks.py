@@ -4,9 +4,10 @@ from flask import (
     Blueprint, flash, redirect, render_template, request, url_for
 )
 
-from db.model import db
+from db.model import (
+    db, Task, TextClassificationModel, FileInference
+)
 from db.utils import get_all_data_files, get_all_pattern_files
-from db.task import Task
 from ar.data import compute_annotation_statistics, \
     compute_annotation_statistics_db, compute_annotation_request_statistics
 
@@ -15,14 +16,13 @@ from ar.ar_celery import generate_annotation_requests
 from train.train_celery import train_model as local_train_model
 from train.gcp_celery import poll_status as gcp_poll_status
 from train.no_deps.utils import get_env_bool
-from train.model_viewer import ModelViewer
 from inference.nlp_model import NLPModel
 
 from shared.celery_job_status import (
     CeleryJobStatus, create_status, delete_status
 )
 from shared.frontend_user_password import generate_frontend_user_login_link
-from shared.utils import get_env_int, stem as _stem
+from shared.utils import get_env_int, stem
 
 from .auth import auth
 
@@ -41,7 +41,7 @@ bp.before_request(_before_request)
 
 @bp.route('/')
 def index():
-    tasks = Task.fetch_all_tasks()
+    tasks = db.session.query(Task).order_by(Task.created_at.desc()).all()
     return render_template('tasks/index.html', tasks=tasks)
 
 
@@ -94,13 +94,12 @@ def create():
 
 @bp.route('/<string:id>', methods=['GET'])
 def show(id):
-    # Basic info
-    task = Task.fetch(id)
+    task = db.session.query(Task).filter_by(id=id).first()
 
     # -------------------------------------------------------------------------
     # Annotations
     annotation_statistics_per_label = dict()
-    for label in task.labels:
+    for label in task.get_labels():
         annotation_statistics_per_label[label] = \
             compute_annotation_statistics_db(dbsession=db.session,
                                              label_name=label)
@@ -111,7 +110,7 @@ def show(id):
 
     status_assign_jobs_active = []
     status_assign_jobs_stale = []
-    for cjs in CeleryJobStatus.fetch_all_by_context_id(f'assign:{task.task_id}'):
+    for cjs in CeleryJobStatus.fetch_all_by_context_id(f'assign:{task.id}'):
         if cjs.is_stale():
             status_assign_jobs_stale.append(cjs)
         else:
@@ -124,12 +123,12 @@ def show(id):
     # Annotator login links
     annotator_login_links = [
         (username, generate_frontend_user_login_link(username))
-        for username in task.annotators
+        for username in task.get_annotators()
     ]
 
     # -------------------------------------------------------------------------
     # Models
-    model_viewers: List[ModelViewer] = task.get_model_viewers()
+    models = task.text_classification_models.all()
     active_model: NLPModel = task.get_active_nlp_model()
 
     return render_template(
@@ -138,7 +137,7 @@ def show(id):
         annotation_statistics_per_label=annotation_statistics_per_label,
         annotation_request_statistics=annotation_request_statistics,
         status_assign_jobs=status_assign_jobs_active,
-        model_viewers=model_viewers,
+        models=models,
         active_model=active_model,
         annotator_login_links=annotator_login_links,
     )
@@ -213,27 +212,31 @@ def train(id):
 
 @bp.route('/<string:id>/download_prediction', methods=['POST'])
 def download_prediction(id):
-    # Note: This function is allowed to fail loudly.
+    task = db.session.query(Task).filter_by(id=id).first()
 
-    version = request.form['version']
-    inference_fname = request.form['inference_fname']
+    model_id = int(request.form['model_id'])
+    fname = request.form['fname']
 
-    task = Task.fetch(id)
-    mv = ModelViewer(id, version)
+    inf = db.session.query(FileInference).filter_by(
+        model_id=model_id, input_filename=fname).first()
 
-    # Create the dataframe for exporting
-    df = mv.create_exported_dataframe(inference_fname)
+    if task is not None and inf is not None:
+        df = inf.create_exported_dataframe()
 
-    # Write it to a temp file and send it (Not sure if there's a better way?)
-    import tempfile
-    import os
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        stem = _stem(inference_fname)
-        name = f"{task.get_clean_name()}__{stem}.csv"
-        final_fname = os.path.join(tmpdirname, name)
-        df.to_csv(final_fname, index=False)
+        # Write it to a temp file and send it.
+        import tempfile
+        import os
+        from werkzeug.utils import secure_filename
         from flask import send_file
-        return send_file(final_fname, mimetype='text/csv', cache_timeout=0, as_attachment=True)
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            name = f"{secure_filename(task.name)}__{stem(fname)}.csv"
+            final_fname = os.path.join(tmpdirname, name)
+            df.to_csv(final_fname, index=False)
+            return send_file(final_fname, mimetype='text/csv', cache_timeout=0,
+                             as_attachment=True)
+    else:
+        return "Task or Inference file not found", 404
 
 
 # ----- FORM PARSING -----

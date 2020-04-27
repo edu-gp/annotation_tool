@@ -89,3 +89,20 @@ class PrettyDefaultDict(defaultdict):
 
 def gen_uuid():
     return str(uuid.uuid4())
+
+
+def file_len(fname):
+    try:
+        with open(fname) as f:
+            for i, l in enumerate(f):
+                pass
+        return i + 1
+    except:
+        return -1
+
+
+def safe_getattr(object, attr):
+    try:
+        return getattr(object, attr)
+    except AttributeError:
+        return None

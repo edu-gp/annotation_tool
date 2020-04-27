@@ -30,7 +30,7 @@
         <ul>
           <li>
             Task ID:
-            <span class="badge badge-light">{{task.task_id}}</span>
+            <span class="badge badge-light">{{task.id}}</span>
           </li>
           <li>
             Pattern Model:
@@ -49,26 +49,26 @@
           </li>
           <li>
             Data:
-            {% for fname in task._data_filenames %}
+            {% for fname in task.get_data_filenames() %}
             <span class="badge badge-light">{{fname}}</span>
             {% endfor %}
           </li>
           <li>
             Annotators:
-            {% for annotator in task.annotators %}
+            {% for annotator in task.get_annotators() %}
             <span class="badge badge-light">{{annotator}}</span>
             {% endfor %}
           </li>
           <li>
             Labels:
-            {% for label in task.labels %}
+            {% for label in task.get_labels() %}
             <span class="badge badge-light">{{label}}</span>
             {% endfor %}
           </li>
         </ul>
       </div>
       <div class="col">
-        <a class="btn btn-sm btn-secondary" href="{{ url_for('tasks.edit', id=task.task_id) }}">Edit</a>
+        <a class="btn btn-sm btn-secondary" href="{{ url_for('tasks.edit', id=task.id) }}">Edit</a>
       </div>
     </div>
 
@@ -77,54 +77,54 @@
 </div>
 
 <div class="card my-2">
-    <div class="card-body">
+  <div class="card-body">
+
+    <div class="row">
+      <div class="col-9">
+        <h4>
+          Annotation Requests
+        </h4>
+
+        <br />
 
         <div class="row">
-          <div class="col-9">
-              <h4>
-                Annotation Requests
-              </h4>
-
-              <br />
-
-              <div class="row">
-                  <div class="col">
-                    <ul>
-                      <li>
-                        Total outstanding requests: {{annotation_request_statistics['total_outstanding_requests']}}
-                      </li>
-                      <li>
-                        Outstanding requests for each annotator:
-                        <ul>
-                          {% for k in annotation_request_statistics['n_outstanding_requests_per_user'] %}
-                          <li>
-                            {{k}}: {{annotation_request_statistics['n_outstanding_requests_per_user'][k]}}
-                          </li>
-                          {% endfor %}
-                        </ul>
-                      </li>
-                    </ul>
-                  </div>
-            </div>
-
-            <div class="row">
-              <div class="col">
-                <h6>Annotator Login Links</h6>
+          <div class="col">
+            <ul>
+              <li>
+                Total outstanding requests: {{annotation_request_statistics['total_outstanding_requests']}}
+              </li>
+              <li>
+                Outstanding requests for each annotator:
                 <ul>
-                  {% for user, link in annotator_login_links %}
+                  {% for k in annotation_request_statistics['n_outstanding_requests_per_user'] %}
                   <li>
-                    <b>{{user}}</b>: <span onclick="selectText(this.id)" id="{{link}}">{{link}}</span>
+                    {{k}}: {{annotation_request_statistics['n_outstanding_requests_per_user'][k]}}
                   </li>
                   {% endfor %}
                 </ul>
-              </div>
-            </div>
-
-
+              </li>
+            </ul>
           </div>
+        </div>
+
+        <div class="row">
           <div class="col">
+            <h6>Annotator Login Links</h6>
+            <ul>
+              {% for user, link in annotator_login_links %}
+              <li>
+                <b>{{user}}</b>: <span onclick="selectText(this.id)" id="{{link}}">{{link}}</span>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+
+
+      </div>
+      <div class="col">
         <div>
-          <form action="{{ url_for('tasks.assign', id=task.task_id) }}" method="POST">
+          <form action="{{ url_for('tasks.assign', id=task.id) }}" method="POST">
             <button type="submit" class="btn btn-sm btn-secondary">Request More Annotations</button>
           </form>
         </div>
@@ -148,14 +148,14 @@
         No Recent Jobs
         {% endif %}
       </div>
-        </div>
     </div>
+  </div>
 </div>
 
 
 <div class="card my-2">
   <div class="card-body">
-  {% for label in task.labels %}
+    {% for label in task.get_labels() %}
     <div class="row">
       <div class="col-9">
         <h4>
@@ -203,9 +203,7 @@
             </li>
             </ul>
           </div>
-        </div>
 
-        <div class="row">
           <div class="col">
             <h6>Annotator Kappa Score Matrix</h6>
             <div>
@@ -224,13 +222,13 @@
           </code> -->
       </div>
     </div>
-  {% endfor %}
+    {% endfor %}
   </div>
 </div>
 
-{% for label in task.labels %}
+{% for label in task.get_labels() %}
 {% if annotation_statistics_per_label[label]['total_annotations'] > 0 or
-model_viewers |
+models |
 length > 0 %}
 
 <div class="card my-2">
@@ -242,17 +240,17 @@ length > 0 %}
           Models
         </h4>
 
-        {% for mv in model_viewers %}
+        {% for mv in models %}
         <div class="card">
           <div class="card-body">
             <h5>{{mv}}</h5>
 
-            {% for fname, stem in mv.get_inference_fnames_and_stems() %}
+            {% for fname in mv.get_inference_fnames() %}
             <div>
               <form action="{{ url_for('tasks.download_prediction', id=mv.task_id) }}" method="POST">
-                <input type="hidden" name="version" value="{{mv.version}}">
-                <input type="hidden" name="inference_fname" value="{{fname}}">
-                <button type="submit" class="btn btn-sm btn-secondary">Download Prediction: "{{stem}}"</button>
+                <input type="hidden" name="model_id" value="{{mv.id}}">
+                <input type="hidden" name="fname" value="{{fname}}">
+                <button type="submit" class="btn btn-sm btn-secondary">Download Prediction: "{{fname}}"</button>
               </form>
             </div>
             {% endfor %}
@@ -305,7 +303,7 @@ length > 0 %}
         {% endfor %}
       </div>
       <div class="col">
-        <form action="{{ url_for('tasks.train', id=task.task_id) }}" method="POST">
+        <form action="{{ url_for('tasks.train', id=task.id) }}" method="POST">
           <button type="submit" class="btn btn-sm btn-secondary">Train new model</button>
         </form>
         <p>

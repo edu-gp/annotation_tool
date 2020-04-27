@@ -71,7 +71,7 @@ def test_flow(dbsession):
     # After everything, check if the relationships are right.
     dbsession.refresh(task)
     assert len(task.models) == 1
-    assert len(task.text_classification_models) == 1
+    assert len(task.text_classification_models.all()) == 1
 
     dbsession.refresh(inference)
     assert inference.model == model
