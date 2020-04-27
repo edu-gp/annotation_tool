@@ -1,7 +1,17 @@
-from ar.data import _export_distinct_labeled_examples
+from an.export_annotations import (
+    _majority_label, export_distinct_examples
+)
 
 
-def test__export_labeled_examples__simple():
+def test_majority_label():
+    assert _majority_label([]) is None
+    assert _majority_label([0, 0]) is None
+    assert _majority_label([1, 1, 0, 1]) == 1
+    assert _majority_label([1, -1, 0, 1]) == 1
+    assert _majority_label([-1, -1, 0, 1]) == -1
+
+
+def test__export_distinct_examples__simple():
     AR_1 = {
         'ar_id': 'foo_1',
         'data': {'text': 'sometext_1'}
@@ -56,14 +66,14 @@ def test__export_labeled_examples__simple():
         },
     ]
 
-    result = _export_distinct_labeled_examples(sample_annotations)
+    result = export_distinct_examples(sample_annotations)
     assert result == [
         {'text': 'sometext_1', 'labels': {'HEALTHCARE': 1, 'POP_HEALTH': -1}},
         {'text': 'sometext_2', 'labels': {'HEALTHCARE': -1}}
     ]
 
 
-def test__export_labeled_examples__empty_text():
+def test__export_distinct_examples__empty_text():
     """Currently we allow empty or missing text"""
     AR_1 = {
         'ar_id': 'bad_1',
@@ -95,7 +105,7 @@ def test__export_labeled_examples__empty_text():
         },
     ]
 
-    result = _export_distinct_labeled_examples(sample_annotations)
+    result = export_distinct_examples(sample_annotations)
 
     # Note the behaviour for missing text is not ideal, but this is the
     # 'official' behaviour for now.

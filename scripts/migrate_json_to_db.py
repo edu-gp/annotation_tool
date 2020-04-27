@@ -49,7 +49,7 @@ def _get_or_create_anno_context(json_data):
     context = get_or_create(db.session, Context,
                             exclude_keys_in_retrieve=["data"],
                             hash=generate_md5_hash(annotation_context),
-                            data=annotation_context)
+                            data=json_data)
     return context
 
 
@@ -77,11 +77,11 @@ def _convert_single_annotation(anno, username):
                               entity_type_id=entity_type.id)
 
         annotation = get_or_create(db.session, ClassificationAnnotation,
-                          value=label_value,
-                          entity_id=entity.id,
-                          label_id=label.id,
-                          user_id=user.id,
-                          context_id=context.id)
+                                   value=label_value,
+                                   entity_id=entity.id,
+                                   label_id=label.id,
+                                   user_id=user.id,
+                                   context_id=context.id)
         return annotation.id
 
 
@@ -89,7 +89,8 @@ def convert_annotation_request_in_batch(task_uuid, task, username):
     requested_ar_ids = fetch_all_ar(task_uuid, username)
     for idx, ar_id in enumerate(requested_ar_ids):
         req = fetch_ar(task_uuid, username, ar_id)
-        _convert_single_request_with_annotated_result(req, username, task_uuid, task.id, order=idx)
+        _convert_single_request_with_annotated_result(
+            req, username, task_uuid, task.id, order=idx)
         print("Converted request with ar_id {}".format(ar_id))
 
 

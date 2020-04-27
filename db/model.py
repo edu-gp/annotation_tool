@@ -21,12 +21,12 @@ from train.no_deps.paths import (
 )
 
 meta = MetaData(naming_convention={
-        "ix": "ix_%(column_0_label)s",
-        "uq": "uq_%(table_name)s_%(column_0_name)s",
-        "ck": "ck_%(table_name)s_%(constraint_name)s",
-        "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-        "pk": "pk_%(table_name)s"
-      })
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s"
+})
 Base = declarative_base(metadata=meta)
 
 # =============================================================================
@@ -169,6 +169,17 @@ class Context(Base):
     id = Column(Integer, primary_key=True)
     hash = Column(String(128), index=True, unique=True, nullable=False)
     data = Column(JSON, nullable=False)
+    """
+    Example of data:
+    {
+        "text": "A quick brown fox.",
+        "meta": {
+            "name": "Blah",
+            "domain": "foo.com"
+        }
+    }
+    """
+
     # A context can be part of many annotations.
     classification_annotations = relationship('ClassificationAnnotation',
                                               backref='context',
@@ -176,6 +187,17 @@ class Context(Base):
 
     def __repr__(self):
         return '<Context {}: {}>'.format(self.id, self.data)
+
+    @staticmethod
+    def get_or_create(dbsession, json_data):
+        import json
+        from shared.utils import generate_md5_hash
+        annotation_context = json.dumps(json_data, sort_keys=True)
+        context = get_or_create(dbsession, Context,
+                                hash=generate_md5_hash(annotation_context),
+                                data=json_data,
+                                exclude_keys_in_retrieve=["data"])
+        return context
 
 
 class ClassificationAnnotation(Base):
@@ -219,6 +241,11 @@ class ClassificationAnnotation(Base):
 
 
 class ClassificationTrainingData(Base):
+    # TODO rename to BinaryTextClassificationTrainingData
+    """
+    This points to a jsonl file where each line is of the structure:
+    {"text": "A quick brown fox", "labels": {"bear": -1}}
+    """
     __tablename__ = 'classification_training_data'
 
     id = Column(Integer, primary_key=True)
@@ -226,6 +253,72 @@ class ClassificationTrainingData(Base):
 
     label_id = Column(Integer, ForeignKey('label.id'), nullable=False)
     label = relationship("Label")
+
+    @staticmethod
+    def create_for_label(dbsession, label: Label, batch_size=50):
+        """
+        Create a training data for the given label by taking a snapshot of all
+        the annotations created with it so far.
+        Inputs:
+            dbsession: -
+            label: -
+            batch_size: Database query batch size.
+        """
+        from an.export_annotations import export_distinct_examples
+        from shared.utils import save_jsonl
+
+        query = dbsession.query(Context.data, Context.hash, Label.name,
+                                ClassificationAnnotation.value) \
+            .join(Label).filter_by(id=label.id)
+
+        def annotations_iterator():
+            """Put each line of results in the following format: {
+                'req': {
+                    'ar_id': '...'
+                    'data': {
+                        'text': '...'
+                    }
+                },
+                'anno': {
+                    'labels': {
+                        'HEALTHCARE': 1,
+                        'POP_HEALTH': -1,
+                        'AI': 0,
+                    }
+                }
+            }
+            """
+            # Stream results a batch at a time.
+            for ctx_data, ctx_hash, label, value in query.yield_per(batch_size):
+                yield {
+                    'req': {
+                        # The `ar_id` identifies a unique set of features.
+                        'ar_id': ctx_hash,
+                        'data': {
+                            'text': ctx_data['text']
+                        }
+                    },
+                    'anno': {
+                        'labels': {
+                            label: value
+                        }
+                    }
+                }
+
+        # Reuse an old method to export annotations.
+        final = export_distinct_examples(annotations_iterator())
+
+        # Save the database object, use it to generate filename, then save the
+        # file on disk.
+        data = ClassificationTrainingData(label=label)
+        dbsession.add(data)
+        dbsession.commit()
+
+        output_fname = os.path.join(filestore_base_dir(), data.path())
+        os.makedirs(os.path.dirname(output_fname), exist_ok=True)
+        save_jsonl(output_fname, final)
+
+        return data
 
     def path(self):
         return os.path.join(TRAINING_DATA_DIR, self.label.file_friendly_name(),
