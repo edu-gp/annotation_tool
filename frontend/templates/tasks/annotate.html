@@ -26,7 +26,7 @@
       <a href="{{ url_for('index') }}">Home</a>
     </li>
     <li class="breadcrumb-item">
-      <a href="{{ url_for('tasks.show', id=task.task_id) }}">Task</a>
+      <a href="{{ url_for('tasks.show', id=task.id) }}">Task</a>
     </li>
     <li class="breadcrumb-item active" aria-current="page">
       Example
@@ -37,7 +37,7 @@
 
 {% block content %}
 <h2>
-  {{task}}
+  {{task.name}}
 </h2>
 
 <div class="row">
@@ -45,11 +45,13 @@
     <!-- <a class="btn btn-light float-right" href="#">Next</a> -->
   </div>
   <div class="col">
-    {% if next_ar_id %}
+    {% if next_ar_name %}
     <a style="display:block" class="btn btn-light m-auto"
-      href={{url_for('tasks.annotate', id=task.task_id, ar_id=next_ar_id)}}>Skip</a>
+      href={{url_for('tasks.annotate', task_id=task.id, ar_name=next_ar_name)
+            }}>Skip</a>
     <!-- <div class="row">
-        <a class="btn btn-light m-auto" href={{url_for('tasks.annotate', id=task.task_id, ar_id=next_ar_id)}}>Skip</a>
+        <a class="btn btn-light m-auto" href={{url_for('tasks.annotate',
+        task_id=task.id, ar_name=next_ar_name)}}>Skip</a>
       </div> -->
     {% endif %}
   </div>

@@ -1,5 +1,6 @@
 import glob
 import itertools
+import json
 import logging
 import os
 import re
@@ -15,7 +16,8 @@ from sqlalchemy import func, distinct
 
 from db import _task_dir
 from db.model import db, Label, User, ClassificationAnnotation, \
-    AnnotationRequest, AnnotationRequestStatus, Context, Task as NewTask
+    AnnotationRequest, AnnotationRequestStatus, Context, Task as NewTask, \
+    update_instance
 from db.task import Task, DIR_ANNO, DIR_AREQ
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd, \
     PrettyDefaultDict
@@ -97,11 +99,10 @@ def fetch_tasks_for_user_from_db(dbsession, username):
 
 
 def fetch_ar_names(dbsession, task_id, username):
-    logging.error(task_id)
     query = dbsession.query(AnnotationRequest.name).join(User).filter(
         User.username == username, AnnotationRequest.task_id == task_id)
-    logging.error(query)
     res = query.all()
+    print(res)
     return [
         item[0] for item in res
     ]
@@ -118,11 +119,11 @@ def fetch_all_ar(task_id, username):
 
 def fetch_ar_by_name_from_db(dbsession, task_id, user_id, ar_name) -> Dict:
     request_id, classification_annotation_id, request_additional_info, \
-        context_data = dbsession.query(
+        context_data, context_id = dbsession.query(
             AnnotationRequest.id,
             AnnotationRequest.classification_annotation_id,
             AnnotationRequest.additional_info,
-            Context.data).\
+            Context.data, Context.id).\
         join(Context).\
         filter(
             AnnotationRequest.task_id == task_id,
@@ -132,11 +133,11 @@ def fetch_ar_by_name_from_db(dbsession, task_id, user_id, ar_name) -> Dict:
     return _construct_ar_request_json(request_id,
                                       classification_annotation_id,
                                       request_additional_info,
-                                      context_data)
+                                      context_data, context_id)
 
 
 def _construct_ar_request_json(ar_id, classification_annotation_id,
-                               ar_additional_info, context_data):
+                               ar_additional_info, context_data, context_id):
     return {
         'ar_id': ar_id,
         'classification_annotation_id': classification_annotation_id,
@@ -146,7 +147,8 @@ def _construct_ar_request_json(ar_id, classification_annotation_id,
         ar_additional_info is not None else None,
         'score': ar_additional_info.get('score', None) if ar_additional_info
         is not None else None,
-        'data': context_data
+        'data': json.loads(context_data),
+        'context_id': context_id
     }
 
 
@@ -208,6 +210,23 @@ def build_empty_annotation(ar):
     }
 
 
+def annotate_ar_in_db(dbsession, ar_id, annotation_id, annotation_result):
+    logging.info("Updating the status of the annotation "
+                  "request {} to {}".format(ar_id,
+                                            AnnotationRequestStatus.Complete))
+    update_instance(dbsession=dbsession,
+                    model=AnnotationRequest,
+                    filter_by_dict={"id": ar_id},
+                    update_dict={"status": AnnotationRequestStatus.Complete})
+    logging.info("Updating the value of the annotation {} to {}".format(
+        annotation_id, annotation_result))
+    update_instance(dbsession=dbsession,
+                    model=ClassificationAnnotation,
+                    filter_by_dict={"id": annotation_id},
+                    update_dict={"value": annotation_result})
+    logging.info("Updated annotation request and result.")
+
+
 def annotate_ar(task_id, user_id, ar_id, annotation):
     '''
     Annotate a annotation request
@@ -235,7 +254,7 @@ def fetch_user_id_by_username(dbsession, username):
 def fetch_existing_classification_annotation_from_db(dbsession, annotation_id):
     return dbsession.query(Label.name, ClassificationAnnotation.value).\
         join(Label).filter(ClassificationAnnotation.id == annotation_id).\
-        one_or_None()
+        one_or_none()
 
 
 def fetch_annotation(task_id, user_id, ar_id):
@@ -581,7 +600,7 @@ def _compute_kappa_matrix(kappa_stats_raw_data):
                 continue
             result_user1 = result_per_user[user_pair[0]]
             result_user2 = result_per_user[user_pair[1]]
-            logging.error("Calculating the kappa score for {} and {}".format(
+            logging.info("Calculating the kappa score for {} and {}".format(
                 user_pair[0], user_pair[1]))
             result_user1, result_user2 = \
                 _exclude_unknowns_for_kappa_calculation(result_user1,
@@ -619,7 +638,7 @@ def _exclude_unknowns_for_kappa_calculation(result_user1, result_user2):
             labeling_results2.append(result_user2[i])
         else:
             ignored_count += 1
-    logging.error("Unknown ignored count: {}".format(ignored_count))
+    logging.info("Unknown ignored count: {}".format(ignored_count))
     return labeling_results1, labeling_results2
 
 

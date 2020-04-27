@@ -77,6 +77,13 @@ class EntityTypeEnum:
     COMPANY = "company"
 
 
+class AnnotationValue:
+    POSITIVE = 1
+    NEGTIVE = -1
+    UNSURE = 0
+    NOT_ANNOTATED = -2
+
+
 # =============================================================================
 # Tables
 
@@ -484,6 +491,10 @@ class Task(Base):
         # TODO refactor this to a different name later (e.g. get_latest_model)
         return self.text_classification_models.first()
 
+    def __repr__(self):
+        return "<Task with id {}, \nname {}, \ndefault_params {}>".format(
+            self.id, self.name, self.default_params)
+
 
 class AnnotationRequest(Base):
     __tablename__ = 'annotation_request'
@@ -538,6 +549,9 @@ class AnnotationRequest(Base):
 
 # =============================================================================
 # Convenience Functions
+def update_instance(dbsession, model, filter_by_dict, update_dict):
+    dbsession.query(model).filter_by(**filter_by_dict).update(update_dict)
+    dbsession.commit()
 
 
 def get_or_create(dbsession, model, exclude_keys_in_retrieve=None, **kwargs):

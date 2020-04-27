@@ -84,6 +84,7 @@ class AnnotationBox extends React.Component {
                 </div >
             )
         }
+        console.log(content)
 
         // Special Meta Key "image_url"
         if (req.data.meta.image_url !== undefined) {

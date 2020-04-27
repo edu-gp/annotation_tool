@@ -15,7 +15,8 @@ from ar.data import _compute_kappa_matrix, \
     _compute_num_of_annotations_per_value, PrettyDefaultDict, fetch_ar_by_name_from_db, \
     fetch_annotated_ar_names_from_db, fetch_ar_names
 from db.model import User, ClassificationAnnotation, Label, Entity, \
-    AnnotationRequest, AnnotationType, AnnotationRequestStatus, Task
+    AnnotationRequest, AnnotationType, AnnotationRequestStatus, Task, \
+    update_instance
 
 
 def test__exclude_unknowns_for_kappa_calculation():
@@ -238,7 +239,9 @@ def _populate_annotation_requests(dbsession):
     taskname1 = "task1"
     taskname2 = "task2"
     default_params = "whatever"
-    request_name = "name1"
+    request_name1 = "name1"
+    request_name2 = "name2"
+    request_name3 = "name3"
 
     user1 = User(username=username1)
     user2 = User(username=username2)
@@ -261,7 +264,7 @@ def _populate_annotation_requests(dbsession):
         annotation_type=AnnotationType.ClassificationAnnotation,
         status=AnnotationRequestStatus.Pending,
         task_id=task1.id,
-        name=request_name
+        name=request_name1
     )
 
     request2 = AnnotationRequest(
@@ -269,16 +272,17 @@ def _populate_annotation_requests(dbsession):
         entity_id=entity2.id,
         annotation_type=AnnotationType.ClassificationAnnotation,
         status=AnnotationRequestStatus.Complete,
-        task_id=task1.id
+        task_id=task1.id,
+        name=request_name2
     )
-
 
     request3 = AnnotationRequest(
         user_id=user1.id,
         entity_id=entity3.id,
         annotation_type=AnnotationType.ClassificationAnnotation,
         status=AnnotationRequestStatus.Stale,
-        task_id=task1.id
+        task_id=task1.id,
+        name=request_name3
     )
 
     # Requests for user 2
@@ -338,9 +342,9 @@ def test_fetch_ar_names(dbsession):
     for request in requests:
         if request.task_id == task1.id and request.user.username == \
                 user1.username:
-            assert request.id in set(res)
+            assert request.name in set(res)
         else:
-            assert request.id not in set(res)
+            assert request.name not in set(res)
 
 
 def test_fetch_annotated_ar_names_from_db(dbsession):
@@ -354,38 +358,17 @@ def test_fetch_annotated_ar_names_from_db(dbsession):
         if request.task_id == task1.id and request.user.username == \
                 user1.username and request.status == \
                 AnnotationRequestStatus.Complete:
-            assert request.id in set(res)
+            assert request.name in set(res)
         else:
-            assert request.id not in set(res)
+            assert request.name not in set(res)
 
 
-def test_fetch_ar_from_db(dbsession):
+def test_update_instance(dbsession):
     task1, task2, user1, user2, requests = _populate_annotation_requests(
         dbsession)
-    res = fetch_ar_by_name_from_db(dbsession, task_id=task1.id,
-                                   user_id=user1.id, ar_name=requests[0].name)
-    print(res)
-
-    query = dbsession.query(Label.name, ClassificationAnnotation.value).\
-        join(Label).filter(ClassificationAnnotation.id == 1)
-    print(query)
-    print(query.one_or_none())
-
-    query2 = dbsession.query(AnnotationRequest.task_id, Task.name).distinct(
-        AnnotationRequest.task_id, Task.name).join(Task).join(
-        User).filter(User.username == "username")
-    print(query2)
-
-    # query = dbsession.query(AnnotationRequest).filter(
-    #     AnnotationRequest.name == "name1")
-    # print(query)
-    # print(query.one_or_none().name)
-    #
-    # query2 = dbsession.query(AnnotationRequest.name).join(User).filter(
-    #     AnnotationRequest.task_id == task1.id,
-    #     User.username == user1.username,
-    #     AnnotationRequest.id > requests[0].id).order_by(
-    #     AnnotationRequest.id.asc())
-    #
-    # print(query2.first())
-
+    assert task1.name == "task1"
+    update_instance(dbsession=dbsession,
+                    model=Task,
+                    filter_by_dict={"id": task1.id},
+                    update_dict={"name": "task_updated"})
+    assert task1.name == "task_updated"
