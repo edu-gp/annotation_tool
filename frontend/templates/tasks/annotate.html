@@ -45,14 +45,10 @@
     <!-- <a class="btn btn-light float-right" href="#">Next</a> -->
   </div>
   <div class="col">
-    {% if next_ar_name %}
+    {% if next_ar_id %}
     <a style="display:block" class="btn btn-light m-auto"
-      href={{url_for('tasks.annotate', task_id=task.id, ar_name=next_ar_name)
+      href={{url_for('tasks.annotate', task_id=task.id, ar_id=next_ar_id)
             }}>Skip</a>
-    <!-- <div class="row">
-        <a class="btn btn-light m-auto" href={{url_for('tasks.annotate',
-        task_id=task.id, ar_name=next_ar_name)}}>Skip</a>
-      </div> -->
     {% endif %}
   </div>
   <div class="col">

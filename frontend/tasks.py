@@ -86,10 +86,9 @@ def annotate(task_id, ar_id):
     # Fetch all existing annotations on this particular entity done by this
     # user regardless of the label.
     annotations_on_entity_done_by_user = \
-        get_or_create(dbsession=db.session,
-                      model=ClassificationAnnotation,
-                      entity_id=ar_dict['entity_id'],
-                      user_id=ar_dict['user_id'])
+        db.session.query(ClassificationAnnotation).filter(
+            ClassificationAnnotation.entity_id == ar_dict['entity_id'],
+            ClassificationAnnotation.user_id == user_id).all()
 
     # Building the annotation request data for the suggested label
     anno = build_empty_annotation(ar_dict)
@@ -97,6 +96,9 @@ def annotate(task_id, ar_id):
         # TODO label.name add an extra query to db.
         anno['anno']['labels'][existing_annotation.label.name] = \
             existing_annotation.value
+
+    if label.name not in anno['anno']['labels']:
+        anno['anno']['labels'][label.name] = AnnotationValue.NOT_ANNOTATED
 
     anno['suggested_labels'] = [label.name]
     anno['task_id'] = task.id
@@ -114,7 +116,7 @@ def annotate(task_id, ar_id):
                            # 0. Create a test kitchen sink page.
                            # 1. Make sure the buttons remember state.
                            data=json.dumps([anno]),
-                           next_ar_name=next_ar_id)
+                           next_ar_id=next_ar_id)
 
 
 @bp.route('/receive_annotation', methods=['POST'])
