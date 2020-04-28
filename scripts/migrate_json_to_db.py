@@ -24,7 +24,7 @@ from db.fs import (
 from db.model import (
     Database, get_or_create,
     EntityType, EntityTypeEnum, AnnotationRequestStatus, AnnotationType,
-    User, Context, Entity, Label, Task,
+    User, Entity, Label, Task,
     AnnotationRequest, ClassificationAnnotation,
     ClassificationTrainingData, TextClassificationModel, FileInference,
 )
@@ -44,15 +44,6 @@ def _get_or_create_company_entity(company_name, domain):
     return entity_type, entity
 
 
-def _get_or_create_anno_context(json_data):
-    annotation_context = json.dumps(json_data, sort_keys=True)
-    context = get_or_create(db.session, Context,
-                            exclude_keys_in_retrieve=["data"],
-                            hash=generate_md5_hash(annotation_context),
-                            data=annotation_context)
-    return context
-
-
 def convert_annotation_result_in_batch(task_uuid, username):
     annotated_ar_ids = fetch_all_ar_ids(task_uuid, username)
     for ar_id in annotated_ar_ids:
@@ -68,8 +59,6 @@ def _convert_single_annotation(anno, username):
     domain = anno["req"]["data"]["meta"].get("domain", company_name)
     entity_type, entity = _get_or_create_company_entity(company_name, domain)
 
-    context = _get_or_create_anno_context(anno["req"]["data"])
-
     # TODO WARNING: This only works for this migration where there is only
     #  one label in the annotation result.
     for label_name, label_value in anno["anno"]["labels"].items():
@@ -81,7 +70,8 @@ def _convert_single_annotation(anno, username):
                                    entity_id=entity.id,
                                    label_id=label.id,
                                    user_id=user.id,
-                                   context_id=context.id)
+                                   context=anno["req"]["data"],
+                                   exclude_keys_in_retrieve=['context'])
         return annotation.id
 
 
@@ -117,8 +107,6 @@ def _convert_single_request_with_annotated_result(req, username, task_uuid, task
     domain = req["data"]["meta"].get("domain", company_name)
     entity_type, entity = _get_or_create_company_entity(company_name, domain)
 
-    context = _get_or_create_anno_context(req["data"])
-
     anno_from_file = fetch_annotation(task_uuid, username, ar_id=req['ar_id'])
     if anno_from_file:
         annotation_id = _convert_single_annotation(anno_from_file, username)
@@ -132,7 +120,7 @@ def _convert_single_request_with_annotated_result(req, username, task_uuid, task
     get_or_create(
         db.session, AnnotationRequest,
         user_id=user.id,
-        context_id=context.id,
+        context=req["data"],
         annotation_type=AnnotationType.ClassificationAnnotation,
         classification_annotation_id=annotation_id,
         status=AnnotationRequestStatus.Pending,
@@ -148,7 +136,7 @@ def _convert_single_request_with_annotated_result(req, username, task_uuid, task
         source={
             'source': 'db-migration'
         },
-        exclude_keys_in_retrieve=['additional_info', 'source']
+        exclude_keys_in_retrieve=['additional_info', 'source', 'context']
     )
 
 
@@ -310,7 +298,7 @@ if __name__ == "__main__":
 
     print("--Counts--")
     tables = [
-        User, Context, Entity, Label, Task,
+        User, Entity, Label, Task,
         AnnotationRequest, ClassificationAnnotation,
         ClassificationTrainingData, TextClassificationModel, FileInference]
     for t in tables:

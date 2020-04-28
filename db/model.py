@@ -168,21 +168,6 @@ class User(Base):
         return q.all()
 
 
-# class Context(Base):
-#     __tablename__ = 'context'
-
-#     id = Column(Integer, primary_key=True)
-#     hash = Column(String(128), index=True, unique=True, nullable=False)
-#     data = Column(JSON, nullable=False)
-#     # A context can be part of many annotations.
-#     classification_annotations = relationship('ClassificationAnnotation',
-#                                               backref='context',
-#                                               lazy='dynamic')
-
-#     def __repr__(self):
-#         return '<Context {}: {}>'.format(self.id, self.data)
-
-
 class ClassificationAnnotation(Base):
     __tablename__ = 'classification_annotation'
 
@@ -202,6 +187,16 @@ class ClassificationAnnotation(Base):
     user = relationship("User", back_populates="classification_annotations")
 
     context = Column(JSON)
+    """
+    e.g. Currently the context looks like:
+    {
+        "text": "A quick brown fox.",
+        "meta": {
+            "name": "Blah",
+            "domain": "foo.com"
+        }
+    }
+    """
 
     def __repr__(self):
         return """
@@ -471,10 +466,11 @@ class AnnotationRequest(Base):
     entity_id = Column(Integer, ForeignKey('entity.id'), nullable=False)
     entity = relationship("Entity")
 
-    # What Label we want the user to annotate.
-    label_id = Column(Integer, ForeignKey('label.id'), nullable=False)
+    # What Label we want the user to annotate. (Can be None)
+    label_id = Column(Integer, ForeignKey('label.id'))
     label = relationship("Label")
 
+    # TODO maybe deprecate `annotation_type` since we're already tracking label
     # What kind of annotation should the user be performing.
     # See the AnnotationType enum.
     annotation_type = Column(Integer, nullable=False)
