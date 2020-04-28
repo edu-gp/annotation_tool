@@ -16,7 +16,7 @@ from sqlalchemy import func, distinct
 
 from db import _task_dir
 from db.model import db, Label, User, ClassificationAnnotation, \
-    AnnotationRequest, AnnotationRequestStatus, Context, Task as NewTask, \
+    AnnotationRequest, AnnotationRequestStatus, Task as NewTask, \
     update_instance
 from db.task import Task, DIR_ANNO, DIR_AREQ
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd, \
@@ -98,14 +98,21 @@ def fetch_tasks_for_user_from_db(dbsession, username):
     ]
 
 
-def fetch_ar_names(dbsession, task_id, username):
-    query = dbsession.query(AnnotationRequest.name).join(User).filter(
+def fetch_ar_ids(dbsession, task_id, username):
+    query = dbsession.query(AnnotationRequest.id).join(User).filter(
         User.username == username, AnnotationRequest.task_id == task_id)
     res = query.all()
     print(res)
     return [
         item[0] for item in res
     ]
+
+
+def fetch_ar_id_and_status(dbsession, task_id, username):
+    query = dbsession.query(AnnotationRequest.id, AnnotationRequest.status).\
+        join(User).filter(User.username == username,
+                          AnnotationRequest.task_id == task_id)
+    return query.all()
 
 
 # TODO delete after the migration to db is done.
@@ -117,38 +124,31 @@ def fetch_all_ar(task_id, username):
     return _get_all_ar_ids_in_dir(_dir, sort_by_ctime=True)
 
 
-def fetch_ar_by_name_from_db(dbsession, task_id, user_id, ar_name) -> Dict:
-    request_id, classification_annotation_id, request_additional_info, \
-        context_data, context_id = dbsession.query(
+def fetch_ar_by_id_from_db(dbsession, task_id, user_id, ar_id) -> Dict:
+    request_id, entity_id, label_id, context = dbsession.query(
             AnnotationRequest.id,
-            AnnotationRequest.classification_annotation_id,
-            AnnotationRequest.additional_info,
-            Context.data, Context.id).\
-        join(Context).\
+            AnnotationRequest.entity_id,
+            AnnotationRequest.label_id,
+            AnnotationRequest.context).\
         filter(
-            AnnotationRequest.task_id == task_id,
-            AnnotationRequest.name == ar_name,
-            AnnotationRequest.user_id == user_id
+        AnnotationRequest.task_id == task_id,
+        AnnotationRequest.id == ar_id,
+        AnnotationRequest.user_id == user_id
         ).one_or_none()
-    return _construct_ar_request_json(request_id,
-                                      classification_annotation_id,
-                                      request_additional_info,
-                                      context_data, context_id)
+    return _construct_ar_request_json(request_id, entity_id, label_id, context)
 
 
-def _construct_ar_request_json(ar_id, classification_annotation_id,
-                               ar_additional_info, context_data, context_id):
+def _construct_ar_request_json(request_id, entity_id, label_id, context):
+    context = json.load(context)
     return {
-        'ar_id': ar_id,
-        'classification_annotation_id': classification_annotation_id,
-        'fname': ar_additional_info.get('fname', None) if ar_additional_info
-        is not None else None,
-        'line_number': ar_additional_info.get('line_number', None) if
-        ar_additional_info is not None else None,
-        'score': ar_additional_info.get('score', None) if ar_additional_info
-        is not None else None,
-        'data': json.loads(context_data),
-        'context_id': context_id
+        'ar_id': request_id,
+        'fname': context.get('fname', None) if context is not None else None,
+        'line_number': context.get('line_number', None) if context is not
+                                                           None else None,
+        'score': context.get('score', None) if context is not None else None,
+        'data': context,
+        'entity_id': entity_id,
+        'label_id': label_id
     }
 
 
@@ -164,12 +164,12 @@ def fetch_ar(task_id, user_id, ar_id):
         return None
 
 
-def get_next_ar_name_from_db(dbsession, task_id, user_id, current_ar_id):
-    return dbsession.query(AnnotationRequest.name).filter(
+def get_next_ar_id_from_db(dbsession, task_id, user_id, current_ar_id):
+    return dbsession.query(AnnotationRequest.id).filter(
         AnnotationRequest.task_id == task_id,
         AnnotationRequest.user_id == user_id,
         AnnotationRequest.id > current_ar_id
-    ).order_by(AnnotationRequest.id.asc()).first()
+    ).order_by(AnnotationRequest.id.asc()).first()[0]
 
 
 def get_next_ar(task_id, user_id, ar_id):
@@ -248,7 +248,7 @@ def annotate_ar(task_id, user_id, ar_id, annotation):
 
 def fetch_user_id_by_username(dbsession, username):
     return dbsession.query(User.id).filter(User.username ==
-                                           username).one_or_none()
+                                           username).one_or_none()[0]
 
 
 def fetch_existing_classification_annotation_from_db(dbsession, annotation_id):
@@ -269,8 +269,8 @@ def fetch_annotation(task_id, user_id, ar_id):
         return None
 
 
-def fetch_annotated_ar_names_from_db(dbsession, task_id, username):
-    res = dbsession.query(AnnotationRequest.name).join(User).filter(
+def fetch_annotated_ar_ids_from_db(dbsession, task_id, username):
+    res = dbsession.query(AnnotationRequest.id).join(User).filter(
         AnnotationRequest.task_id == task_id,
         AnnotationRequest.status == AnnotationRequestStatus.Complete,
         User.username == username

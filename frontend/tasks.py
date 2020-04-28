@@ -3,16 +3,17 @@ import logging
 from ar.data import (
     fetch_all_ar, fetch_ar, fetch_annotation, fetch_all_ar_ids, get_next_ar,
     build_empty_annotation, annotate_ar,
-    fetch_ar_names, fetch_annotated_ar_names_from_db, fetch_ar_by_name_from_db,
-    get_next_ar_name_from_db, fetch_user_id_by_username,
-    fetch_existing_classification_annotation_from_db, annotate_ar_in_db)
+    fetch_ar_ids, fetch_annotated_ar_ids_from_db, fetch_ar_by_id_from_db,
+    get_next_ar_id_from_db, fetch_user_id_by_username,
+    fetch_existing_classification_annotation_from_db, annotate_ar_in_db,
+    fetch_ar_id_and_status)
 import json
 from flask import (
     Blueprint, g, render_template, request, url_for)
 
 from db.model import db, AnnotationRequest, User, Task as NewTask, \
     get_or_create, ClassificationAnnotation, Label, update_instance, \
-    AnnotationValue
+    AnnotationValue, AnnotationRequestStatus
 from db.task import Task
 
 from .auth import login_required
@@ -45,87 +46,65 @@ def show(id):
 
     task = db.session.query(NewTask).filter(
         NewTask.id == id).first()
-    ars = fetch_ar_names(dbsession=db.session, task_id=id, username=username)
-    annotated = set(fetch_annotated_ar_names_from_db(dbsession=db.session,
-                                                     task_id=id,
-                                                     username=username))
-    has_annotation = [x in annotated for x in ars]
-
+    ar_id_and_status_pairs = fetch_ar_id_and_status(dbsession=db.session,
+                                                    task_id=id,
+                                                    username=username)
     et = time.time()
     print("Load time", et-st)
 
     return render_template('tasks/show.html',
                            task=task,
-                           ars=ars,
-                           has_annotation=has_annotation)
+                           ars=[item[0] for item in ar_id_and_status_pairs],
+                           has_annotation=[item[1] ==
+                                           AnnotationRequestStatus.Complete
+                                           for item in ar_id_and_status_pairs])
 
 
-@bp.route('/<string:task_id>/annotate/<string:ar_name>')
+@bp.route('/<string:task_id>/annotate/<string:ar_id>')
 @login_required
-def annotate(task_id, ar_name):
-    # TODO WARNING the following logic only works for single label. If we
-    #  are dealing with multiple labels, we may need to refactor the code to
-    #  fetch existing annotations for different labels and pass along their
-    #  ids so we know who to update in the `receive_annotation` method. The
-    #  current AnnotationRequest has a foreign_key with Annotation,
-    #  which means only 1 annotation is associated and that is not enough
-    #  for multi-labeling.
-
+def annotate(task_id, ar_id):
     username = g.user['username']
-    user_id = fetch_user_id_by_username(db.session, username=username)[0]
+    user_id = fetch_user_id_by_username(db.session, username=username)
 
     task = db.session.query(NewTask).filter(
         NewTask.id == task_id).first()
-    ar_dict = fetch_ar_by_name_from_db(db.session, task_id, user_id, ar_name)
-    next_ar_name = get_next_ar_name_from_db(
+    # TODO if we have ar_id, we don't need all 3 parameters to get the data
+    ar_dict = fetch_ar_by_id_from_db(db.session, task_id, user_id, ar_id)
+    next_ar_id = get_next_ar_id_from_db(
         dbsession=db.session,
         task_id=task_id,
         user_id=user_id,
         current_ar_id=ar_dict['ar_id']
-    )[0]
+    )
 
-    # TODO We are using task name as the suggested label. We need the actual
-    #  Label instance if we want to create annotation instance later.
-    # TODO we are not specifying the EntityType or creating the Entity in
-    #  the code. Currently logic in the controller cannot create
-    #  those instances without hard-coding the entity_type to company. This
-    #  is something we need to think about.
+    # TODO could be optimized without this query as we only need the name
+    #  later on.
     label = get_or_create(dbsession=db.session,
                           model=Label,
-                          name=task.name)
+                          id=ar_dict['label_id'])
 
-    annotation_id = ar_dict.get('classification_annotation_id', None)
-    # anno = fetch_annotation(task_id, username, ar_name)
+    # Fetch all existing annotations on this particular entity done by this
+    # user regardless of the label.
+    annotations_on_entity_done_by_user = \
+        get_or_create(dbsession=db.session,
+                      model=ClassificationAnnotation,
+                      entity_id=ar_dict['entity_id'],
+                      user_id=ar_dict['user_id'])
 
+    # Building the annotation request data for the suggested label
     anno = build_empty_annotation(ar_dict)
-    if annotation_id is not None:
-        label_name, value = \
-            fetch_existing_classification_annotation_from_db(db.session,
-                                                             annotation_id)
-        anno['anno']['labels'][label_name] = value
-    else:
-        # we need to create an annotation in db and get the id so that we
-        # are able to annotate it in `receive_annotation` method. We also
-        # need to update the classification request id in the request instance.
-        annotation = get_or_create(dbsession=db.session,
-                                   model=ClassificationAnnotation,
-                                   exclude_keys_in_retrieve=None,
-                                   value=AnnotationValue.NOT_ANNOTATED,
-                                   label_id=label.id,
-                                   user_id=user_id,
-                                   context_id=ar_dict['context_id'])
-        ar_dict["classification_annotation_id"] = annotation.id
-        update_instance(dbsession=db.session, model=AnnotationRequest,
-                        filter_by_dict={"id": ar_dict['ar_id']},
-                        update_dict={
-                            "classification_annotation_id": annotation.id
-                        })
+    for existing_annotation in annotations_on_entity_done_by_user:
+        # TODO label.name add an extra query to db.
+        anno['anno']['labels'][existing_annotation.label.name] = \
+            existing_annotation.value
 
     anno['suggested_labels'] = [label.name]
     anno['task_id'] = task.id
 
     # et = time.time()
     # print("Load time", et-st)
+
+    # TODO more UI changes since we need to change the UI workflow.
 
     return render_template('tasks/annotate.html',
                            task=task,
@@ -135,7 +114,7 @@ def annotate(task_id, ar_name):
                            # 0. Create a test kitchen sink page.
                            # 1. Make sure the buttons remember state.
                            data=json.dumps([anno]),
-                           next_ar_name=next_ar_name)
+                           next_ar_name=next_ar_id)
 
 
 @bp.route('/receive_annotation', methods=['POST'])
@@ -154,7 +133,7 @@ def receive_annotation():
     annotation_id = data['req']['classification_annotation_id']
 
     annotate_ar_in_db(db.session, ar_id, annotation_id, anno_result)
-    next_ar_name = get_next_ar_name_from_db(
+    next_ar_name = get_next_ar_id_from_db(
         dbsession=db.session,
         task_id=task_id,
         user_id=user_id,

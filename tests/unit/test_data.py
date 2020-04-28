@@ -12,8 +12,8 @@ from ar.data import _compute_kappa_matrix, \
     _retrieve_entity_ids_and_annotation_values_by_user, \
     EntityAndAnnotationValuePair, compute_annotation_request_statistics, \
     _compute_total_distinct_number_of_annotations_for_label, \
-    _compute_num_of_annotations_per_value, PrettyDefaultDict, fetch_ar_by_name_from_db, \
-    fetch_annotated_ar_names_from_db, fetch_ar_names
+    _compute_num_of_annotations_per_value, PrettyDefaultDict, fetch_ar_by_id_from_db, \
+    fetch_annotated_ar_ids_from_db, fetch_ar_ids
 from db.model import User, ClassificationAnnotation, Label, Entity, \
     AnnotationRequest, AnnotationType, AnnotationRequestStatus, Task, \
     update_instance
@@ -333,34 +333,34 @@ def test_compute_annotation_request_statistics(dbsession):
     }
 
 
-def test_fetch_ar_names(dbsession):
+def test_fetch_ar_ids(dbsession):
     task1, task2, user1, user2, requests = _populate_annotation_requests(
         dbsession)
-    res = fetch_ar_names(dbsession=dbsession, task_id=task1.id,
-                         username=user1.username)
+    res = fetch_ar_ids(dbsession=dbsession, task_id=task1.id,
+                       username=user1.username)
 
     for request in requests:
         if request.task_id == task1.id and request.user.username == \
                 user1.username:
-            assert request.name in set(res)
+            assert request.id in set(res)
         else:
-            assert request.name not in set(res)
+            assert request.id not in set(res)
 
 
-def test_fetch_annotated_ar_names_from_db(dbsession):
+def test_fetch_annotated_ar_ids_from_db(dbsession):
     task1, task2, user1, user2, requests = _populate_annotation_requests(
         dbsession)
-    res = fetch_annotated_ar_names_from_db(dbsession=dbsession,
-                                           task_id=task1.id,
-                                           username=user1.username)
+    res = fetch_annotated_ar_ids_from_db(dbsession=dbsession,
+                                         task_id=task1.id,
+                                         username=user1.username)
 
     for request in requests:
         if request.task_id == task1.id and request.user.username == \
                 user1.username and request.status == \
                 AnnotationRequestStatus.Complete:
-            assert request.name in set(res)
+            assert request.id in set(res)
         else:
-            assert request.name not in set(res)
+            assert request.id not in set(res)
 
 
 def test_update_instance(dbsession):

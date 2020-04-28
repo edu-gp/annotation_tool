@@ -19,7 +19,7 @@
 </h2>
 
 <ul class="list-group list-group-flush">
-  {% for ar_name in ars %}
+  {% for ar_id in ars %}
   <li class="list-group-item">
     {% if has_annotation[loop.index0] %}
     <span class='badge badge-info'>Done</span>
@@ -27,8 +27,8 @@
     <span class='badge badge-danger'>TODO</span>
     {% endif %}
     <a class="mx-2" href={{url_for('tasks.annotate', task_id=task.id,
-    ar_name=ar_name)}}>
-      Example {{loop.index}} - {{ar_name}}
+    ar_id=ar_id)}}>
+      Example {{loop.index}} - {{ar_id}}
     </a>
   </li>
   {% endfor %}
