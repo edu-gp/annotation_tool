@@ -407,6 +407,12 @@ class Task(Base):
         order_by="desc(TextClassificationModel.version)",
         lazy="dynamic")
 
+    def __init__(self, *args, **kwargs):
+        # Set default
+        self.default_params = {}
+        self.default_params['uuid'] = gen_uuid()
+        super(Task, self).__init__(*args, **kwargs)
+
     def __str__(self):
         return self.name
 

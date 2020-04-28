@@ -3,7 +3,7 @@ from db.model import Task
 
 
 def _populate_db(dbsession):
-    task = Task(name='My Task', default_params={})
+    task = Task(name='My Task')
     dbsession.add(task)
     dbsession.commit()
 
@@ -30,10 +30,11 @@ def test_get_set(dbsession):
 
 
 def test_create(dbsession):
-    task = Task(name='My Task', default_params={})
+    task = Task(name='My Task')
     task.set_patterns(['a', 'b', 'c'])
     dbsession.add(task)
     dbsession.commit()
 
     task = dbsession.query(Task).first()
     assert task.get_patterns() == ['a', 'b', 'c']
+    assert task.get_uuid() is not None

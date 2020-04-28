@@ -80,7 +80,7 @@ def create():
                                data_fnames=data_fnames,
                                pattern_fnames=pattern_fnames)
     else:
-        task = Task(name=name, default_params={})
+        task = Task(name=name)
         task.set_labels(labels)
         task.set_annotators(annotators)
         task.set_patterns_file(patterns_file)
