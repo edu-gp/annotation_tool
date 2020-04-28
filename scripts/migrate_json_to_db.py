@@ -125,7 +125,7 @@ def _convert_single_request_with_annotated_result(
                      format(req['ar_id']))
 
     context = req["data"]
-    context = context.update({
+    context.update({
         'ar_id': req['ar_id'],
         'fname': req['fname'],
         'line_number': req['line_number'],
