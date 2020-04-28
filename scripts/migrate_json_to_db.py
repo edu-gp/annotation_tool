@@ -77,14 +77,18 @@ def _convert_single_annotation(anno, username):
 
 def convert_annotation_request_in_batch(task_uuid, task, username):
     requested_ar_ids = fetch_all_ar(task_uuid, username)
-    for idx, ar_id in enumerate(requested_ar_ids):
+
+    label_name = task.get_labels()[0]
+
+    for order, ar_id in enumerate(requested_ar_ids):
         req = fetch_ar(task_uuid, username, ar_id)
         _convert_single_request_with_annotated_result(
-            req, username, task_uuid, task.id, order=idx)
+            req, username, task_uuid, task.id, order, label_name)
         print("Converted request with ar_id {}".format(ar_id))
 
 
-def _convert_single_request_with_annotated_result(req, username, task_uuid, task_id, order):
+def _convert_single_request_with_annotated_result(
+        req, username, task_uuid, task_id, order, label_name):
     user = get_or_create(db.session, User, username=username)
 
     '''
@@ -107,6 +111,9 @@ def _convert_single_request_with_annotated_result(req, username, task_uuid, task
     domain = req["data"]["meta"].get("domain", company_name)
     entity_type, entity = _get_or_create_company_entity(company_name, domain)
 
+    label = get_or_create(db.session, Label, name=label_name,
+                          entity_type_id=entity_type.id)
+
     anno_from_file = fetch_annotation(task_uuid, username, ar_id=req['ar_id'])
     if anno_from_file:
         annotation_id = _convert_single_annotation(anno_from_file, username)
@@ -117,26 +124,27 @@ def _convert_single_request_with_annotated_result(req, username, task_uuid, task
         logging.info("No annotation results found for this request {}".
                      format(req['ar_id']))
 
+    context = req["data"]
+    context = context.update({
+        'ar_id': req['ar_id'],
+        'fname': req['fname'],
+        'line_number': req['line_number'],
+        'score': req['score'],
+        'source': 'db-migration'
+    })
+
     get_or_create(
         db.session, AnnotationRequest,
         user_id=user.id,
-        context=req["data"],
+        context=context,
+        label_id=label.id,
+        entity_id=entity.id,
         annotation_type=AnnotationType.ClassificationAnnotation,
-        classification_annotation_id=annotation_id,
         status=AnnotationRequestStatus.Pending,
         task_id=task_id,
         order=order,
         name=req['ar_id'],
-        additional_info={
-            'ar_id': req['ar_id'],
-            'fname': req['fname'],
-            'line_number': req['line_number'],
-            'score': req['score']
-        },
-        source={
-            'source': 'db-migration'
-        },
-        exclude_keys_in_retrieve=['additional_info', 'source', 'context']
+        exclude_keys_in_retrieve=['context']
     )
 
 
