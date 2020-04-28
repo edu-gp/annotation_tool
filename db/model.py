@@ -1,12 +1,14 @@
 import logging
 import copy
 import os
+from typing import List
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine, inspect, UniqueConstraint, MetaData
 from sqlalchemy.schema import ForeignKey, Column
 from sqlalchemy.types import Integer, Float, String, JSON, DateTime, Text
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 from shared.utils import (
@@ -21,12 +23,12 @@ from train.no_deps.paths import (
 )
 
 meta = MetaData(naming_convention={
-        "ix": "ix_%(column_0_label)s",
-        "uq": "uq_%(table_name)s_%(column_0_name)s",
-        "ck": "ck_%(table_name)s_%(constraint_name)s",
-        "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-        "pk": "pk_%(table_name)s"
-      })
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s"
+})
 Base = declarative_base(metadata=meta)
 
 # =============================================================================
@@ -381,6 +383,7 @@ class Task(Base):
     """
     Example default_params:
     {
+        "uuid": ...,
         "data_filenames": [
             "my_data.jsonl"
         ],
@@ -407,11 +410,38 @@ class Task(Base):
     def __str__(self):
         return self.name
 
+    def set_labels(self, labels: List[str]):
+        self.default_params['labels'] = labels
+        flag_modified(self, 'default_params')
+
+    def set_annotators(self, annotators: List[str]):
+        self.default_params['annotators'] = annotators
+        flag_modified(self, 'default_params')
+
+    def set_patterns(self, patterns: List[str]):
+        self.default_params['patterns'] = patterns
+        flag_modified(self, 'default_params')
+
+    def set_patterns_file(self, patterns_file: str):
+        # TODO deprecate patterns_file?
+        self.default_params['patterns_file'] = patterns_file
+        flag_modified(self, 'default_params')
+
+    def set_data_filenames(self, data_filenames: List[str]):
+        self.default_params['data_filenames'] = data_filenames
+        flag_modified(self, 'default_params')
+
+    def get_uuid(self):
+        return self.default_params.get('uuid')
+
     def get_labels(self):
         return self.default_params.get('labels', [])
 
     def get_annotators(self):
         return self.default_params.get('annotators', [])
+
+    def get_patterns(self):
+        return self.default_params.get('patterns', [])
 
     def get_data_filenames(self):
         return self.default_params.get('data_filenames', [])
@@ -430,7 +460,7 @@ class Task(Base):
                                  RAW_DATA_DIR, _patterns_file),
                     to_df=False)
 
-            _patterns = self.default_params.get('patterns')
+            _patterns = self.get_patterns()
             if _patterns is not None:
                 patterns += _convert_to_spacy_patterns(_patterns)
 

@@ -5,6 +5,7 @@ import pandas as pd
 import json
 import uuid
 from pathlib import Path
+from typing import List
 
 
 def load_json(fname):
@@ -106,3 +107,19 @@ def safe_getattr(object, attr):
         return getattr(object, attr)
     except AttributeError:
         return None
+
+
+def list_to_textarea(ls: List[str]):
+    """Converts a list of strings to a string joined by newlines.
+    This is meant to be used when rendering into a textarea.
+    """
+    return "\n".join(ls)
+
+
+def textarea_to_list(text: str):
+    """Converts a textarea into a list of strings, assuming each line is an
+    item. This is meant to be the inverse of `list_to_textarea`.
+    """
+    res = [x.strip() for x in text.split('\n')]
+    res = [x for x in res if len(x) > 0]
+    return res
