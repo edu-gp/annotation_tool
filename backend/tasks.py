@@ -5,7 +5,7 @@ from flask import (
 )
 
 from db.model import (
-    db, Task, TextClassificationModel, FileInference
+    db, Task, Model, TextClassificationModel, FileInference
 )
 from db.utils import get_all_data_files, get_all_pattern_files
 from ar.data import compute_annotation_statistics, \
@@ -16,7 +16,6 @@ from ar.ar_celery import generate_annotation_requests
 from train.train_celery import train_model as local_train_model
 from train.gcp_celery import poll_status as gcp_poll_status
 from train.no_deps.utils import get_env_bool
-from inference.nlp_model import NLPModel
 
 from shared.celery_job_status import (
     CeleryJobStatus, create_status, delete_status
@@ -129,7 +128,7 @@ def show(id):
     # -------------------------------------------------------------------------
     # Models
     models = task.text_classification_models.all()
-    active_model: NLPModel = task.get_active_nlp_model()
+    active_model: Model = task.get_active_nlp_model()
 
     return render_template(
         'tasks/show.html',
