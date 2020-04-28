@@ -1,11 +1,16 @@
 # Annotation Request Module
-
+import os
 from typing import List
 from collections import namedtuple
 
 import numpy as np
-from shared.utils import load_jsonl
-from db.task import Task
+
+from db import _data_dir
+from db._task import _Task
+from db.fs import filestore_base_dir, RAW_DATA_DIR
+from db.model import get_or_create, Task, fetch_ar_ids_by_task_and_user
+from shared.utils import load_jsonl, PrettyDefaultDict
+# from db._task import _Task
 from inference.base import ITextCatModel
 from inference import get_predicted
 from inference.random_model import RandomModel
@@ -16,12 +21,13 @@ from .utils import get_ar_id, timeit
 Pred = namedtuple('Pred', ['score', 'fname', 'line_number'])
 
 
-def generate_annotation_requests(task_id: str,
+def generate_annotation_requests(dbsession, task_id: str,
                                  max_per_annotator: int, max_per_dp: int):
     '''
     NOTE: This could be super slow, but that's okay for now!
     '''
-    task = Task.fetch(task_id)
+    task = get_or_create(dbsession=dbsession, model=Task, id=task_id)
+    # task = _Task.fetch(task_id)
 
     print("Get prediction from each model...")
     # TODO better to stream these?
@@ -29,9 +35,21 @@ def generate_annotation_requests(task_id: str,
     _examples = []
     _proportions = []
 
+    data_filenames = [os.path.join(filestore_base_dir(), RAW_DATA_DIR,
+                                   fname) for fname in
+                      task.get_data_filenames()]
+    # TODO The Pred returned from get_predictions are based on filename and
+    #  line numbers so I have to save a dictionary of entity name here for
+    #  the blacklist function, unless we have a better way.
+    entity_per_file_per_line_dict = _build_entity_name_per_file_per_line(
+        data_filenames)
+
     # Random Examples
     _examples.append(
-        _get_predictions(task.get_full_data_fnames(), [RandomModel()])
+        # TODO Need to get the full path of the files in the db.model.Task
+        #  class.
+        # _get_predictions(task.get_full_data_fnames(), [RandomModel()])
+        _get_predictions(data_filenames, [RandomModel()])
     )
     _proportions.append(1)
 
@@ -39,15 +57,16 @@ def generate_annotation_requests(task_id: str,
     _patterns_model = task.get_pattern_model()
     if _patterns_model is not None:
         _examples.append(
-            _get_predictions(task.get_full_data_fnames(), [_patterns_model])
+            _get_predictions(data_filenames, [_patterns_model])
         )
         _proportions.append(3)  # [1,3] -> [0.25, 0.75]
 
     # NLP-driven Examples
+    # TODO it is labeled as deprecated. So is it part of a DB record now?
     _nlp_model = task.get_active_nlp_model()
     if _nlp_model is not None:
         _examples.append(
-            _get_predictions(task.get_full_data_fnames(), [_nlp_model])
+            _get_predictions(data_filenames, [_nlp_model])
         )
         _proportions.append(12)  # [1,3,12] -> [0.0625, 0.1875, 0.75]
 
@@ -56,6 +75,10 @@ def generate_annotation_requests(task_id: str,
         _examples, proportions=_proportions)
 
     # Blacklist whatever users have labeled already
+    # TODO so we need to check what text have already been labeled? I feel
+    #  we may still need a table for raw data. Or just load the whole thing
+    #  into annotation request table as a starting point and select those that
+    #  haven't been completed and are not stale.
     blacklist_fn = _build_blacklist_fn(task)
 
     print("Assigning to annotators...")
@@ -68,7 +91,7 @@ def generate_annotation_requests(task_id: str,
 
     # We will need random access for each line in each file.
     __cache_df = {}
-    for fname in task.get_full_data_fnames():
+    for fname in data_filenames:
         __cache_df[fname] = load_jsonl(fname)
 
     def get_dp(fname, line_number):
@@ -137,7 +160,32 @@ def generate_annotation_requests(task_id: str,
     return annotation_requests
 
 
-def _build_blacklist_fn(task: Task):
+def _build_entity_name_per_file_per_line(data_filenames):
+    entity_per_file_per_line_dict = PrettyDefaultDict(
+        lambda: PrettyDefaultDict(str))
+    for data_file in data_filenames:
+        raw_data = load_jsonl(data_file, to_df=False)
+        for i, raw_json in enumerate(raw_data):
+            entity_per_file_per_line_dict[data_file][i] = raw_json["meta"][
+                "domain"]
+    return entity_per_file_per_line_dict
+
+
+def _build_blacklist_fn_db(task: Task):
+    _lookup = {
+        user: set(fetch_ar_ids_by_task_and_user(task.task_id, user))
+        for user in task.get_annotators()
+    }
+
+    # blacklist_fn = lambda thing, user : False
+    def blacklist_fn(pred: Pred, annotator: str):
+        ar_id = get_ar_id(pred.fname, pred.line_number)
+        return ar_id in _lookup[annotator]
+
+    return blacklist_fn
+
+
+def _build_blacklist_fn(task: _Task):
     _lookup = {
         user: set(fetch_all_ar_ids(task.task_id, user))
         for user in task.annotators
@@ -193,6 +241,8 @@ def _assign(datapoints: List, annotators: List,
             ...
         }
     '''
+
+    # TODO data point is a Pred(score, fname, line_number)
     if blacklist_fn is None:
         def blacklist_fn(datapoint, annotator): return False
 

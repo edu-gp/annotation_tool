@@ -18,7 +18,7 @@ from db import _task_dir
 from db.model import db, Label, User, ClassificationAnnotation, \
     AnnotationRequest, AnnotationRequestStatus, Task as NewTask, \
     update_instance
-from db.task import Task, DIR_ANNO, DIR_AREQ
+from db._task import _Task, DIR_ANNO, DIR_AREQ
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd, \
     PrettyDefaultDict
 
@@ -44,7 +44,7 @@ def save_new_ar_for_user(task_id, user_id, annotation_requests,
     # Save each file individually for fast random access.
 
     # TODO save to Redis?
-    task = Task.fetch(task_id)
+    task = _Task.fetch(task_id)
 
     basedir = [task.get_dir(), DIR_AREQ, str(user_id)]
     _basedir = os.path.join(*basedir)

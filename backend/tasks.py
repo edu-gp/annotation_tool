@@ -181,9 +181,10 @@ def update(id):
 def assign(id):
     max_per_annotator = get_env_int('ANNOTATION_TOOL_MAX_PER_ANNOTATOR', 100)
     max_per_dp = get_env_int('ANNOTATION_TOOL_MAX_PER_DP', 3)
-    async_result = generate_annotation_requests.delay(
+    async_result = generate_annotation_requests.delay(db.session,
         id, max_per_annotator=max_per_annotator, max_per_dp=max_per_dp)
     celery_id = str(async_result)
+    # Touching Redis, no need to change anything.
     create_status(celery_id, f'assign:{id}')
     return redirect(url_for('tasks.show', id=id))
 

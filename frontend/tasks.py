@@ -8,10 +8,10 @@ import json
 from flask import (
     Blueprint, g, render_template, request, url_for)
 
+from db._task import _Task
 from db.model import db, AnnotationRequest, Task, \
     get_or_create, ClassificationAnnotation, Label, \
     AnnotationValue, AnnotationRequestStatus, Entity
-from db.task import Task
 
 from .auth import login_required
 
@@ -178,7 +178,7 @@ def receive_annotation():
 @bp.route('/kitchen_sink')
 # @login_required
 def kitchen_sink():
-    task = Task()
+    task = _Task()
 
     simple_ar = {
         "ar_id": "059429e8faee44e2aabfeb0baaf5d44eb770c5fc9ff88043c9ff191f",
