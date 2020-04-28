@@ -24,7 +24,7 @@ from db.fs import (
 from db.model import (
     Database, get_or_create,
     EntityType, EntityTypeEnum, AnnotationRequestStatus, AnnotationType,
-    User, Context, Entity, Label, Task,
+    User, Entity, Label, Task,
     AnnotationRequest, ClassificationAnnotation,
     ClassificationTrainingData, TextClassificationModel, FileInference,
 )
@@ -44,15 +44,6 @@ def _get_or_create_company_entity(company_name, domain):
     return entity_type, entity
 
 
-def _get_or_create_anno_context(json_data):
-    annotation_context = json.dumps(json_data, sort_keys=True)
-    context = get_or_create(db.session, Context,
-                            exclude_keys_in_retrieve=["data"],
-                            hash=generate_md5_hash(annotation_context),
-                            data=json_data)
-    return context
-
-
 def convert_annotation_result_in_batch(task_uuid, username):
     annotated_ar_ids = fetch_all_ar_ids(task_uuid, username)
     for ar_id in annotated_ar_ids:
@@ -68,8 +59,6 @@ def _convert_single_annotation(anno, username):
     domain = anno["req"]["data"]["meta"].get("domain", company_name)
     entity_type, entity = _get_or_create_company_entity(company_name, domain)
 
-    context = _get_or_create_anno_context(anno["req"]["data"])
-
     # TODO WARNING: This only works for this migration where there is only
     #  one label in the annotation result.
     for label_name, label_value in anno["anno"]["labels"].items():
@@ -81,20 +70,25 @@ def _convert_single_annotation(anno, username):
                                    entity_id=entity.id,
                                    label_id=label.id,
                                    user_id=user.id,
-                                   context_id=context.id)
+                                   context=anno["req"]["data"],
+                                   exclude_keys_in_retrieve=['context'])
         return annotation.id
 
 
 def convert_annotation_request_in_batch(task_uuid, task, username):
     requested_ar_ids = fetch_all_ar(task_uuid, username)
-    for idx, ar_id in enumerate(requested_ar_ids):
+
+    label_name = task.get_labels()[0]
+
+    for order, ar_id in enumerate(requested_ar_ids):
         req = fetch_ar(task_uuid, username, ar_id)
         _convert_single_request_with_annotated_result(
-            req, username, task_uuid, task.id, order=idx)
+            req, username, task_uuid, task.id, order, label_name)
         print("Converted request with ar_id {}".format(ar_id))
 
 
-def _convert_single_request_with_annotated_result(req, username, task_uuid, task_id, order):
+def _convert_single_request_with_annotated_result(
+        req, username, task_uuid, task_id, order, label_name):
     user = get_or_create(db.session, User, username=username)
 
     '''
@@ -117,7 +111,8 @@ def _convert_single_request_with_annotated_result(req, username, task_uuid, task
     domain = req["data"]["meta"].get("domain", company_name)
     entity_type, entity = _get_or_create_company_entity(company_name, domain)
 
-    context = _get_or_create_anno_context(req["data"])
+    label = get_or_create(db.session, Label, name=label_name,
+                          entity_type_id=entity_type.id)
 
     anno_from_file = fetch_annotation(task_uuid, username, ar_id=req['ar_id'])
     if anno_from_file:
@@ -129,26 +124,27 @@ def _convert_single_request_with_annotated_result(req, username, task_uuid, task
         logging.info("No annotation results found for this request {}".
                      format(req['ar_id']))
 
+    context = req["data"]
+    context.update({
+        'ar_id': req['ar_id'],
+        'fname': req['fname'],
+        'line_number': req['line_number'],
+        'score': req['score'],
+        'source': 'db-migration'
+    })
+
     get_or_create(
         db.session, AnnotationRequest,
         user_id=user.id,
-        context_id=context.id,
+        context=context,
+        label_id=label.id,
+        entity_id=entity.id,
         annotation_type=AnnotationType.ClassificationAnnotation,
-        classification_annotation_id=annotation_id,
         status=AnnotationRequestStatus.Pending,
         task_id=task_id,
         order=order,
         name=req['ar_id'],
-        additional_info={
-            'ar_id': req['ar_id'],
-            'fname': req['fname'],
-            'line_number': req['line_number'],
-            'score': req['score']
-        },
-        source={
-            'source': 'db-migration'
-        },
-        exclude_keys_in_retrieve=['additional_info', 'source']
+        exclude_keys_in_retrieve=['context']
     )
 
 
@@ -247,44 +243,35 @@ if __name__ == "__main__":
                 _source_dir = os.path.join(models_dir, model_version)
 
                 # Training Data
-                # If the data doesn't exist, this model wasn't set up properly.
-                _data_path = f'{_source_dir}/data.jsonl'
-                if not os.path.isfile(_data_path):
-                    continue
+                _source_data_path = os.path.join(_source_dir, 'data.jsonl')
+                _data_path = None
+                if os.path.isfile(_source_data_path):
+                    entity_type = get_or_create(
+                        db.session, EntityType, name=EntityTypeEnum.COMPANY)
+                    label = get_or_create(
+                        db.session, Label,
+                        name=task.default_params['labels'][0],
+                        entity_type_id=entity_type.id)
+                    data = get_or_create(
+                        db.session, ClassificationTrainingData,
+                        label_id=label.id,
+                        created_at=datetime.datetime.fromtimestamp(mock_time))
+                    mock_time += 1
 
-                entity_type = get_or_create(
-                    db.session, EntityType, name=EntityTypeEnum.COMPANY)
-                label = get_or_create(
-                    db.session, Label, name=task.default_params['labels'][0],
-                    entity_type_id=entity_type.id)
-                data = get_or_create(
-                    db.session, ClassificationTrainingData, label_id=label.id,
-                    created_at=datetime.datetime.fromtimestamp(mock_time))
-                mock_time += 1
+                    _data_path = data.path()
+                    _target_path = os.path.join(fsdir, _data_path)
+                    os.makedirs(os.path.dirname(_target_path), exist_ok=True)
+                    os.system(f'cp {_source_data_path} {_target_path}')
 
-                _target_path = os.path.join(fsdir, data.path())
-                os.makedirs(os.path.dirname(_target_path), exist_ok=True)
-                os.system(f'cp {_data_path} {_target_path}')
+                # Model
+                _source_config_path = os.path.join(_source_dir, 'config.json')
+                _config = {}
+                if os.path.isfile(_source_config_path):
+                    with open(_source_config_path) as f:
+                        _config = json.loads(f.read())
 
-                # Model & Inference
-                # Only keep the models that have finished training.
-                _config_path = f'{_source_dir}/config.json'
-                _inference_dir = f'{_source_dir}/inference'
-                if not (
-                    os.path.isfile(_config_path) and
-                    os.path.isdir(_inference_dir) and
-                    len(os.listdir(_inference_dir)) > 0 and
-                    os.path.isfile(f'{_source_dir}/metrics.json')
-                ):
-                    continue
-
-                # If we get to here, then this model was properly trained.
-                # Migrate over the model and inference.
-
-                with open(_config_path) as f:
-                    _config = json.loads(f.read())
                 model_data = {
-                    'training_data': data.path(),
+                    'training_data': _data_path,
                     'config': _config
                 }
 
@@ -306,18 +293,20 @@ if __name__ == "__main__":
                              f"data={model_data}")
 
                 # Inference
-                for file in os.listdir(os.path.join(_source_dir, 'inference')):
-                    if file.endswith('.npy'):
-                        inf = get_or_create(
-                            db.session, FileInference, model_id=db_model.id,
-                            input_filename=f'{stem(file)}.jsonl')
-                        logging.info("Created FileInference "
-                                     f"input_filename={inf.input_filename} "
-                                     f"path={inf.path()}")
+                _inference_dir = os.path.join(_source_dir, 'inference')
+                if os.path.isdir(_inference_dir):
+                    for file in os.listdir(_inference_dir):
+                        if file.endswith('.npy'):
+                            inf = get_or_create(
+                                db.session, FileInference, model_id=db_model.id,
+                                input_filename=f'{stem(file)}.jsonl')
+                            logging.info("Created FileInference "
+                                         f"input_filename={inf.input_filename} "
+                                         f"path={inf.path()}")
 
     print("--Counts--")
     tables = [
-        User, Context, Entity, Label, Task,
+        User, Entity, Label, Task,
         AnnotationRequest, ClassificationAnnotation,
         ClassificationTrainingData, TextClassificationModel, FileInference]
     for t in tables:

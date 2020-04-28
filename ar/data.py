@@ -26,8 +26,8 @@ from an.export_annotations import export_distinct_examples
 
 # Utility namedtuples
 UserNameAndIdPair = namedtuple('UserNameAndIdPair', ['username', 'id'])
-ContextAndAnnotationValuePair = namedtuple(
-    'ContextAndAnnotationValuePair', ['context_id', 'value'])
+EntityAndAnnotationValuePair = namedtuple(
+    'EntityAndAnnotationValuePair', ['entity_id', 'value'])
 
 
 def save_new_ar_for_user(task_id, user_id, annotation_requests,
@@ -375,25 +375,25 @@ def _compute_number_of_annotations_done_per_user(dbsession, label_name):
 
 
 def _construct_kappa_stats_raw_data(dbsession, distinct_users, label_name):
-    contexts_and_annotation_values_by_user = \
-        _retrieve_context_ids_and_annotation_values_by_user(dbsession,
-                                                            distinct_users)
+    entities_and_annotation_values_by_user = \
+        _retrieve_entity_ids_and_annotation_values_by_user(dbsession,
+                                                           distinct_users)
     user_pairs = list(itertools.combinations(distinct_users, 2))
     kappa_stats_raw_data = {
         label_name: {
             tuple(sorted([user_pair[0].username, user_pair[1].username])):
-                _retrieve_annotation_with_same_context_shared_by_two_users(
+                _retrieve_annotation_with_same_entity_shared_by_two_users(
                     user_pair[0], user_pair[1],
-                    contexts_and_annotation_values_by_user)
+                    entities_and_annotation_values_by_user)
             for user_pair in user_pairs
         }
     }
     return kappa_stats_raw_data
 
 
-def _retrieve_context_ids_and_annotation_values_by_user(dbsession, users):
+def _retrieve_entity_ids_and_annotation_values_by_user(dbsession, users):
     res = dbsession.query(
-        ClassificationAnnotation.context_id,
+        ClassificationAnnotation.entity_id,
         ClassificationAnnotation.value,
         ClassificationAnnotation.user_id
     ). \
@@ -404,25 +404,25 @@ def _retrieve_context_ids_and_annotation_values_by_user(dbsession, users):
 
     data = PrettyDefaultDict(lambda: [])
     for item in res:
-        data[item[2]].append(ContextAndAnnotationValuePair(
-            context_id=item[0],
+        data[item[2]].append(EntityAndAnnotationValuePair(
+            entity_id=item[0],
             value=item[1]
         ))
     return data
 
 
-def _retrieve_annotation_with_same_context_shared_by_two_users(user1, user2,
-                                                               contexts_and_annotation_values_by_user):
-    annotations_from_user1 = contexts_and_annotation_values_by_user[user1.id]
-    annotations_from_user2 = contexts_and_annotation_values_by_user[user2.id]
+def _retrieve_annotation_with_same_entity_shared_by_two_users(
+        user1, user2, entities_and_annotation_values_by_user):
+    annotations_from_user1 = entities_and_annotation_values_by_user[user1.id]
+    annotations_from_user2 = entities_and_annotation_values_by_user[user2.id]
 
     dict_of_context_value_from_user1 = {
-        annotation.context_id: annotation.value
+        annotation.entity_id: annotation.value
         for annotation in annotations_from_user1
     }
 
     dict_of_context_value_from_user2 = {
-        annotation.context_id: annotation.value
+        annotation.entity_id: annotation.value
         for annotation in annotations_from_user2
     }
     intersection = set(dict_of_context_value_from_user1.keys()).intersection(
@@ -433,12 +433,12 @@ def _retrieve_annotation_with_same_context_shared_by_two_users(user1, user2,
         return None
 
     values_from_annotations_with_overlapping_context_user1 = [
-        dict_of_context_value_from_user1[context_id] for context_id in
+        dict_of_context_value_from_user1[entity_id] for entity_id in
         intersection
     ]
 
     values_from_annotations_with_overlapping_context_user2 = [
-        dict_of_context_value_from_user2[context_id] for context_id in
+        dict_of_context_value_from_user2[entity_id] for entity_id in
         intersection
     ]
 

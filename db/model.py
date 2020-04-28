@@ -89,6 +89,7 @@ class Label(Base):
                                               back_populates='label',
                                               lazy='dynamic')
     entity_type_id = Column(Integer, ForeignKey('entity_type.id'))
+    entity_type = relationship("EntityType", back_populates="labels")
 
     def file_friendly_name(self):
         return secure_filename(self.name)
@@ -99,9 +100,10 @@ class EntityType(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(64), index=True, unique=True, nullable=False)
-    # TODO how should we setup the lazy loading mode?
-    labels = relationship('Label', backref='entity_type', lazy='dynamic')
-    entities = relationship('Entity', backref='entity_type', lazy='dynamic')
+    labels = relationship(
+        'Label', back_populates='entity_type', lazy='dynamic')
+    entities = relationship(
+        'Entity', back_populates='entity_type', lazy='dynamic')
 
     def __repr__(self):
         return '<EntityType {}>'.format(self.name)
@@ -112,10 +114,13 @@ class Entity(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(64), index=True, unique=True, nullable=False)
-    # An entity can have many annotations on it.
-    classification_annotations = relationship('ClassificationAnnotation',
-                                              backref='entity', lazy='dynamic')
+
     entity_type_id = Column(Integer, ForeignKey('entity_type.id'))
+    entity_type = relationship("EntityType", back_populates="entities")
+
+    # An entity can have many annotations on it.
+    classification_annotations = relationship(
+        'ClassificationAnnotation', back_populates='entity', lazy='dynamic')
 
     def __repr__(self):
         return '<Entity {}>'.format(self.name)
@@ -163,43 +168,6 @@ class User(Base):
         return q.all()
 
 
-class Context(Base):
-    __tablename__ = 'context'
-
-    id = Column(Integer, primary_key=True)
-    hash = Column(String(128), index=True, unique=True, nullable=False)
-    data = Column(JSON, nullable=False)
-    """
-    Example of data:
-    {
-        "text": "A quick brown fox.",
-        "meta": {
-            "name": "Blah",
-            "domain": "foo.com"
-        }
-    }
-    """
-
-    # A context can be part of many annotations.
-    classification_annotations = relationship('ClassificationAnnotation',
-                                              backref='context',
-                                              lazy='dynamic')
-
-    def __repr__(self):
-        return '<Context {}: {}>'.format(self.id, self.data)
-
-    @staticmethod
-    def get_or_create(dbsession, json_data):
-        import json
-        from shared.utils import generate_md5_hash
-        annotation_context = json.dumps(json_data, sort_keys=True)
-        context = get_or_create(dbsession, Context,
-                                hash=generate_md5_hash(annotation_context),
-                                data=json_data,
-                                exclude_keys_in_retrieve=["data"])
-        return context
-
-
 class ClassificationAnnotation(Base):
     __tablename__ = 'classification_annotation'
 
@@ -209,6 +177,8 @@ class ClassificationAnnotation(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     entity_id = Column(Integer, ForeignKey('entity.id'))
+    entity = relationship(
+        "Entity", back_populates="classification_annotations")
 
     label_id = Column(Integer, ForeignKey('label.id'))
     label = relationship("Label", back_populates="classification_annotations")
@@ -216,7 +186,17 @@ class ClassificationAnnotation(Base):
     user_id = Column(Integer, ForeignKey('user.id'))
     user = relationship("User", back_populates="classification_annotations")
 
-    context_id = Column(Integer, ForeignKey('context.id'))
+    context = Column(JSON)
+    """
+    e.g. Currently the context looks like:
+    {
+        "text": "A quick brown fox.",
+        "meta": {
+            "name": "Blah",
+            "domain": "foo.com"
+        }
+    }
+    """
 
     def __repr__(self):
         return """
@@ -224,7 +204,6 @@ class ClassificationAnnotation(Base):
         Entity Id {},
         Label Id {},
         User Id {},
-        Context Id {},
         Value {},
         Created at {},
         Last Updated at {}
@@ -233,7 +212,6 @@ class ClassificationAnnotation(Base):
             self.entity_id,
             self.label_id,
             self.user_id,
-            self.context_id,
             self.value,
             self.created_at,
             self.updated_at
@@ -549,25 +527,24 @@ class AnnotationRequest(Base):
     # --------- REQUIRED ---------
 
     id = Column(Integer, primary_key=True)
-
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Who should annotate.
     user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
     user = relationship("User")
 
-    # What should the user annotate.
-    context_id = Column(Integer, ForeignKey('context.id'), nullable=False)
-    context = relationship("Context")
+    # What Entity should the user annotate.
+    entity_id = Column(Integer, ForeignKey('entity.id'), nullable=False)
+    entity = relationship("Entity")
 
+    # What Label we want the user to annotate. (Can be None)
+    label_id = Column(Integer, ForeignKey('label.id'))
+    label = relationship("Label")
+
+    # TODO maybe deprecate `annotation_type` since we're already tracking label
     # What kind of annotation should the user be performing.
     # See the AnnotationType enum.
     annotation_type = Column(Integer, nullable=False)
-
-    classification_annotation_id = Column(Integer, ForeignKey(
-        'classification_annotation.id'))
-    classification_annotation = relationship("ClassificationAnnotation",
-                                             uselist=False)
 
     # AnnotationRequestStatus
     status = Column(Integer, index=True, nullable=False,
@@ -589,11 +566,10 @@ class AnnotationRequest(Base):
     # Friendly name to show to the user
     name = Column(String)
 
-    # Additional info to show to the user, e.g. the score, probability, etc.
-    additional_info = Column(JSON)
-
-    # Where this request came from. e.g. {'source': BackgroundJob, 'id': 123}
-    source = Column(JSON)
+    # What aspect of the Entity is presented to the user and why.
+    # ** This is meant to be copied over to the Annotation **
+    # Includes: text, images, probability scores, source etc.
+    context = Column(JSON)
 
 
 # =============================================================================
