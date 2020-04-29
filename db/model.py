@@ -347,7 +347,7 @@ class FileInference(Base):
         return os.path.join(self.model.inference_dir(),
                             stem(self.input_filename) + '.pred.npy')
 
-    def create_exported_dataframe(self):
+    def create_exported_dataframe(self, include_text=False):
         from train.no_deps.inference_results import InferenceResults
 
         _base = filestore_base_dir()
@@ -364,10 +364,13 @@ class FileInference(Base):
 
         # Combine the two together.
         df['probs'] = ir.probs
+        # TODO we must use these fields. Can we make `meta` more flexible?
         df['domain'] = df['meta'].apply(lambda x: x.get('domain'))
         df['name'] = df['meta'].apply(lambda x: x.get('name'))
-        # Note: We don't keep the 'text' column on purpose!
-        df = df[['name', 'domain', 'probs']]
+        if include_text:
+            df = df[['name', 'domain', 'text', 'probs']]
+        else:
+            df = df[['name', 'domain', 'probs']]
 
         return df
 
@@ -440,14 +443,7 @@ class Task(Base):
 
     def get_active_nlp_model(self):
         # TODO refactor this to a different name later (e.g. get_latest_model)
-        from inference.nlp_model import NLPModel
-
-        latest_model = self.text_classification_models.first()
-
-        if latest_model is not None:
-            return NLPModel(latest_model.uuid, latest_model.version)
-        else:
-            return None
+        return self.text_classification_models.first()
 
 
 class AnnotationRequest(Base):
