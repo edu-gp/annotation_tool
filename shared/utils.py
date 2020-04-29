@@ -123,3 +123,17 @@ def textarea_to_list(text: str):
     res = [x.strip() for x in text.split('\n')]
     res = [x for x in res if len(x) > 0]
     return res
+
+
+def json_lookup(json_data, key):
+    """
+    Give a key "a.b.c", look up json_data['a']['b']['c']
+    Returns None if any of the keys were not found.
+    """
+    sofar = json_data
+    for k in key.split('.'):
+        try:
+            sofar = sofar[k]
+        except:
+            return None
+    return sofar
