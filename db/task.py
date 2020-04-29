@@ -4,7 +4,10 @@ import re
 import shutil
 import uuid
 
-from shared.utils import load_json, save_json, mkf, load_jsonl
+from shared.utils import (
+    load_json, save_json, mkf, load_jsonl,
+    list_to_textarea, textarea_to_list
+)
 
 from inference.pattern_model import PatternModel
 
@@ -193,20 +196,18 @@ class Task:
     def jinjafy(self, field):
         # A list of values, one on each line
         if field == 'labels':
-            return '\n'.join(self.labels)
+            return list_to_textarea(self.labels)
         if field == 'annotators':
-            return '\n'.join(self.annotators)
+            return list_to_textarea(self.annotators)
         if field == 'patterns':
-            return '\n'.join(self.patterns)
+            return list_to_textarea(self.patterns)
         return ''
 
     @staticmethod
     def parse_jinjafied(field, value):
         # A list of values, one on each line
         if field == 'labels' or field == 'annotators' or field == 'patterns':
-            res = [x.strip() for x in value.split('\n')]
-            res = [x for x in res if len(x) > 0]
-            return res
+            return textarea_to_list(value)
         return None
 
     # ------------------------------------------------------------
