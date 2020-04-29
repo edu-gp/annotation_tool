@@ -38,3 +38,14 @@ def test_create(dbsession):
     task = dbsession.query(Task).first()
     assert task.get_patterns() == ['a', 'b', 'c']
     assert task.get_uuid() is not None
+
+
+def test_uuid_exists(dbsession):
+    task = Task(name='My Task', default_params={})
+    assert task.get_uuid() is not None
+    dbsession.add(task)
+    dbsession.commit()
+    assert task.get_uuid() is not None
+
+    task = dbsession.query(Task).first()
+    assert task.get_uuid() is not None

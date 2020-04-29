@@ -499,8 +499,10 @@ class Task(Base):
 
     def __init__(self, *args, **kwargs):
         # Set default
-        self.default_params = {}
-        self.default_params['uuid'] = gen_uuid()
+        default_params = kwargs.get('default_params', {})
+        if 'uuid' not in default_params:
+            default_params['uuid'] = gen_uuid()
+        kwargs['default_params'] = default_params
         super(Task, self).__init__(*args, **kwargs)
 
     def __str__(self):
