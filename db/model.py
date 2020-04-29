@@ -356,9 +356,22 @@ class Model(Base):
 
     @staticmethod
     def get_latest_version(dbsession, uuid):
-        return dbsession.query(Model.version) \
+        res = dbsession.query(Model.version) \
             .filter(Model.uuid == uuid) \
-            .order_by(Model.version.desc()).first()[0]
+            .order_by(Model.version.desc()).first()
+        if res is None:
+            version = None
+        else:
+            version = res[0]
+        return version
+
+    @staticmethod
+    def get_next_version(dbsession, uuid):
+        version = Model.get_latest_version(dbsession, uuid)
+        if version is None:
+            return 1
+        else:
+            return version + 1
 
     def dir(self):
         """Returns the directory location relative to the filestore root"""
