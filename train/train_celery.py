@@ -1,7 +1,7 @@
 from celery import Celery
-from db.task import Task
-from train.paths import _get_version_dir
-from train.prep import get_next_version, prepare_task_for_training
+from db.model import Database, Task
+from db.config import DevelopmentConfig
+from train.prep import prepare_task_for_training
 from train.no_deps.run import (
     train_model as _train_model,
     inference as _inference
@@ -25,24 +25,24 @@ app = Celery(
 
 @app.task
 def train_model(task_id):
-    version = get_next_version(task_id)
-    version_dir = prepare_task_for_training(task_id, version)
+    db = Database.from_config(DevelopmentConfig)
+    model_dir = prepare_task_for_training(db.session, task_id)
 
-    _train_model(version_dir)
+    _train_model(model_dir)
 
     # Note: It appears inference can be faster if it's allowed to use all the GPU memory,
     # however the only way to clear all GPU memory is to end this task. So we call inference
     # asynchronously so this task can end.
-    inference.delay(task_id, version)
+    inference.delay(task_id, model_dir)
 
 
 @app.task
-def inference(task_id, version):
-    task = Task.fetch(task_id)
-    version_dir = _get_version_dir(task.task_id, version)
-    fnames = task.get_full_data_fnames()
+def inference(task_id, model_dir):
+    db = Database.from_config(DevelopmentConfig)
+    task = db.session.query(Task).filter_by(id=task_id).one_or_none()
+    fnames = task.get_data_filenames(full_path=True)
 
-    _inference(version_dir, fnames)
+    _inference(model_dir, fnames)
 
 
 app.conf.task_routes = {'*.train_celery.*': {'queue': 'train_celery'}}
