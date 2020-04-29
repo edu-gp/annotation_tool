@@ -379,6 +379,9 @@ class Task(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(128), nullable=False)
+
+    # Note: Saving any modifications to JSON requires
+    # marking them as modified with `flag_modified`.
     default_params = Column(JSON, nullable=False)
     """
     Example default_params:
