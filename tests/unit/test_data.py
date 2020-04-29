@@ -236,7 +236,7 @@ def _populate_annotation_requests(dbsession):
     text3 = "Blahblah."
     taskname1 = "task1"
     taskname2 = "task2"
-    default_params = "whatever"
+    default_params = {"whatever": 1}
     request_name1 = "name1"
     request_name2 = "name2"
     request_name3 = "name3"
