@@ -40,7 +40,7 @@ def train_model(task_id):
 def inference(task_id, model_dir):
     db = Database.from_config(DevelopmentConfig)
     task = db.session.query(Task).filter_by(id=task_id).one_or_none()
-    fnames = task.get_data_filenames(full_path=True)
+    fnames = task.get_data_filenames(abs=True)
 
     _inference(model_dir, fnames)
 
