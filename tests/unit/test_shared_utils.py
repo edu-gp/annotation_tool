@@ -1,6 +1,7 @@
 from shared.utils import (
     stem,
     list_to_textarea, textarea_to_list,
+    json_lookup
 )
 
 
@@ -16,3 +17,19 @@ def test_list_to_textarea_and_back():
     ls = ['a', 'bb', 'ccc']
     assert list_to_textarea(ls) == 'a\nbb\nccc'
     assert textarea_to_list(list_to_textarea(ls)) == ls
+
+
+def test_json_lookup():
+    data = {
+        'blah': {
+            'foo': 12,
+            'bar': {
+                'x': 24
+            }
+        }
+    }
+
+    assert json_lookup(data, 'blah.foo') == 12
+    assert json_lookup(data, 'blah.bar.x') == 24
+    assert json_lookup(data, 'blah.foo.x') is None
+    assert json_lookup(data, 'dne') is None
