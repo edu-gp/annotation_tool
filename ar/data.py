@@ -124,22 +124,14 @@ def fetch_all_ar(task_id, username):
     return _get_all_ar_ids_in_dir(_dir, sort_by_ctime=True)
 
 
-def fetch_ar_by_id_from_db(dbsession, task_id, user_id, ar_id) -> Dict:
+def construct_ar_request_dict(dbsession, ar_id) -> Dict:
     request_id, entity_id, label_id, context = dbsession.query(
             AnnotationRequest.id,
             AnnotationRequest.entity_id,
             AnnotationRequest.label_id,
             AnnotationRequest.context).\
-        filter(
-        AnnotationRequest.task_id == task_id,
-        AnnotationRequest.id == ar_id,
-        AnnotationRequest.user_id == user_id
-        ).one_or_none()
-    return _construct_ar_request_json(request_id, entity_id, label_id, context)
+        filter(AnnotationRequest.id == ar_id).one_or_none()
 
-
-def _construct_ar_request_json(request_id, entity_id, label_id, context):
-    logging.error(context)
     return {
         'ar_id': request_id,
         'fname': context.get('fname', None) if context is not None else None,

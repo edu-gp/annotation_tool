@@ -12,8 +12,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 from shared.utils import (
-    gen_uuid, stem, file_len, load_json, load_jsonl, safe_getattr
-)
+    gen_uuid, stem, file_len, load_json, load_jsonl, safe_getattr)
 from db.fs import (
     filestore_base_dir, RAW_DATA_DIR, MODELS_DIR, TRAINING_DATA_DIR
 )
@@ -570,15 +569,20 @@ def get_or_create(dbsession, model, exclude_keys_in_retrieve=None, **kwargs):
     for key in exclude_keys_in_retrieve:
         read_kwargs.pop(key, None)
 
-    instance = dbsession.query(model).filter_by(**read_kwargs).one_or_none()
-    if instance:
-        return instance
-    else:
-        instance = model(**kwargs)
-        dbsession.add(instance)
-        dbsession.commit()
-        logging.info("Created a new instance of {}".format(instance))
-        return instance
+    try:
+        instance = dbsession.query(model).\
+            filter_by(**read_kwargs).one_or_none()
+        if instance:
+            return instance
+        else:
+            instance = model(**kwargs)
+            dbsession.add(instance)
+            dbsession.commit()
+            logging.info("Created a new instance of {}".format(instance))
+            return instance
+    except Exception:
+        dbsession.rollback()
+        raise
 
 
 def fetch_labels_by_entity_type(dbsession, entity_type_name):

@@ -1,15 +1,15 @@
 import logging
 
 from ar.data import (
-    build_empty_annotation,  fetch_ar_by_id_from_db,
+    build_empty_annotation, construct_ar_request_dict,
     get_next_ar_id_from_db, fetch_user_id_by_username,
     fetch_ar_id_and_status)
 import json
 from flask import (
     Blueprint, g, render_template, request, url_for)
 
-from db.model import db, AnnotationRequest, User, Task as NewTask, \
-    get_or_create, ClassificationAnnotation, Label, update_instance, \
+from db.model import db, AnnotationRequest, Task, \
+    get_or_create, ClassificationAnnotation, Label, \
     AnnotationValue, AnnotationRequestStatus, Entity
 from db.task import Task
 
@@ -41,8 +41,8 @@ def show(id):
     import time
     st = time.time()
 
-    task = db.session.query(NewTask).filter(
-        NewTask.id == id).first()
+    task = db.session.query(Task).filter(
+        Task.id == id).first()
     ar_id_and_status_pairs = fetch_ar_id_and_status(dbsession=db.session,
                                                     task_id=id,
                                                     username=username)
@@ -63,10 +63,9 @@ def annotate(task_id, ar_id):
     username = g.user['username']
     user_id = fetch_user_id_by_username(db.session, username=username)
 
-    task = db.session.query(NewTask).filter(
-        NewTask.id == task_id).first()
-    # TODO if we have ar_id, we don't need all 3 parameters to get the data
-    ar_dict = fetch_ar_by_id_from_db(db.session, task_id, user_id, ar_id)
+    task = db.session.query(Task).filter(
+        Task.id == task_id).first()
+    ar_dict = construct_ar_request_dict(db.session, ar_id)
     next_ar_id = get_next_ar_id_from_db(
         dbsession=db.session,
         task_id=task_id,
