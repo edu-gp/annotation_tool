@@ -1,17 +1,18 @@
 import logging
 import copy
 import os
+from typing import List
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine, inspect, UniqueConstraint, MetaData
 from sqlalchemy.schema import ForeignKey, Column
 from sqlalchemy.types import Integer, Float, String, JSON, DateTime, Text
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 from shared.utils import (
-    gen_uuid, stem, file_len, load_json, load_jsonl, safe_getattr
-)
+    gen_uuid, stem, file_len, load_json, load_jsonl, safe_getattr)
 from db.fs import (
     filestore_base_dir, RAW_DATA_DIR, MODELS_DIR, TRAINING_DATA_DIR
 )
@@ -73,6 +74,13 @@ class JobStatus:
 
 class EntityTypeEnum:
     COMPANY = "company"
+
+
+class AnnotationValue:
+    POSITIVE = 1
+    NEGTIVE = -1
+    UNSURE = 0
+    NOT_ANNOTATED = -2
 
 
 # =============================================================================
@@ -425,7 +433,7 @@ class FileInference(Base):
         return os.path.join(self.model.inference_dir(),
                             stem(self.input_filename) + '.pred.npy')
 
-    def create_exported_dataframe(self):
+    def create_exported_dataframe(self, include_text=False):
         from train.no_deps.inference_results import InferenceResults
 
         _base = filestore_base_dir()
@@ -442,10 +450,13 @@ class FileInference(Base):
 
         # Combine the two together.
         df['probs'] = ir.probs
+        # TODO we must use these fields. Can we make `meta` more flexible?
         df['domain'] = df['meta'].apply(lambda x: x.get('domain'))
         df['name'] = df['meta'].apply(lambda x: x.get('name'))
-        # Note: We don't keep the 'text' column on purpose!
-        df = df[['name', 'domain', 'probs']]
+        if include_text:
+            df = df[['name', 'domain', 'text', 'probs']]
+        else:
+            df = df[['name', 'domain', 'probs']]
 
         return df
 
@@ -455,10 +466,14 @@ class Task(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(128), nullable=False)
+
+    # Note: Saving any modifications to JSON requires
+    # marking them as modified with `flag_modified`.
     default_params = Column(JSON, nullable=False)
     """
     Example default_params:
     {
+        "uuid": ...,
         "data_filenames": [
             "my_data.jsonl"
         ],
@@ -482,14 +497,47 @@ class Task(Base):
         order_by="desc(TextClassificationModel.version)",
         lazy="dynamic")
 
+    def __init__(self, *args, **kwargs):
+        # Set default
+        self.default_params = {}
+        self.default_params['uuid'] = gen_uuid()
+        super(Task, self).__init__(*args, **kwargs)
+
     def __str__(self):
         return self.name
+
+    def set_labels(self, labels: List[str]):
+        self.default_params['labels'] = labels
+        flag_modified(self, 'default_params')
+
+    def set_annotators(self, annotators: List[str]):
+        self.default_params['annotators'] = annotators
+        flag_modified(self, 'default_params')
+
+    def set_patterns(self, patterns: List[str]):
+        self.default_params['patterns'] = patterns
+        flag_modified(self, 'default_params')
+
+    def set_patterns_file(self, patterns_file: str):
+        # TODO deprecate patterns_file?
+        self.default_params['patterns_file'] = patterns_file
+        flag_modified(self, 'default_params')
+
+    def set_data_filenames(self, data_filenames: List[str]):
+        self.default_params['data_filenames'] = data_filenames
+        flag_modified(self, 'default_params')
+
+    def get_uuid(self):
+        return self.default_params.get('uuid')
 
     def get_labels(self):
         return self.default_params.get('labels', [])
 
     def get_annotators(self):
         return self.default_params.get('annotators', [])
+
+    def get_patterns(self):
+        return self.default_params.get('patterns', [])
 
     def get_data_filenames(self):
         return self.default_params.get('data_filenames', [])
@@ -508,7 +556,7 @@ class Task(Base):
                                  RAW_DATA_DIR, _patterns_file),
                     to_df=False)
 
-            _patterns = self.default_params.get('patterns')
+            _patterns = self.get_patterns()
             if _patterns is not None:
                 patterns += _convert_to_spacy_patterns(_patterns)
 
@@ -518,14 +566,11 @@ class Task(Base):
 
     def get_active_nlp_model(self):
         # TODO refactor this to a different name later (e.g. get_latest_model)
-        from inference.nlp_model import NLPModel
+        return self.text_classification_models.first()
 
-        latest_model = self.text_classification_models.first()
-
-        if latest_model is not None:
-            return NLPModel(latest_model.uuid, latest_model.version)
-        else:
-            return None
+    def __repr__(self):
+        return "<Task with id {}, \nname {}, \ndefault_params {}>".format(
+            self.id, self.name, self.default_params)
 
 
 class AnnotationRequest(Base):
@@ -581,6 +626,9 @@ class AnnotationRequest(Base):
 
 # =============================================================================
 # Convenience Functions
+def update_instance(dbsession, model, filter_by_dict, update_dict):
+    dbsession.query(model).filter_by(**filter_by_dict).update(update_dict)
+    dbsession.commit()
 
 
 def get_or_create(dbsession, model, exclude_keys_in_retrieve=None, **kwargs):
@@ -599,15 +647,20 @@ def get_or_create(dbsession, model, exclude_keys_in_retrieve=None, **kwargs):
     for key in exclude_keys_in_retrieve:
         read_kwargs.pop(key, None)
 
-    instance = dbsession.query(model).filter_by(**read_kwargs).one_or_none()
-    if instance:
-        return instance
-    else:
-        instance = model(**kwargs)
-        dbsession.add(instance)
-        dbsession.commit()
-        logging.info("Created a new instance of {}".format(instance))
-        return instance
+    try:
+        instance = dbsession.query(model).\
+            filter_by(**read_kwargs).one_or_none()
+        if instance:
+            return instance
+        else:
+            instance = model(**kwargs)
+            dbsession.add(instance)
+            dbsession.commit()
+            logging.info("Created a new instance of {}".format(instance))
+            return instance
+    except Exception:
+        dbsession.rollback()
+        raise
 
 
 def fetch_labels_by_entity_type(dbsession, entity_type_name):

@@ -5,7 +5,7 @@ from flask import (
 )
 
 from db.model import (
-    db, Task, TextClassificationModel, FileInference
+    db, Task, Model, TextClassificationModel, FileInference
 )
 from db.utils import get_all_data_files, get_all_pattern_files
 from ar.data import compute_annotation_statistics, \
@@ -16,13 +16,14 @@ from ar.ar_celery import generate_annotation_requests
 from train.train_celery import train_model as local_train_model
 from train.gcp_celery import poll_status as gcp_poll_status
 from train.no_deps.utils import get_env_bool
-from inference.nlp_model import NLPModel
 
 from shared.celery_job_status import (
     CeleryJobStatus, create_status, delete_status
 )
 from shared.frontend_user_password import generate_frontend_user_login_link
-from shared.utils import get_env_int, stem
+from shared.utils import (
+    get_env_int, stem, list_to_textarea, textarea_to_list,
+)
 
 from .auth import auth
 
@@ -78,23 +79,20 @@ def create():
                                data_fnames=data_fnames,
                                pattern_fnames=pattern_fnames)
     else:
-        task = Task()
-        task.update_and_save(
-            name=name,
-            labels=labels,
-            annotators=annotators,
-            patterns_file=patterns_file,
-            patterns=patterns,
-            data_files=data_files
-        )
-        return redirect(url_for('tasks.show', id=task.task_id))
-
-    return render_template('tasks/edit.html', task=task)
+        task = Task(name=name)
+        task.set_labels(labels)
+        task.set_annotators(annotators)
+        task.set_patterns_file(patterns_file)
+        task.set_patterns(patterns)
+        task.set_data_filenames(data_files)
+        db.session.add(task)
+        db.session.commit()
+        return redirect(url_for('tasks.show', id=task.id))
 
 
 @bp.route('/<string:id>', methods=['GET'])
 def show(id):
-    task = db.session.query(Task).filter_by(id=id).first()
+    task = db.session.query(Task).filter_by(id=id).one_or_none()
 
     # -------------------------------------------------------------------------
     # Annotations
@@ -129,7 +127,7 @@ def show(id):
     # -------------------------------------------------------------------------
     # Models
     models = task.text_classification_models.all()
-    active_model: NLPModel = task.get_active_nlp_model()
+    active_model: Model = task.get_active_nlp_model()
 
     return render_template(
         'tasks/show.html',
@@ -145,13 +143,14 @@ def show(id):
 
 @bp.route('/<string:id>/edit', methods=['GET'])
 def edit(id):
-    task = Task.fetch(id)
-    return render_template('tasks/edit.html', task=task)
+    task = db.session.query(Task).filter_by(id=id).one_or_none()
+    return render_template('tasks/edit.html', task=task,
+                           list_to_textarea=list_to_textarea)
 
 
 @bp.route('/<string:id>', methods=['POST'])
 def update(id):
-    task = Task.fetch(id)
+    task = db.session.query(Task).filter_by(id=id).one_or_none()
 
     error = None
     try:
@@ -166,15 +165,16 @@ def update(id):
 
     if error is not None:
         flash(error)
-        return render_template('tasks/edit.html', task=task)
+        return render_template('tasks/edit.html', task=task,
+                               list_to_textarea=list_to_textarea)
     else:
-        task.update_and_save(
-            name=name,
-            labels=labels,
-            annotators=annotators,
-            patterns=patterns,
-        )
-        return redirect(url_for('tasks.show', id=task.task_id))
+        task.name = name
+        task.set_labels(labels)
+        task.set_annotators(annotators)
+        task.set_patterns(patterns)
+        db.session.add(task)
+        db.session.commit()
+        return redirect(url_for('tasks.show', id=task.id))
 
 
 @bp.route('/<string:id>/assign', methods=['POST'])
@@ -212,13 +212,13 @@ def train(id):
 
 @bp.route('/<string:id>/download_prediction', methods=['POST'])
 def download_prediction(id):
-    task = db.session.query(Task).filter_by(id=id).first()
+    task = db.session.query(Task).filter_by(id=id).one_or_none()
 
     model_id = int(request.form['model_id'])
     fname = request.form['fname']
 
     inf = db.session.query(FileInference).filter_by(
-        model_id=model_id, input_filename=fname).first()
+        model_id=model_id, input_filename=fname).one_or_none()
 
     if task is not None and inf is not None:
         df = inf.create_exported_dataframe()
@@ -253,7 +253,7 @@ def parse_labels(form):
     assert labels, 'Labels is required'
 
     try:
-        labels = Task.parse_jinjafied('labels', labels)
+        labels = textarea_to_list(labels)
     except Exception as e:
         raise Exception(f'Unable to load Labels: {e}')
 
@@ -267,7 +267,7 @@ def parse_annotators(form):
     assert annotators, 'Annotators is required'
 
     try:
-        annotators = Task.parse_jinjafied('annotators', annotators)
+        annotators = textarea_to_list(annotators)
     except Exception as e:
         raise Exception(f'Unable to load Annotators: {e}')
 
@@ -305,7 +305,7 @@ def parse_patterns(form):
     patterns = form['patterns']
 
     try:
-        patterns = Task.parse_jinjafied('patterns', patterns)
+        patterns = textarea_to_list(patterns)
     except Exception as e:
         raise Exception(f'Unable to load Patterns: {e}')
 

@@ -10,9 +10,11 @@ from ar.data import _compute_kappa_matrix, \
     _retrieve_entity_ids_and_annotation_values_by_user, \
     EntityAndAnnotationValuePair, compute_annotation_request_statistics, \
     _compute_total_distinct_number_of_annotations_for_label, \
-    _compute_num_of_annotations_per_value, PrettyDefaultDict
+    _compute_num_of_annotations_per_value, PrettyDefaultDict, \
+    fetch_annotated_ar_ids_from_db, fetch_ar_ids, construct_ar_request_dict
 from db.model import User, ClassificationAnnotation, Label, Entity, \
-    AnnotationRequest, AnnotationType, AnnotationRequestStatus, Task
+    AnnotationRequest, AnnotationType, AnnotationRequestStatus, Task, \
+    update_instance
 
 
 def test__exclude_unknowns_for_kappa_calculation():
@@ -235,6 +237,15 @@ def _populate_annotation_requests(dbsession):
     taskname1 = "task1"
     taskname2 = "task2"
     default_params = "whatever"
+    request_name1 = "name1"
+    request_name2 = "name2"
+    request_name3 = "name3"
+    context1 = {
+        'fname': 'fname1',
+        'line_number': 1,
+        'score': 0.98,
+        'source': 'db-migration'
+    }
 
     user1 = User(username=username1)
     user2 = User(username=username2)
@@ -256,7 +267,9 @@ def _populate_annotation_requests(dbsession):
         entity_id=entity1.id,
         annotation_type=AnnotationType.ClassificationAnnotation,
         status=AnnotationRequestStatus.Pending,
-        task_id=task1.id
+        task_id=task1.id,
+        name=request_name1,
+        context=context1
     )
 
     request2 = AnnotationRequest(
@@ -264,18 +277,20 @@ def _populate_annotation_requests(dbsession):
         entity_id=entity2.id,
         annotation_type=AnnotationType.ClassificationAnnotation,
         status=AnnotationRequestStatus.Complete,
-        task_id=task1.id
+        task_id=task1.id,
+        name=request_name2
     )
 
-    # Requests for user 2
     request3 = AnnotationRequest(
         user_id=user1.id,
         entity_id=entity3.id,
         annotation_type=AnnotationType.ClassificationAnnotation,
         status=AnnotationRequestStatus.Stale,
-        task_id=task1.id
+        task_id=task1.id,
+        name=request_name3
     )
 
+    # Requests for user 2
     request4 = AnnotationRequest(
         user_id=user2.id,
         entity_id=entity1.id,
@@ -320,4 +335,73 @@ def test_compute_annotation_request_statistics(dbsession):
     assert res['n_outstanding_requests_per_user'] == {
         user1.username: expected[user1.username],
         user2.username: expected[user2.username]
+    }
+
+
+def test_fetch_ar_ids(dbsession):
+    task1, task2, user1, user2, requests = _populate_annotation_requests(
+        dbsession)
+    res = fetch_ar_ids(dbsession=dbsession, task_id=task1.id,
+                       username=user1.username)
+
+    for request in requests:
+        if request.task_id == task1.id and request.user.username == \
+                user1.username:
+            assert request.id in set(res)
+        else:
+            assert request.id not in set(res)
+
+
+def test_fetch_annotated_ar_ids_from_db(dbsession):
+    task1, task2, user1, user2, requests = _populate_annotation_requests(
+        dbsession)
+    res = fetch_annotated_ar_ids_from_db(dbsession=dbsession,
+                                         task_id=task1.id,
+                                         username=user1.username)
+
+    for request in requests:
+        if request.task_id == task1.id and request.user.username == \
+                user1.username and request.status == \
+                AnnotationRequestStatus.Complete:
+            assert request.id in set(res)
+        else:
+            assert request.id not in set(res)
+
+
+def test_update_instance(dbsession):
+    task1, task2, user1, user2, requests = _populate_annotation_requests(
+        dbsession)
+    assert task1.name == "task1"
+    update_instance(dbsession=dbsession,
+                    model=Task,
+                    filter_by_dict={"id": task1.id},
+                    update_dict={"name": "task_updated"})
+    assert task1.name == "task_updated"
+
+
+def test_construct_ar_request_dict(dbsession):
+    task1, task2, user1, user2, requests = _populate_annotation_requests(
+        dbsession)
+    request1 = requests[0]
+    result1 = construct_ar_request_dict(dbsession, request1.id)
+    assert result1 == {
+        'ar_id': request1.id,
+        'fname': request1.context['fname'],
+        'line_number': request1.context['line_number'],
+        'score': request1.context['score'],
+        'data': request1.context,
+        'entity_id': request1.entity_id,
+        'label_id': request1.label_id
+    }
+
+    request2 = requests[1]
+    result2 = construct_ar_request_dict(dbsession, request2.id)
+    assert result2 == {
+        'ar_id': request2.id,
+        'fname': None,
+        'line_number': None,
+        'score': None,
+        'data': request2.context,
+        'entity_id': request2.entity_id,
+        'label_id': request2.label_id
     }
