@@ -1,7 +1,7 @@
 from celery import Celery
 
 from ar import generate_annotation_requests as _generate_annotation_requests
-from ar.data import save_new_ar_for_user
+from ar.data import save_new_ar_for_user_db
 
 from shared.celery_job_status import set_status, JobStatus
 
@@ -35,7 +35,9 @@ def generate_annotation_requests(dbsession, task_id, max_per_annotator,
                                         max_per_dp)
     for user_id, annotation_requests in res.items():
         # TODO touching file system, need to migrate
-        save_new_ar_for_user(
+        #  So here we have a user and a list of request in the form of a
+        #  dictionary and we want to save it for this user in db.
+        save_new_ar_for_user_db(
             task_id, user_id, annotation_requests, clean_existing=True)
     print(f"Done")
 

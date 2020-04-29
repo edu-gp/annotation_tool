@@ -17,7 +17,7 @@ from sqlalchemy import func, distinct
 from db import _task_dir
 from db.model import db, Label, User, ClassificationAnnotation, \
     AnnotationRequest, AnnotationRequestStatus, Task as NewTask, \
-    update_instance
+    update_instance, Entity, AnnotationType
 from db._task import _Task, DIR_ANNO, DIR_AREQ
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd, \
     PrettyDefaultDict
@@ -29,6 +29,45 @@ from shared.utils import save_jsonl, load_json, save_json, mkf, mkd, \
 UserNameAndIdPair = namedtuple('UserNameAndIdPair', ['username', 'id'])
 EntityAndAnnotationValuePair = namedtuple(
     'EntityAndAnnotationValuePair', ['entity_id', 'value'])
+
+
+def save_new_ar_for_user_db(dbsession, task_id, user_id,
+                            annotation_requests, clean_existing=True):
+    if clean_existing:
+        try:
+            dbsession.query(AnnotationRequest).\
+                filter(AnnotationRequest.task_id == task_id,
+                       AnnotationRequest.user_id == user_id).delete(
+                sychronize_session=False)
+            dbsession.commit()
+        except Exception as e:
+            logging.error(e)
+            dbsession.rollback()
+            raise
+
+    # NOTE insert these in reverse order so the most recently created ones are
+    # the ones to be labeled first.
+    annotation_requests = annotation_requests[::-1]
+
+    try:
+        for req in annotation_requests:
+            # TODO not the most efficient way since it involves a query to get
+            #  the entity id.
+            new_request = AnnotationRequest(
+                user_id=user_id,
+                entity_id=dbsession.query(Entity.id).filter(Entity.name == req[
+                    'entity_name']).one()[0],
+                annotation_type=AnnotationType.ClassificationAnnotation,
+                task_id=task_id,
+                context=req['data'],
+                # TODO what about order? Self generated on insert?
+            )
+            dbsession.add(new_request)
+        dbsession.commit()
+    except Exception as e:
+        logging.error(e)
+        dbsession.rollback()
+        raise
 
 
 def save_new_ar_for_user(task_id, user_id, annotation_requests,
