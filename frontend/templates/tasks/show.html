@@ -15,7 +15,7 @@
 
 {% block content %}
 <h2>
-  {{task}}
+  {{task.name}}
 </h2>
 
 <ul class="list-group list-group-flush">
@@ -26,7 +26,8 @@
     {% else %}
     <span class='badge badge-danger'>TODO</span>
     {% endif %}
-    <a class="mx-2" href={{url_for('tasks.annotate', id=task.task_id, ar_id=ar_id)}}>
+    <a class="mx-2" href={{url_for('tasks.annotate', task_id=task.id,
+    ar_id=ar_id)}}>
       Example {{loop.index}} - {{ar_id}}
     </a>
   </li>

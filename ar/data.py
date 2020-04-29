@@ -1,20 +1,23 @@
 import glob
 import itertools
+import json
 import logging
 import os
 import re
 import shutil
 import time
 from collections import defaultdict, Counter, namedtuple
+from typing import Tuple, Dict
 
 import pandas as pd
 from pandas import DataFrame
 from sklearn.metrics import cohen_kappa_score
-from sqlalchemy import func
+from sqlalchemy import func, distinct
 
 from db import _task_dir
 from db.model import db, Label, User, ClassificationAnnotation, \
-    AnnotationRequest, AnnotationRequestStatus
+    AnnotationRequest, AnnotationRequestStatus, Task as NewTask, \
+    update_instance
 from db.task import Task, DIR_ANNO, DIR_AREQ
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd, \
     PrettyDefaultDict
@@ -85,12 +88,60 @@ def fetch_tasks_for_user(user_id):
     return task_ids
 
 
-def fetch_all_ar(task_id, user_id):
+def fetch_tasks_for_user_from_db(dbsession, username):
+    res = dbsession.query(AnnotationRequest.task_id, NewTask.name).distinct(
+        AnnotationRequest.task_id, NewTask.name).join(NewTask).join(
+        User).filter(User.username == username).all()
+    TaskIdAndNamePair = namedtuple('TaskIdAndNamePair', ['task_id', 'name'])
+    return [
+        TaskIdAndNamePair(item[0], item[1]) for item in res
+    ]
+
+
+def fetch_ar_ids(dbsession, task_id, username):
+    query = dbsession.query(AnnotationRequest.id).join(User).filter(
+        User.username == username, AnnotationRequest.task_id == task_id)
+    res = query.all()
+    print(res)
+    return [
+        item[0] for item in res
+    ]
+
+
+def fetch_ar_id_and_status(dbsession, task_id, username):
+    query = dbsession.query(AnnotationRequest.id, AnnotationRequest.status).\
+        join(User).filter(User.username == username,
+                          AnnotationRequest.task_id == task_id)
+    return query.all()
+
+
+# TODO delete after the migration to db is done.
+def fetch_all_ar(task_id, username):
     '''
     Return a list of ar_id for this task
     '''
-    _dir = os.path.join(_task_dir(task_id), DIR_AREQ, user_id)
+    _dir = os.path.join(_task_dir(task_id), DIR_AREQ, username)
     return _get_all_ar_ids_in_dir(_dir, sort_by_ctime=True)
+
+
+def construct_ar_request_dict(dbsession, ar_id) -> Dict:
+    request_id, entity_id, label_id, context = dbsession.query(
+            AnnotationRequest.id,
+            AnnotationRequest.entity_id,
+            AnnotationRequest.label_id,
+            AnnotationRequest.context).\
+        filter(AnnotationRequest.id == ar_id).one_or_none()
+
+    return {
+        'ar_id': request_id,
+        'fname': context.get('fname', None) if context is not None else None,
+        'line_number': context.get('line_number', None) if context is not
+                                                           None else None,
+        'score': context.get('score', None) if context is not None else None,
+        'data': context,
+        'entity_id': entity_id,
+        'label_id': label_id
+    }
 
 
 def fetch_ar(task_id, user_id, ar_id):
@@ -103,6 +154,14 @@ def fetch_ar(task_id, user_id, ar_id):
         return load_json(fname)
     else:
         return None
+
+
+def get_next_ar_id_from_db(dbsession, task_id, user_id, current_ar_id):
+    return dbsession.query(AnnotationRequest.id).filter(
+        AnnotationRequest.task_id == task_id,
+        AnnotationRequest.user_id == user_id,
+        AnnotationRequest.id > current_ar_id
+    ).order_by(AnnotationRequest.id.asc()).first()[0]
 
 
 def get_next_ar(task_id, user_id, ar_id):
@@ -143,6 +202,23 @@ def build_empty_annotation(ar):
     }
 
 
+def mark_ar_complete_in_db(dbsession, ar_id):
+    logging.info("Updating the status of the annotation "
+                  "request {} to {}".format(ar_id,
+                                            AnnotationRequestStatus.Complete))
+    update_instance(dbsession=dbsession,
+                    model=AnnotationRequest,
+                    filter_by_dict={"id": ar_id},
+                    update_dict={"status": AnnotationRequestStatus.Complete})
+    # logging.info("Updating the value of the annotation {} to {}".format(
+    #     annotation_id, annotation_result))
+    # update_instance(dbsession=dbsession,
+    #                 model=ClassificationAnnotation,
+    #                 filter_by_dict={"id": annotation_id},
+    #                 update_dict={"value": annotation_result})
+    # logging.info("Updated annotation request and result.")
+
+
 def annotate_ar(task_id, user_id, ar_id, annotation):
     '''
     Annotate a annotation request
@@ -162,6 +238,17 @@ def annotate_ar(task_id, user_id, ar_id, annotation):
         return None
 
 
+def fetch_user_id_by_username(dbsession, username):
+    return dbsession.query(User.id).filter(User.username ==
+                                           username).one_or_none()[0]
+
+
+def fetch_existing_classification_annotation_from_db(dbsession, annotation_id):
+    return dbsession.query(Label.name, ClassificationAnnotation.value).\
+        join(Label).filter(ClassificationAnnotation.id == annotation_id).\
+        one_or_none()
+
+
 def fetch_annotation(task_id, user_id, ar_id):
     '''
     Return the details of an annotation to a annotation request
@@ -172,6 +259,16 @@ def fetch_annotation(task_id, user_id, ar_id):
         return load_json(fname)
     else:
         return None
+
+
+def fetch_annotated_ar_ids_from_db(dbsession, task_id, username):
+    res = dbsession.query(AnnotationRequest.id).join(User).filter(
+        AnnotationRequest.task_id == task_id,
+        AnnotationRequest.status == AnnotationRequestStatus.Complete,
+        User.username == username
+    ).all()
+
+    return [item[0] for item in res]
 
 
 def fetch_all_ar_ids(task_id, user_id):
@@ -495,7 +592,7 @@ def _compute_kappa_matrix(kappa_stats_raw_data):
                 continue
             result_user1 = result_per_user[user_pair[0]]
             result_user2 = result_per_user[user_pair[1]]
-            logging.error("Calculating the kappa score for {} and {}".format(
+            logging.info("Calculating the kappa score for {} and {}".format(
                 user_pair[0], user_pair[1]))
             result_user1, result_user2 = \
                 _exclude_unknowns_for_kappa_calculation(result_user1,
@@ -533,7 +630,7 @@ def _exclude_unknowns_for_kappa_calculation(result_user1, result_user2):
             labeling_results2.append(result_user2[i])
         else:
             ignored_count += 1
-    logging.error("Unknown ignored count: {}".format(ignored_count))
+    logging.info("Unknown ignored count: {}".format(ignored_count))
     return labeling_results1, labeling_results2
 
 

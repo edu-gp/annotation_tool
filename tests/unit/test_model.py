@@ -1,5 +1,8 @@
+from mockito import when
+from sqlalchemy.exc import ArgumentError
+
 from tests.sqlalchemy_conftest import *
-from db.model import TextClassificationModel
+from db.model import TextClassificationModel, get_or_create, User
 import pytest
 import sqlalchemy
 
@@ -44,3 +47,18 @@ def test_dir(dbsession):
     dbsession.refresh(model)
 
     assert model.dir() == 'models/123/1'
+
+
+def test_get_or_create(dbsession):
+    user1 = get_or_create(dbsession=dbsession,
+                          model=User,
+                          username="user1")
+    assert user1.username == "user1"
+
+    when(dbsession).commit().thenRaise(ArgumentError())
+    with pytest.raises(ArgumentError):
+        _ = get_or_create(dbsession=dbsession,
+                          model=User,
+                          username="invalid_user_name")
+
+

@@ -10,7 +10,7 @@ from db.config import DevelopmentConfig
 from .auth import login_required
 
 from db.task import Task
-from ar.data import fetch_tasks_for_user
+from ar.data import fetch_tasks_for_user, fetch_tasks_for_user_from_db
 
 
 def create_app(test_config=None):
@@ -46,8 +46,10 @@ def create_app(test_config=None):
     def index():
         username = g.user['username']
         task_ids = fetch_tasks_for_user(username)
-        tasks = [Task.fetch(task_id) for task_id in task_ids]
-        return render_template('index.html', tasks=tasks)
+        task_id_and_name_pairs = fetch_tasks_for_user_from_db(
+            db.session, username)
+        # tasks = [Task.fetch(task_id) for task_id in task_ids]
+        return render_template('index.html', tasks=task_id_and_name_pairs)
 
     @app.route('/secret')
     @login_required

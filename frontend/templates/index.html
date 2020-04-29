@@ -9,7 +9,8 @@
   You're requested to annotate:
   <ol class="list-group list-group-flush">
     {% for task in tasks %}
-    <li class="list-group-item"><a href="{{ url_for('tasks.show', id=task.task_id) }}"">{{task}}</a></li>
+    <li class="list-group-item"><a href="{{ url_for('tasks.show', id=task
+    .task_id) }}"">{{task.name}}</a></li>
           {% endfor %}
         </ol>
       {% else %}
