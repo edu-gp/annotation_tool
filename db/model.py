@@ -226,7 +226,45 @@ class ClassificationAnnotation(Base):
         )
 
 
+def majority_vote_annotations_query(dbsession, label):
+    """
+    Returns a query that fetches a list of 3-tuples
+    [(entity_name, anno_value, count), ...]
+    where the annotation value is the most common for that entity name
+    associated with the given label.
+
+    For example, if we have 3 annotations for the entity X with values
+    [1, -1, -1], then one of the elements this query would return would be
+    (X, -1, 2)
+
+    Note: This query ignores annotation values of 0 - they are "Unknown"s.
+    """
+    subquery = dbsession.query(
+        Entity.name,
+        ClassificationAnnotation.value,
+        func.count('*').label('count')
+    ) \
+        .join(Label).filter_by(id=label.id) \
+        .join(Entity).filter(Entity.id == ClassificationAnnotation.entity_id) \
+        .filter(ClassificationAnnotation.value != 0) \
+        .group_by(Entity.id, ClassificationAnnotation.value) \
+        .subquery()
+
+    query = dbsession.query(
+        subquery.c.name,
+        subquery.c.value,
+        func.max(subquery.c.count)
+    ).group_by(subquery.c.name)
+
+    return query
+
+
 class ClassificationTrainingData(Base):
+    # TODO rename to BinaryTextClassificationTrainingData
+    """
+    This points to a jsonl file where each line is of the structure:
+    {"text": "A quick brown fox", "labels": {"bear": -1}}
+    """
     __tablename__ = 'classification_training_data'
 
     id = Column(Integer, primary_key=True)
@@ -235,9 +273,49 @@ class ClassificationTrainingData(Base):
     label_id = Column(Integer, ForeignKey('label.id'), nullable=False)
     label = relationship("Label")
 
+    @staticmethod
+    def create_for_label(dbsession, label: Label,
+                         entity_text_lookup_fn=None, batch_size=50):
+        """
+        Create a training data for the given label by taking a snapshot of all
+        the annotations created with it so far.
+        Inputs:
+            dbsession: -
+            label: -
+            entity_text_lookup_fn: A function that, when given the
+                entity_type_id and entity_name, returns a piece of text that
+                about the entity that we can use for training.
+            batch_size: Database query batch size.
+        """
+        query = majority_vote_annotations_query(dbsession, label)
+
+        final = []
+        for ent_name, anno_value, count in query.yield_per(batch_size):
+            final.append({
+                'text': entity_text_lookup_fn(label.entity_type_id, ent_name),
+                'labels': {label.name: anno_value}
+            })
+
+        # Save the database object, use it to generate filename, then save the
+        # file on disk.
+        data = ClassificationTrainingData(label=label)
+        dbsession.add(data)
+        dbsession.commit()
+
+        output_fname = os.path.join(filestore_base_dir(), data.path())
+        os.makedirs(os.path.dirname(output_fname), exist_ok=True)
+        from shared.utils import save_jsonl
+        save_jsonl(output_fname, final)
+
+        return data
+
     def path(self):
         return os.path.join(TRAINING_DATA_DIR, self.label.file_friendly_name(),
                             str(int(self.created_at.timestamp())) + '.jsonl')
+
+    def load_data(self, to_df=False):
+        path = os.path.join(filestore_base_dir(), self.path())
+        return load_jsonl(path, to_df=to_df)
 
     def length(self):
         return file_len(self.path())

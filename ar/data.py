@@ -644,6 +644,7 @@ def _convert_html_tables(kappa_matrices):
 
 
 def _majority_label(labels):
+    # TODO deprecate
     '''
     Get the majority of non-zero labels
     Input: [1,1,0,0,0,0,-1,-1,1,1]
@@ -657,6 +658,7 @@ def _majority_label(labels):
 
 
 def _export_distinct_labeled_examples(annotations_iterator):
+    # TODO deprecate
     """
     Inputs:
         annotations_iterator: A iterator that returns annotations.
@@ -756,6 +758,7 @@ def _gather_distinct_labeled_examples(task_id):
     return final
 
 
+# TODO deprecate in favor of ClassificationTrainingData.create_for_label
 def export_labeled_examples(task_id, outfile=None):
     final = _gather_distinct_labeled_examples(task_id)
 
