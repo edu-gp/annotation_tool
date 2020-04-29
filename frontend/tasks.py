@@ -1,11 +1,8 @@
 import logging
 
 from ar.data import (
-    fetch_all_ar, fetch_ar, fetch_annotation, fetch_all_ar_ids, get_next_ar,
-    build_empty_annotation, annotate_ar,
-    fetch_ar_ids, fetch_annotated_ar_ids_from_db, fetch_ar_by_id_from_db,
+    build_empty_annotation,  fetch_ar_by_id_from_db,
     get_next_ar_id_from_db, fetch_user_id_by_username,
-    fetch_existing_classification_annotation_from_db, annotate_ar_in_db,
     fetch_ar_id_and_status)
 import json
 from flask import (
@@ -13,7 +10,7 @@ from flask import (
 
 from db.model import db, AnnotationRequest, User, Task as NewTask, \
     get_or_create, ClassificationAnnotation, Label, update_instance, \
-    AnnotationValue, AnnotationRequestStatus
+    AnnotationValue, AnnotationRequestStatus, Entity
 from db.task import Task
 
 from .auth import login_required
@@ -106,7 +103,8 @@ def annotate(task_id, ar_id):
     # et = time.time()
     # print("Load time", et-st)
 
-    # TODO more UI changes since we need to change the UI workflow.
+    # TODO more UI changes if we need to change the UI workflow for
+    #  multi-labeling.
 
     return render_template('tasks/annotate.html',
                            task=task,
@@ -124,27 +122,56 @@ def annotate(task_id, ar_id):
 def receive_annotation():
     '''API meant for Javascript to consume'''
     username = g.user['username']
-    user_id = fetch_user_id_by_username(db.session, username=username)[0]
+    user_id = fetch_user_id_by_username(db.session, username=username)
 
+    logging.error("Here here here")
     data = json.loads(request.data)
     task_id = data['task_id']
     ar_id = data['req']['ar_id']
+    entity_id = data['req']['entity_id']
+    context = data['req']['data']['text']
 
-    # TODO this is based on the assumption that there is only one label.
-    anno_result = list(data['anno']['labels'].values())[0]
-    annotation_id = data['req']['classification_annotation_id']
+    entity_type_id = db.session.query(Entity.entity_type_id).\
+        filter(Entity.id == entity_id).first()[0]
 
-    annotate_ar_in_db(db.session, ar_id, annotation_id, anno_result)
-    next_ar_name = get_next_ar_id_from_db(
+    # For all the labels received, we need to create/update annotations in
+    # the db.
+    annotation_result = data['anno']['labels']
+    for label_name in annotation_result:
+        label_instance = get_or_create(dbsession=db.session, model=Label,
+                                       name=label_name,
+                                       entity_type_id=entity_type_id)
+        logging.error(label_instance)
+        value = annotation_result[label_name]
+        annotation = get_or_create(dbsession=db.session,
+                                   model=ClassificationAnnotation,
+                                   exclude_keys_in_retrieve=["context",
+                                                             "value"],
+                                   entity_id=data['req']['entity_id'],
+                                   label_id=label_instance.id,
+                                   user_id=user_id,
+                                   context=context,
+                                   value=AnnotationValue.NOT_ANNOTATED)
+        annotation.value = value
+        db.session.add(annotation)
+
+    annotatation_request = get_or_create(dbsession=db.session,
+                                         model=AnnotationRequest,
+                                         id=ar_id)
+    annotatation_request.status = AnnotationRequestStatus.Complete
+    db.session.add(annotatation_request)
+    db.session.commit()
+
+    next_ar_id = get_next_ar_id_from_db(
         dbsession=db.session,
         task_id=task_id,
         user_id=user_id,
         current_ar_id=ar_id
-    )[0]
+    )
 
-    if next_ar_name:
+    if next_ar_id:
         return {'redirect': url_for('tasks.annotate', task_id=task_id,
-                                    ar_name=next_ar_name)}
+                                    ar_id=next_ar_id)}
     else:
         return {'redirect': url_for('tasks.show', id=task_id)}
 

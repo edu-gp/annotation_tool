@@ -210,7 +210,7 @@ def build_empty_annotation(ar):
     }
 
 
-def annotate_ar_in_db(dbsession, ar_id, annotation_id, annotation_result):
+def mark_ar_complete_in_db(dbsession, ar_id):
     logging.info("Updating the status of the annotation "
                   "request {} to {}".format(ar_id,
                                             AnnotationRequestStatus.Complete))
@@ -218,13 +218,13 @@ def annotate_ar_in_db(dbsession, ar_id, annotation_id, annotation_result):
                     model=AnnotationRequest,
                     filter_by_dict={"id": ar_id},
                     update_dict={"status": AnnotationRequestStatus.Complete})
-    logging.info("Updating the value of the annotation {} to {}".format(
-        annotation_id, annotation_result))
-    update_instance(dbsession=dbsession,
-                    model=ClassificationAnnotation,
-                    filter_by_dict={"id": annotation_id},
-                    update_dict={"value": annotation_result})
-    logging.info("Updated annotation request and result.")
+    # logging.info("Updating the value of the annotation {} to {}".format(
+    #     annotation_id, annotation_result))
+    # update_instance(dbsession=dbsession,
+    #                 model=ClassificationAnnotation,
+    #                 filter_by_dict={"id": annotation_id},
+    #                 update_dict={"value": annotation_result})
+    # logging.info("Updated annotation request and result.")
 
 
 def annotate_ar(task_id, user_id, ar_id, annotation):
