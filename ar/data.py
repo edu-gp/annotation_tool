@@ -16,7 +16,7 @@ from sqlalchemy import func
 from db import _task_dir
 from db.model import db, Label, User, ClassificationAnnotation, \
     AnnotationRequest, AnnotationRequestStatus, Task as NewTask, \
-    update_instance, Entity, AnnotationType
+    update_instance, Entity, AnnotationType, get_or_create
 from db._task import _Task, DIR_ANNO, DIR_AREQ
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd, \
     PrettyDefaultDict
@@ -37,7 +37,7 @@ def save_new_ar_for_user_db(dbsession, task_id, user_id,
             dbsession.query(AnnotationRequest).\
                 filter(AnnotationRequest.task_id == task_id,
                        AnnotationRequest.user_id == user_id).\
-                delete(sychronize_session=False)
+                delete(synchronize_session=False)
             dbsession.commit()
         except Exception as e:
             logging.error(e)
@@ -50,15 +50,21 @@ def save_new_ar_for_user_db(dbsession, task_id, user_id,
 
     try:
         for i, req in enumerate(annotation_requests):
-            # TODO not the most efficient way since it involves a query to get
-            #  the entity id.
+            # print(req)
+            # TODO not all entities are created in the db and we don't have
+            #  a way to assign entity type here yet so the new ones will not
+            #  have entity type.
+            entity = get_or_create(dbsession=dbsession, model=Entity,
+                                   name=req['entity_name'])
             new_request = AnnotationRequest(
                 user_id=user_id,
-                entity_id=dbsession.query(Entity.id).filter(Entity.name == req[
-                    'entity_name']).one()[0],
+                entity_id=entity.id,
                 annotation_type=AnnotationType.ClassificationAnnotation,
                 task_id=task_id,
                 context=req['data'],
+                # TODO there is no info about the label in the raw data so
+                #  how do we add this?
+                # label_id=??
                 order=i,
             )
             dbsession.add(new_request)

@@ -37,9 +37,9 @@ def generate_annotation_requests(task_id, max_per_annotator,
     logging.error(
         f"Generate max={max_per_annotator} annotations per user with max_per_dp={max_per_dp}, task_id={task_id}")
     # TODO Touching file systems, need to migrate
-    dbsession = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI).session
+    db = Database.from_config(DevelopmentConfig)
     res = _generate_annotation_requests(
-        dbsession,
+        db.session,
         task_id,
         max_per_annotator,
         max_per_dp)
@@ -50,7 +50,7 @@ def generate_annotation_requests(task_id, max_per_annotator,
         #  So here we have a user and a list of request in the form of a
         #  dictionary and we want to save it for this user in db.
         save_new_ar_for_user_db(
-            dbsession, task_id, user_id, annotation_requests,
+            db.session, task_id, user_id, annotation_requests,
             clean_existing=True)
     print(f"Done")
 

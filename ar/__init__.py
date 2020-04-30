@@ -22,17 +22,17 @@ from .data import fetch_all_ar_ids
 from .utils import get_ar_id, timeit
 
 Pred = namedtuple('Pred', ['score', 'fname', 'line_number'])
-Pred_DB = namedtuple('Pred_DB', ['score', 'entity_meta_data', 'fname',
+Pred_DB = namedtuple('Pred_DB', ['score', 'entity_name', 'fname',
                                  'line_number'])
-db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
 
+db = Database.from_config(DevelopmentConfig)
 
 def generate_annotation_requests(dbsession, task_id: int,
                                  max_per_annotator: int, max_per_dp: int):
     '''
     NOTE: This could be super slow, but that's okay for now!
     '''
-    task = get_or_create(dbsession=db.session, model=Task, id=task_id)
+    task = get_or_create(dbsession=dbsession, model=Task, id=task_id)
     # task = _Task.fetch(task_id)
 
     logging.error("Get prediction from each model...")
@@ -91,7 +91,9 @@ def generate_annotation_requests(dbsession, task_id: int,
     blacklist_fn_db = _build_blacklist_fn_db(task=task)
 
     logging.error("Assigning to annotators...")
-    assignments = _assign_db(ordered_examples, task.annotators,
+    assignments = _assign_db(dbsession,
+                             ordered_examples,
+                             task.get_annotators(),
                              blacklist_fn=blacklist_fn_db,
                              max_per_annotator=max_per_annotator,
                              max_per_dp=max_per_dp)
@@ -150,7 +152,7 @@ def generate_annotation_requests(dbsession, task_id: int,
             'fname': pred.fname,
             'line_number': pred.line_number,
             'score': pred.score,
-            'entity_name': pred.entity_meta_data["domain"]
+            'entity_name': pred.entity_name
         }
         res.update({
             'data': __basic_decor[idx]
@@ -192,9 +194,7 @@ def _build_blacklist_fn_db(task: Task):
     _lookup_db = dict()
 
     def blacklist_fn(dbsession, pred: Pred_DB, annotator: str):
-        entity_name = pred.entity_meta_data["domain"]
-        entity_name = entity_name if entity_name is not None else \
-            pred.entity_meta_data["name"]
+        entity_name = pred.entity_name
 
         num_of_complete_requests_by_entity_and_user_within_task = \
             dbsession.query(
@@ -268,7 +268,7 @@ def _get_predictions_db(data_filenames: List[str],
     Return the aggregated score from all models for all lines in each
     data_filenames
 
-    Return Pred namedtuple (score, entity_meta_data, fname, line_number)
+    Return Pred namedtuple (score, entity_name, fname, line_number)
     '''
     result = []
 
@@ -284,22 +284,24 @@ def _get_predictions_db(data_filenames: List[str],
         if len(preds) > 0:
             # Get total score from all models.
             total_scores = np.sum(preds, axis=0)
+            print(total_scores)
 
             for line_number, score in enumerate(total_scores):
                 result.append(Pred_DB(score=score,
-                                      entity_meta_data=metas[line_number],
+                                      entity_name=metas[0][line_number][
+                                          'domain'],
                                       fname=fname,
                                       line_number=line_number))
 
     return result
 
 
-def _assign_db(datapoints: List, annotators: List,
+def _assign_db(dbsession, datapoints: List, annotators: List,
                max_per_annotator: int, max_per_dp: int,
                blacklist_fn=None):
-    # TODO data point is a Pred(score, fname, line_number)
+    # TODO data point is a Pred(score, entity_name, fname, line_number)
     if blacklist_fn is None:
-        def blacklist_fn(datapoint, annotator): return False
+        def blacklist_fn(dbsession, datapoint, annotator): return False
 
     from queue import PriorityQueue
     from collections import defaultdict
@@ -316,7 +318,7 @@ def _assign_db(datapoints: List, annotators: List,
         if anno in per_dp_queue[dp]:
             # This datapoint already assigned to this annotator
             return False
-        if blacklist_fn(dp, anno):
+        if blacklist_fn(dbsession, dp, anno):
             # User specified function to not allow this
             return False
         if len(per_anno_queue[anno]) >= max_per_annotator:
@@ -479,16 +481,13 @@ def _shuffle_together_examples(list_of_examples: List[List[Pred_DB]],
             ls_idx[which_list] += 1
             # TODO could name and/or domain be null? How would that affect
             #  the tuple as a key? Can we just skip it?
-            if pred.entity_meta_data.get("name", None) is None and \
-                pred.entity_meta_data.get("domain", None) is None:
+            if pred.entity_name is None:
                 continue
 
-            if (pred.entity_meta_data["name"],
-                pred.entity_meta_data["domain"]) not in seen:
+            if pred.entity_name not in seen:
                 # We've found an element from ls that can be added to res!
                 # TODO keep track of which list the pred comes from; for easier debugging
-                seen.add((pred.entity_meta_data["name"],
-                          pred.entity_meta_data["domain"]))
+                seen.add(pred.entity_name)
                 res.append(pred)
                 break
 
