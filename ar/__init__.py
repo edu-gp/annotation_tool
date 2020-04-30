@@ -90,14 +90,14 @@ def generate_annotation_requests(dbsession, task_id: int,
     #  entity under this task. If so, skip those.
     blacklist_fn_db = _build_blacklist_fn_db(task=task)
 
-    logging.error("Assigning to annotators...")
+    logging.info("Assigning to annotators...")
     assignments = _assign_db(dbsession,
                              ordered_examples,
                              task.get_annotators(),
                              blacklist_fn=blacklist_fn_db,
                              max_per_annotator=max_per_annotator,
                              max_per_dp=max_per_dp)
-    logging.error("Assigning to annotators finished...")
+    logging.info("Assigning to annotators finished...")
     # assignments = _assign(ordered_examples, task.annotators,
     #                       blacklist_fn=blacklist_fn,
     #                       max_per_annotator=max_per_annotator,

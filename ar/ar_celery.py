@@ -43,14 +43,14 @@ def generate_annotation_requests(task_id, max_per_annotator,
         task_id,
         max_per_annotator,
         max_per_dp)
-    for user_id, annotation_requests in res.items():
+    for username, annotation_requests in res.items():
         logging.error("Creating annotation requests for user {}".
-                      format(user_id))
+                      format(username))
         # TODO touching file system, need to migrate
         #  So here we have a user and a list of request in the form of a
         #  dictionary and we want to save it for this user in db.
         save_new_ar_for_user_db(
-            db.session, task_id, user_id, annotation_requests,
+            db.session, task_id, username, annotation_requests,
             clean_existing=True)
     print(f"Done")
 

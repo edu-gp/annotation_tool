@@ -30,13 +30,16 @@ EntityAndAnnotationValuePair = namedtuple(
     'EntityAndAnnotationValuePair', ['entity_id', 'value'])
 
 
-def save_new_ar_for_user_db(dbsession, task_id, user_id,
+def save_new_ar_for_user_db(dbsession, task_id, username,
                             annotation_requests, clean_existing=True):
+    user = get_or_create(dbsession=dbsession, model=User,
+                         username=username)
     if clean_existing:
         try:
+            # TODO can't do join when using Query.delete()
             dbsession.query(AnnotationRequest).\
                 filter(AnnotationRequest.task_id == task_id,
-                       AnnotationRequest.user_id == user_id).\
+                       AnnotationRequest.user_id == user.id).\
                 delete(synchronize_session=False)
             dbsession.commit()
         except Exception as e:
@@ -57,7 +60,7 @@ def save_new_ar_for_user_db(dbsession, task_id, user_id,
             entity = get_or_create(dbsession=dbsession, model=Entity,
                                    name=req['entity_name'])
             new_request = AnnotationRequest(
-                user_id=user_id,
+                user_id=user.id,
                 entity_id=entity.id,
                 annotation_type=AnnotationType.ClassificationAnnotation,
                 task_id=task_id,
