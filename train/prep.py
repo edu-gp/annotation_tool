@@ -2,22 +2,13 @@ import time
 
 from ar.data import export_labeled_examples
 from shared.utils import save_json
-from db.task import Task
 
-from .paths import (
-    _get_latest_model_version, _get_version_dir
-)
+from .paths import _get_version_dir
 from .no_deps.paths import (
     _get_config_fname, _get_exported_data_fname
 )
 
 from .no_deps.utils import get_env_int, get_env_bool
-
-
-def get_next_version(task_id):
-    task = Task.fetch(task_id)
-    version = _get_latest_model_version(task.task_id) + 1
-    return version
 
 
 def generate_config():
@@ -42,25 +33,61 @@ def generate_config():
     }
 
 
-def save_config(version_dir):
-    config_fname = _get_config_fname(version_dir)
-    config = generate_config()
-    save_json(config_fname, config)
-
-
-def save_exported_data(task_id, version_dir):
-    print("Export labeled examples...")
-    data_fname = _get_exported_data_fname(version_dir)
-    export_labeled_examples(task_id, outfile=data_fname)
-
-
-def prepare_task_for_training(task_id, version):
+def prepare_task_for_training(dbsession, task_id):
     """Exports the model and save config when the model is training it does
     not need access to the Task object.
 
     Returns the directory in which all the prepared info are stored.
     """
-    version_dir = _get_version_dir(task_id, version)
-    save_config(version_dir)
-    save_exported_data(task_id, version_dir)
-    return version_dir
+    import os
+    import shutil
+    from db.model import (
+        Task, TextClassificationModel,
+        Label, ClassificationTrainingData,
+        EntityType, EntityTypeEnum,
+        get_or_create
+    )
+    from train.text_lookup import get_entity_text_lookup_function
+
+    task = dbsession.query(Task).filter_by(id=task_id).one_or_none()
+
+    # Model uuid by default is the task's uuid; One model per task.
+    uuid = task.get_uuid()
+    version = TextClassificationModel.get_next_version(dbsession, uuid)
+
+    # By default use the first label the task has.
+    label_name = task.get_labels()[0]
+    # By default use the Company entity type
+    # TODO this should be part of Task
+    entity_type = get_or_create(
+        dbsession, EntityType, name=EntityTypeEnum.COMPANY)
+
+    label = dbsession.query(Label).filter_by(
+        name=label_name, entity_type=entity_type).first()
+
+    # TODO these defaults should be stored in Task
+    jsonl_file_path = task.get_data_filenames(abs=True)[0]
+    entity_text_lookup_fn = get_entity_text_lookup_function(
+        jsonl_file_path, 'meta.domain', 'text', entity_type.id
+    )
+
+    data = ClassificationTrainingData.create_for_label(
+        dbsession, label, entity_text_lookup_fn)
+
+    config = generate_config()
+
+    model = TextClassificationModel(uuid=uuid, version=version, task=task,
+                                    classification_training_data=data,
+                                    config=config)
+    dbsession.add(model)
+    dbsession.commit()
+
+    # Build up the model_dir
+    model_dir = model.dir(abs=True)
+    os.makedirs(model_dir, exist_ok=True)
+    # Save config
+    save_json(_get_config_fname(model_dir), config)
+    # Copy over data
+    shutil.copyfile(data.path(abs=True), _get_exported_data_fname(model_dir))
+
+    return model_dir

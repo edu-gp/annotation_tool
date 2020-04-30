@@ -1,6 +1,5 @@
 import time
 from celery import Celery
-from train.prep import get_next_version, prepare_task_for_training
 from train.gcp_job import GCPJob
 
 app = Celery(

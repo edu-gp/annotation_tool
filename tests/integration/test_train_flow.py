@@ -1,39 +1,35 @@
-import json
+from tests.sqlalchemy_conftest import *
 from typing import List
-from db.task import Task
-from ar.data import (
-    save_new_ar_for_user,
-    annotate_ar,
-    fetch_all_ar_ids
+import os
+import numpy as np
+
+from db.model import (
+    Task, Label, ClassificationAnnotation, User,
+    EntityType, EntityTypeEnum, Entity,
 )
-from ar.utils import get_ar_id
-from train.prep import (
-    get_next_version,
-    prepare_task_for_training
-)
+from db.fs import RAW_DATA_DIR
+
 from train.no_deps.run import (
     train_model, inference
 )
 from train.no_deps.paths import (
-    # Prep Model
-    _get_config_fname,
-    _get_exported_data_fname,
     # Train Model
     _get_data_parser_fname,
     _get_metrics_fname,
     # Model Inference
     _get_inference_fname,
 )
-from train.no_deps.utils import BINARY_CLASSIFICATION
 from train.no_deps.inference_results import InferenceResults
-from shared.utils import load_json, load_jsonl
-import numpy as np
+from train.no_deps.utils import BINARY_CLASSIFICATION
 
-# TODO:
-# 1. Test train data too few (an error would be thrown but we should cover it)
-# 2. Test train data all one class
-# 3. Test not binary classification (should throw NotSupported)
+from train.prep import prepare_task_for_training
 
+from shared.utils import save_jsonl, load_jsonl, load_json
+
+
+# TODO add a case to cover only 1 class present in the data.
+# This is easy to do, just set N=2.
+# Unclear what's the best way to surface that error just yet.
 
 class stub_model:
     def predict(self, text: List[str]):
@@ -52,81 +48,126 @@ def stub_build_fn(config, model_dir):
     return stub_model()
 
 
-class TestTrainFlow:
-    def setup_method(self, test_method):
-        task = Task('just testing ar')
-        task.task_id = '__testing_'+task.task_id
-        task.save()
+def _populate_db_and_fs(dbsession, tmp_path, N):
+    # =========================================================================
+    # Add in a fake data file
+    d = tmp_path / RAW_DATA_DIR
+    d.mkdir(parents=True)
+    p = d / 'data.jsonl'
+    data = [{'text': f'item {i} text', 'meta': {'domain': f'{i}.com'}}
+            for i in range(N)]
+    save_jsonl(str(p), data)
 
-        # Create 10 negative examples and 10 positive examples
-        task_id = task.task_id
-        user_id = 'eddie_test'
-        for line in range(20):
-            if line < 10:
-                ar = {
-                    'ar_id': get_ar_id('a', line), 'fname': 'a', 'line_number': line, 'score': 0.9,
-                    'data': {'text': 'banker', 'meta': {'foo': 'bar'}}
-                }
-                my_anno = {'labels': {'HEALTHCARE': -1}}
-            else:
-                ar = {
-                    'ar_id': get_ar_id('a', line), 'fname': 'a', 'line_number': line, 'score': 0.9,
-                    'data': {'text': 'doctor', 'meta': {'foo': 'bar'}}
-                }
-                my_anno = {'labels': {'HEALTHCARE': 1}}
+    # =========================================================================
+    # Create dummy data
 
-            save_new_ar_for_user(task_id, user_id, [ar])
-            annotate_ar(task_id, user_id, ar['ar_id'], my_anno)
+    # Create an EntityType
+    ent = EntityType(name=EntityTypeEnum.COMPANY)
+    dbsession.add(ent)
+    dbsession.commit()
 
-        self.task = task
+    # Create many Entities
+    ents = [Entity(name=d['meta']['domain'], entity_type_id=ent.id)
+            for d in data]
+    dbsession.add_all(ents)
 
-    def teardown_method(self, test_method):
-        # Make sure we delete the task even when the test fails.
-        self.task.delete()
+    # Create many Users
+    user = User(username=f'someuser')
+    dbsession.add(user)
 
-    def test__test_setup_is_ok(self):
-        task = self.task
-        assert len(fetch_all_ar_ids(task.task_id, 'eddie_test')) == 20
+    dbsession.commit()
 
-    def test__train_flow(self, tmpdir):
-        task = self.task
-        version = get_next_version(task.task_id)
-        assert version == 1
+    # Create many Annotations for a Label
+    label = Label(name='IsTall', entity_type_id=ent.id)
 
-        # Part 1. Prepare data for training.
-        version_dir = prepare_task_for_training(task.task_id, version)
+    def _create_anno(ent, v): return ClassificationAnnotation(
+        entity=ent, user=user, label=label, value=v)
 
-        config = load_json(_get_config_fname(version_dir))
-        assert config is not None
-        assert config['train_config'] is not None
+    annos = [
+        # Create a few annotations for the first 2 entities.
+        _create_anno(ents[0], 1),
+        _create_anno(ents[0], 1),
+        _create_anno(ents[0], 1),
+        _create_anno(ents[0], -1),
+        _create_anno(ents[0], 0),
+        _create_anno(ents[0], 0),
+        _create_anno(ents[0], 0),
+        _create_anno(ents[0], 0),
 
-        data = load_jsonl(_get_exported_data_fname(version_dir), to_df=False)
-        assert data[0] == {'labels': {'HEALTHCARE': -1}, 'text': 'banker'}
+        _create_anno(ents[1], 1),
+        _create_anno(ents[1], 1),
+        _create_anno(ents[1], -1),
+        _create_anno(ents[1], -1),
+        _create_anno(ents[1], -1),
+        _create_anno(ents[1], -1),
+        _create_anno(ents[1], 0),
+        _create_anno(ents[1], 0),
+    ]
+    for i in range(2, N):
+        # Create one annotations for the rest of the entities.
+        annos.append(_create_anno(ents[i], 1 if i % 2 else -1))
 
-        # Part 2. Train model.
-        train_model(version_dir, train_fn=stub_train_fn)
+    dbsession.add_all([label] + annos)
+    dbsession.commit()
 
-        data_parser_results = load_json(_get_data_parser_fname(version_dir))
-        assert data_parser_results['problem_type'] == BINARY_CLASSIFICATION
+    # Create a Task
+    task = Task(name='Bball')
+    task.set_labels(['IsTall'])
+    task.set_annotators([user.username])
+    task.set_patterns_file(None)
+    task.set_patterns(['Shaq', 'Lebron'])
+    task.set_data_filenames(['data.jsonl'])
+    dbsession.add(task)
+    dbsession.commit()
 
-        metrics = load_json(_get_metrics_fname(version_dir))
-        assert metrics['test'] is not None
-        assert metrics['train'] is not None
 
-        # Part 3. Post-training Inference.
-        fnames = []
+def test_train_flow(dbsession, monkeypatch, tmp_path):
+    monkeypatch.setenv('ALCHEMY_FILESTORE_DIR', str(tmp_path))
+    N = 20
+    _populate_db_and_fs(dbsession, tmp_path, N)
+    task = dbsession.query(Task).first()
 
-        content = [
-            {'text': 'hello'},
-            {'text': 'world'}
-        ]
-        f = tmpdir.mkdir("sub").join("hello.jsonl")
-        f.write('\n'.join([json.dumps(x) for x in content]))
-        fnames.append(str(f))
+    # Part 1. Prepare.
+    model_dir = prepare_task_for_training(dbsession, task.id)
 
-        inference(version_dir, fnames,
-                  build_model_fn=stub_build_fn, generate_plots=False)
+    # These are all the files we need to train a model.
+    files = os.listdir(model_dir)
+    assert set(files) == set(['data.jsonl', 'config.json'])
 
-        ir = InferenceResults.load(
-            _get_inference_fname(version_dir, fnames[0]))
-        assert np.isclose(ir.probs, [0.7411514, 0.7411514]).all()
+    data = load_jsonl(os.path.join(model_dir, 'data.jsonl'), to_df=False)
+    data = sorted(data, key=lambda d: d['text'])
+    print(data[0])
+    print(data[1])
+    print(len(data))
+    assert data[0] == {'text': 'item 0 text', 'labels': {'IsTall': 1}}
+    assert data[1] == {'text': 'item 1 text', 'labels': {'IsTall': -1}}
+    assert len(data) == 20
+
+    config = load_json(os.path.join(model_dir, 'config.json'))
+    assert config is not None
+    assert config['train_config'] is not None
+
+    # Part 2. Train model.
+    train_model(model_dir, train_fn=stub_train_fn)
+
+    data_parser_results = load_json(_get_data_parser_fname(model_dir))
+    assert data_parser_results['problem_type'] == BINARY_CLASSIFICATION
+
+    metrics = load_json(_get_metrics_fname(model_dir))
+    assert metrics['test'] is not None
+    assert metrics['train'] is not None
+
+    # Part 3. Post-training Inference.
+    f = tmp_path / 'tmp_file_for_inference.jsonl'
+    save_jsonl(str(f), [
+        {'text': 'hello'},
+        {'text': 'world'}
+    ])
+    fnames = [str(f)]
+
+    inference(model_dir, fnames,
+              build_model_fn=stub_build_fn, generate_plots=False)
+
+    ir = InferenceResults.load(
+        _get_inference_fname(model_dir, fnames[0]))
+    assert np.isclose(ir.probs, [0.7411514, 0.7411514]).all()

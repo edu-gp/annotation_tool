@@ -246,7 +246,7 @@ if __name__ == "__main__":
 
                 # Training Data
                 _source_data_path = os.path.join(_source_dir, 'data.jsonl')
-                _data_path = None
+                data = None
                 if os.path.isfile(_source_data_path):
                     entity_type = get_or_create(
                         db.session, EntityType, name=EntityTypeEnum.COMPANY)
@@ -260,8 +260,7 @@ if __name__ == "__main__":
                         created_at=datetime.datetime.fromtimestamp(mock_time))
                     mock_time += 1
 
-                    _data_path = data.path()
-                    _target_path = os.path.join(fsdir, _data_path)
+                    _target_path = os.path.join(fsdir, data.path())
                     os.makedirs(os.path.dirname(_target_path), exist_ok=True)
                     os.system(f'cp {_source_data_path} {_target_path}')
 
@@ -272,18 +271,14 @@ if __name__ == "__main__":
                     with open(_source_config_path) as f:
                         _config = json.loads(f.read())
 
-                model_data = {
-                    'training_data': _data_path,
-                    'config': _config
-                }
-
                 db_model = get_or_create(
                     db.session,
                     TextClassificationModel,
                     task_id=task.id,
                     uuid=task_uuid,
                     version=int(model_version),
-                    data=model_data,
+                    config=_config,
+                    classification_training_data=data,
                     exclude_keys_in_retrieve=['data']
                 )
 
@@ -291,8 +286,7 @@ if __name__ == "__main__":
                 os.system(f'mkdir -p {_target_dir}')
                 os.system(f'cp -r {_source_dir}/ {_target_dir}')
 
-                logging.info("Created Model "
-                             f"data={model_data}")
+                logging.info(f"Created Model {db_model}")
 
                 # Inference
                 _inference_dir = os.path.join(_source_dir, 'inference')

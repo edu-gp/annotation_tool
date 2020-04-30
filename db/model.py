@@ -52,9 +52,13 @@ class Database:
         self.session = session
         self.engine = engine
 
+    @staticmethod
+    def from_config(config):
+        return Database(config.SQLALCHEMY_DATABASE_URI)
 
 # =============================================================================
 # Enums
+
 
 class AnnotationRequestStatus:
     Pending = 0
@@ -275,7 +279,7 @@ class ClassificationTrainingData(Base):
 
     @staticmethod
     def create_for_label(dbsession, label: Label,
-                         entity_text_lookup_fn=None, batch_size=50):
+                         entity_text_lookup_fn, batch_size=50):
         """
         Create a training data for the given label by taking a snapshot of all
         the annotations created with it so far.
@@ -309,12 +313,15 @@ class ClassificationTrainingData(Base):
 
         return data
 
-    def path(self):
-        return os.path.join(TRAINING_DATA_DIR, self.label.file_friendly_name(),
-                            str(int(self.created_at.timestamp())) + '.jsonl')
+    def path(self, abs=False):
+        p = os.path.join(TRAINING_DATA_DIR, self.label.file_friendly_name(),
+                         str(int(self.created_at.timestamp())) + '.jsonl')
+        if abs:
+            p = os.path.join(filestore_base_dir(), p)
+        return p
 
     def load_data(self, to_df=False):
-        path = os.path.join(filestore_base_dir(), self.path())
+        path = self.path(abs=True)
         return load_jsonl(path, to_df=to_df)
 
     def length(self):
@@ -333,7 +340,11 @@ class Model(Base):
     uuid = Column(String(64), index=True, nullable=False, default=gen_uuid)
     version = Column(Integer, index=True, nullable=False, default=1)
 
-    data = Column(JSON, nullable=False, default=lambda: {})
+    classification_training_data_id = Column(Integer, ForeignKey(
+        'classification_training_data.id'))
+    classification_training_data = relationship("ClassificationTrainingData")
+
+    config = Column(JSON)
 
     # All the inferences we have ran on files
     file_inferences = relationship("FileInference", back_populates="model")
@@ -373,9 +384,12 @@ class Model(Base):
         else:
             return version + 1
 
-    def dir(self):
+    def dir(self, abs=False):
         """Returns the directory location relative to the filestore root"""
-        return os.path.join(MODELS_DIR, self.uuid, str(self.version))
+        dir = os.path.join(MODELS_DIR, self.uuid, str(self.version))
+        if abs:
+            dir = os.path.join(filestore_base_dir(), dir)
+        return dir
 
     def inference_dir(self):
         return os.path.join(self.dir(), "inference")
@@ -554,8 +568,12 @@ class Task(Base):
     def get_patterns(self):
         return self.default_params.get('patterns', [])
 
-    def get_data_filenames(self):
-        return self.default_params.get('data_filenames', [])
+    def get_data_filenames(self, abs=False):
+        fnames = self.default_params.get('data_filenames', [])
+        if abs:
+            fnames = [os.path.join(filestore_base_dir(), RAW_DATA_DIR, f)
+                      for f in fnames]
+        return fnames
 
     def get_pattern_model(self):
         from inference.pattern_model import PatternModel

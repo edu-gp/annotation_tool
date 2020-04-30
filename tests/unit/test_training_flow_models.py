@@ -46,12 +46,7 @@ def test_flow(dbsession):
     # case that it succeeds, we save the model and any post-training inferences
     # that were completed.
 
-    model = TextClassificationModel(
-        task=task,
-        data={
-            'data_fname': training_data.path(),
-        }
-    )
+    model = TextClassificationModel(task=task)
 
     dbsession.add(model)
 
