@@ -1,3 +1,4 @@
+import logging
 from typing import List
 
 from flask import (
@@ -179,9 +180,11 @@ def update(id):
 
 @bp.route('/<string:id>/assign', methods=['POST'])
 def assign(id):
+    logging.error(id)
     max_per_annotator = get_env_int('ANNOTATION_TOOL_MAX_PER_ANNOTATOR', 100)
     max_per_dp = get_env_int('ANNOTATION_TOOL_MAX_PER_DP', 3)
-    async_result = generate_annotation_requests.delay(db.session,
+    logging.error("generating annotations asynchronously.")
+    async_result = generate_annotation_requests.delay(
         id, max_per_annotator=max_per_annotator, max_per_dp=max_per_dp)
     celery_id = str(async_result)
     # Touching Redis, no need to change anything.

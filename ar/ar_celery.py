@@ -1,7 +1,11 @@
+import logging
+
 from celery import Celery
 
 from ar import generate_annotation_requests as _generate_annotation_requests
 from ar.data import save_new_ar_for_user_db
+from db.config import DevelopmentConfig
+from db.model import db, Database
 
 from shared.celery_job_status import set_status, JobStatus
 
@@ -23,22 +27,31 @@ def hello():
 
 
 @app.task
-def generate_annotation_requests(dbsession, task_id, max_per_annotator,
+def generate_annotation_requests(task_id, max_per_annotator,
                                  max_per_dp):
+    logging.error("Here here")
+    print("Here here")
     celery_id = str(generate_annotation_requests.request.id)
     set_status(celery_id, JobStatus.STARTED, progress=0.0)
 
-    print(
+    logging.error(
         f"Generate max={max_per_annotator} annotations per user with max_per_dp={max_per_dp}, task_id={task_id}")
     # TODO Touching file systems, need to migrate
-    res = _generate_annotation_requests(dbsession, task_id, max_per_annotator,
-                                        max_per_dp)
+    dbsession = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI).session
+    res = _generate_annotation_requests(
+        dbsession,
+        task_id,
+        max_per_annotator,
+        max_per_dp)
     for user_id, annotation_requests in res.items():
+        logging.error("Creating annotation requests for user {}".
+                      format(user_id))
         # TODO touching file system, need to migrate
         #  So here we have a user and a list of request in the form of a
         #  dictionary and we want to save it for this user in db.
         save_new_ar_for_user_db(
-            task_id, user_id, annotation_requests, clean_existing=True)
+            dbsession, task_id, user_id, annotation_requests,
+            clean_existing=True)
     print(f"Done")
 
     set_status(celery_id, JobStatus.DONE, progress=1.0)

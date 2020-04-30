@@ -1,18 +1,17 @@
 import glob
 import itertools
-import json
 import logging
 import os
 import re
 import shutil
 import time
 from collections import defaultdict, Counter, namedtuple
-from typing import Tuple, Dict
+from typing import Dict
 
 import pandas as pd
 from pandas import DataFrame
 from sklearn.metrics import cohen_kappa_score
-from sqlalchemy import func, distinct
+from sqlalchemy import func
 
 from db import _task_dir
 from db.model import db, Label, User, ClassificationAnnotation, \
@@ -37,8 +36,8 @@ def save_new_ar_for_user_db(dbsession, task_id, user_id,
         try:
             dbsession.query(AnnotationRequest).\
                 filter(AnnotationRequest.task_id == task_id,
-                       AnnotationRequest.user_id == user_id).delete(
-                sychronize_session=False)
+                       AnnotationRequest.user_id == user_id).\
+                delete(sychronize_session=False)
             dbsession.commit()
         except Exception as e:
             logging.error(e)
@@ -50,7 +49,7 @@ def save_new_ar_for_user_db(dbsession, task_id, user_id,
     annotation_requests = annotation_requests[::-1]
 
     try:
-        for req in annotation_requests:
+        for i, req in enumerate(annotation_requests):
             # TODO not the most efficient way since it involves a query to get
             #  the entity id.
             new_request = AnnotationRequest(
@@ -60,7 +59,7 @@ def save_new_ar_for_user_db(dbsession, task_id, user_id,
                 annotation_type=AnnotationType.ClassificationAnnotation,
                 task_id=task_id,
                 context=req['data'],
-                # TODO what about order? Self generated on insert?
+                order=i,
             )
             dbsession.add(new_request)
         dbsession.commit()

@@ -1,7 +1,7 @@
 import math
 from collections import namedtuple
 
-from sqlalchemy import distinct
+from sqlalchemy import distinct, func
 
 from tests.sqlalchemy_conftest import *
 from ar.data import _compute_kappa_matrix, \

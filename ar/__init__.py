@@ -1,4 +1,5 @@
 # Annotation Request Module
+import logging
 import os
 from typing import List
 from collections import namedtuple
@@ -8,11 +9,11 @@ from sqlalchemy import func
 
 from db import _data_dir
 from db._task import _Task
+from db.config import DevelopmentConfig
 from db.fs import filestore_base_dir, RAW_DATA_DIR
-from db.model import get_or_create, Task, fetch_ar_ids_by_task_and_user, \
-    AnnotationRequest, Entity, User, AnnotationRequestStatus
+from db.model import get_or_create, Task, \
+    AnnotationRequest, Entity, User, AnnotationRequestStatus, Database
 from shared.utils import load_jsonl, PrettyDefaultDict
-# from db._task import _Task
 from inference.base import ITextCatModel
 from inference import get_predicted
 from inference.random_model import RandomModel
@@ -21,17 +22,20 @@ from .data import fetch_all_ar_ids
 from .utils import get_ar_id, timeit
 
 Pred = namedtuple('Pred', ['score', 'fname', 'line_number'])
+Pred_DB = namedtuple('Pred_DB', ['score', 'entity_meta_data', 'fname',
+                                 'line_number'])
+db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
 
 
-def generate_annotation_requests(dbsession, task_id: str,
+def generate_annotation_requests(dbsession, task_id: int,
                                  max_per_annotator: int, max_per_dp: int):
     '''
     NOTE: This could be super slow, but that's okay for now!
     '''
-    task = get_or_create(dbsession=dbsession, model=Task, id=task_id)
+    task = get_or_create(dbsession=db.session, model=Task, id=task_id)
     # task = _Task.fetch(task_id)
 
-    print("Get prediction from each model...")
+    logging.error("Get prediction from each model...")
     # TODO better to stream these?
 
     _examples = []
@@ -40,37 +44,43 @@ def generate_annotation_requests(dbsession, task_id: str,
     data_filenames = [os.path.join(filestore_base_dir(), RAW_DATA_DIR,
                                    fname) for fname in
                       task.get_data_filenames()]
-    # TODO The Pred returned from get_predictions are based on filename and
-    #  line numbers so I have to save a dictionary of entity name here for
-    #  the blacklist function, unless we have a better way.
-    #  One optimization we can do is to creat this while populate the cache
-    #  below since both have to read in all the files.
-    entity_per_file_per_line_dict = _build_entity_name_per_file_per_line(
-        data_filenames)
+    # # TODO The Pred returned from get_predictions are based on filename and
+    # #  line numbers so I have to save a dictionary of entity name here for
+    # #  the blacklist function, unless we have a better way.
+    # #  One optimization we can do is to creat this while populate the cache
+    # #  below since both have to read in all the files.
+    # entity_per_file_per_line_dict = _build_entity_name_per_file_per_line(
+    #     data_filenames)
 
     # Random Examples
     _examples.append(
-        _get_predictions(data_filenames, [RandomModel()])
+        # _get_predictions(data_filenames, [RandomModel()])
+        _get_predictions_db(data_filenames, [RandomModel()])
     )
     _proportions.append(1)
+    logging.error("Prediction from random model finished...")
 
     # Pattern-driven Examples
     _patterns_model = task.get_pattern_model()
     if _patterns_model is not None:
         _examples.append(
-            _get_predictions(data_filenames, [_patterns_model])
+            # _get_predictions(data_filenames, [_patterns_model])
+            _get_predictions_db(data_filenames, [_patterns_model])
         )
         _proportions.append(3)  # [1,3] -> [0.25, 0.75]
+        logging.error("Prediction from pattern model finished...")
 
     # NLP-driven Examples
     _nlp_model = task.get_active_nlp_model()
     if _nlp_model is not None:
         _examples.append(
-            _get_predictions(data_filenames, [_nlp_model])
+            # _get_predictions(data_filenames, [_nlp_model])
+            _get_predictions_db(data_filenames, [_nlp_model])
         )
         _proportions.append(12)  # [1,3,12] -> [0.0625, 0.1875, 0.75]
+        logging.error("Prediction from nlp model finished...")
 
-    print("Shuffling together examples...")
+    logging.error("Shuffling together examples...")
     ordered_examples = _shuffle_together_examples(
         _examples, proportions=_proportions)
 
@@ -80,14 +90,13 @@ def generate_annotation_requests(dbsession, task_id: str,
     #  entity under this task. If so, skip those.
     blacklist_fn_db = _build_blacklist_fn_db(task=task)
 
-    print("Assigning to annotators...")
-    assignments = _assign_db(dbsession=dbsession,
-                             entity_lookup=entity_per_file_per_line_dict,
+    logging.error("Assigning to annotators...")
+    assignments = _assign_db(ordered_examples, task.annotators,
                              blacklist_fn=blacklist_fn_db,
                              max_per_annotator=max_per_annotator,
                              max_per_dp=max_per_dp)
+    logging.error("Assigning to annotators finished...")
     # assignments = _assign(ordered_examples, task.annotators,
-    #
     #                       blacklist_fn=blacklist_fn,
     #                       max_per_annotator=max_per_annotator,
     #                       max_per_dp=max_per_dp)
@@ -132,16 +141,16 @@ def generate_annotation_requests(dbsession, task_id: str,
     # Build up a dict for random access
     __example_idx_lookup = dict(zip(__examples, range(len(__examples))))
 
-    def get_decorated_example(pred: Pred, entity_lookup: dict):
+    def get_decorated_example(pred: Pred_DB):
         idx = __example_idx_lookup[pred]
 
-        ar_id = get_ar_id(pred.fname, pred.line_number)
+        # ar_id = get_ar_id(pred.fname, pred.line_number)
         res = {
-            'ar_id': ar_id,
+            # 'ar_id': ar_id,
             'fname': pred.fname,
             'line_number': pred.line_number,
             'score': pred.score,
-            'entity_name': entity_lookup[pred.fname][pred.line_number]
+            'entity_name': pred.entity_meta_data["domain"]
         }
         res.update({
             'data': __basic_decor[idx]
@@ -154,51 +163,60 @@ def generate_annotation_requests(dbsession, task_id: str,
 
     # ---- Populate Annotation Requests per Annotator ----
 
-    print("Constructing requests...")
+    logging.error("Constructing requests...")
     annotation_requests = {}
     for user, list_of_examples in assignments.items():
         decorated_list_of_examples = [
-            get_decorated_example(ex, entity_per_file_per_line_dict)
+            get_decorated_example(ex)
             for ex in list_of_examples]
 
         annotation_requests[user] = decorated_list_of_examples
 
-    print("Finished generating annotation requests.")
+    logging.error("Finished generating annotation requests.")
     return annotation_requests
 
 
-def _build_entity_name_per_file_per_line(data_filenames):
-    entity_per_file_per_line_dict = PrettyDefaultDict(
-        lambda: PrettyDefaultDict(str))
-    for data_file in data_filenames:
-        raw_data = load_jsonl(data_file, to_df=False)
-        for i, raw_json in enumerate(raw_data):
-            entity_per_file_per_line_dict[data_file][i] = raw_json["meta"][
-                "domain"]
-    return entity_per_file_per_line_dict
+# def _build_entity_name_per_file_per_line(data_filenames):
+#     entity_per_file_per_line_dict = PrettyDefaultDict(
+#         lambda: PrettyDefaultDict(str))
+#     for data_file in data_filenames:
+#         raw_data = load_jsonl(data_file, to_df=False)
+#         for i, raw_json in enumerate(raw_data):
+#             entity_per_file_per_line_dict[data_file][i] = raw_json["meta"][
+#                 "domain"]
+#     return entity_per_file_per_line_dict
 
 
 def _build_blacklist_fn_db(task: Task):
-    UserEntityTaskTuple = namedtuple('UserEntityTaskTuple', ['user',
-                                                             'entity', 'task'])
+    UserEntityTaskTuple = namedtuple('UserEntityTaskTuple', ['user', 'entity'])
     _lookup_db = dict()
 
-    def blacklist_fn(dbsession, pred: Pred,
-                     annotator: str,
-                     entity_lookup: dict):
-        entity_name = entity_lookup[pred.fname][pred.line_number]
-        lookup_key = UserEntityTaskTuple(annotator, entity_name, task.id)
-        if lookup_key not in _lookup_db:
-            res = dbsession.query(func.count(AnnotationRequest.id)). \
-                join(Entity). \
-                join(User). \
-                filter(Entity.name == entity_name,
-                       User.username == annotator,
-                       AnnotationRequest.task_id == task.id,
-                       AnnotationRequest.status ==
-                       AnnotationRequestStatus.Complete).one()[0]
-            _lookup_db[lookup_key] = res > 0
-        return _lookup_db[lookup_key]
+    def blacklist_fn(dbsession, pred: Pred_DB, annotator: str):
+        entity_name = pred.entity_meta_data["domain"]
+        entity_name = entity_name if entity_name is not None else \
+            pred.entity_meta_data["name"]
+
+        num_of_complete_requests_by_entity_and_user_within_task = \
+            dbsession.query(
+                func.count(AnnotationRequest.id),
+                Entity.name,
+                User.username
+            ). \
+            join(Entity). \
+            join(User). \
+            filter(AnnotationRequest.task_id == task.id,
+                   AnnotationRequest.status ==
+                   AnnotationRequestStatus.Complete). \
+            group_by(Entity.name, User.username).all()
+        look_up_dict = {
+            (item[1], item[2]): item[0]
+            for item in num_of_complete_requests_by_entity_and_user_within_task
+        }
+
+        lookup_key = UserEntityTaskTuple(annotator, entity_name)
+        if lookup_key not in look_up_dict:
+            look_up_dict[lookup_key] = 0
+        return look_up_dict[lookup_key] > 0
 
     return blacklist_fn
 
@@ -243,11 +261,42 @@ def _get_predictions(data_filenames: List[str], models: List[ITextCatModel],
     return result
 
 
-def _assign_db(dbsession, entity_lookup: dict,
-               datapoints: List, annotators: List,
+def _get_predictions_db(data_filenames: List[str],
+                        models: List[ITextCatModel],
+                        cache=True) -> List[Pred_DB]:
+    '''
+    Return the aggregated score from all models for all lines in each
+    data_filenames
+
+    Return Pred namedtuple (score, entity_meta_data, fname, line_number)
+    '''
+    result = []
+
+    for fname in data_filenames:
+        preds = []
+        metas = []
+
+        for model in models:
+            res = get_predicted(fname, model, cache=cache)
+            preds.append([x['score'] for x in res])
+            metas.append([x['meta'] for x in res])
+
+        if len(preds) > 0:
+            # Get total score from all models.
+            total_scores = np.sum(preds, axis=0)
+
+            for line_number, score in enumerate(total_scores):
+                result.append(Pred_DB(score=score,
+                                      entity_meta_data=metas[line_number],
+                                      fname=fname,
+                                      line_number=line_number))
+
+    return result
+
+
+def _assign_db(datapoints: List, annotators: List,
                max_per_annotator: int, max_per_dp: int,
                blacklist_fn=None):
-
     # TODO data point is a Pred(score, fname, line_number)
     if blacklist_fn is None:
         def blacklist_fn(datapoint, annotator): return False
@@ -392,7 +441,7 @@ def _assign(datapoints: List, annotators: List,
     return per_anno_queue
 
 
-def _shuffle_together_examples(list_of_examples: List[List[Pred]],
+def _shuffle_together_examples(list_of_examples: List[List[Pred_DB]],
                                proportions: List[float]):
     '''
     Randomly shuffle together lists of Pred, such that at any length, the proportion of elements
@@ -428,11 +477,18 @@ def _shuffle_together_examples(list_of_examples: List[List[Pred]],
         while ls_idx[which_list] < len(ls):
             pred = ls[ls_idx[which_list]]
             ls_idx[which_list] += 1
+            # TODO could name and/or domain be null? How would that affect
+            #  the tuple as a key? Can we just skip it?
+            if pred.entity_meta_data.get("name", None) is None and \
+                pred.entity_meta_data.get("domain", None) is None:
+                continue
 
-            if (pred.fname, pred.line_number) not in seen:
+            if (pred.entity_meta_data["name"],
+                pred.entity_meta_data["domain"]) not in seen:
                 # We've found an element from ls that can be added to res!
                 # TODO keep track of which list the pred comes from; for easier debugging
-                seen.add((pred.fname, pred.line_number))
+                seen.add((pred.entity_meta_data["name"],
+                          pred.entity_meta_data["domain"]))
                 res.append(pred)
                 break
 

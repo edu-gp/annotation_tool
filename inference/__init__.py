@@ -1,23 +1,33 @@
 import os
 from pathlib import Path
+from typing import List, Dict
+
 from inference.base import ITextCatModel
 from shared.utils import load_jsonl, save_jsonl, mkf
 
 from shared.config import Config
 
 
-def _predict(data_fname, model):
+def _predict(data_fname, model) -> List[Dict]:
     df = load_jsonl(data_fname)
-    res = model.predict(df['text'])
-    return res
+    results = model.predict(df['text'])
+    # Attaching the meta data for an entity (e.g., name and domain)
+    for i, res in enumerate(results):
+        res.update({"meta": df["meta"][i]})
+    return results
 
 
 def get_predicted(data_fname, model: ITextCatModel, cache=True):
 
     # TODO cache key is not unique, and we need a way to expire the cache.
-    # Also, it's unclear if caching helps, unless we move to a real-time
-    # active learning strategy.
-    # For now, we'll turn off cache.
+    #  Also, it's unclear if caching helps, unless we move to a real-time
+    #  active learning strategy.
+    #  For now, we'll turn off cache.
+
+    # TODO since we always turn off the cache, we can safely assume we run
+    #  the prediction on every call, which means we can change the format of
+    #  the result without worrying breaking the code of loading cached result.
+
     cache = False
 
     print(
