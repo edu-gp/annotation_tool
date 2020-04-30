@@ -14,12 +14,13 @@ from sqlalchemy.sql import func
 from shared.utils import (
     gen_uuid, stem, file_len, load_json, load_jsonl, safe_getattr)
 from db.fs import (
-    filestore_base_dir, RAW_DATA_DIR, MODELS_DIR, TRAINING_DATA_DIR
+    filestore_base_dir, RAW_DATA_DIR, TRAINING_DATA_DIR
 )
 from train.no_deps.paths import (
     _get_config_fname, _get_data_parser_fname, _get_metrics_fname,
     _get_all_plots, _get_exported_data_fname, _get_all_inference_fnames
 )
+from train.paths import _get_version_dir
 
 meta = MetaData(naming_convention={
     "ix": "ix_%(column_0_label)s",
@@ -386,10 +387,7 @@ class Model(Base):
 
     def dir(self, abs=False):
         """Returns the directory location relative to the filestore root"""
-        dir = os.path.join(MODELS_DIR, self.uuid, str(self.version))
-        if abs:
-            dir = os.path.join(filestore_base_dir(), dir)
-        return dir
+        return _get_version_dir(self.uuid, self.version, abs=abs)
 
     def inference_dir(self):
         return os.path.join(self.dir(), "inference")

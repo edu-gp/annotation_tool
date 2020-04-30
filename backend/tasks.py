@@ -191,19 +191,21 @@ def assign(id):
 @bp.route('/<string:id>/train', methods=['POST'])
 def train(id):
     if get_env_bool('GOOGLE_AI_PLATFORM_ENABLED', False):
-        # TODO Eddie: I will update remote training in the next PR.
-        assert False
-        # # TODO use gcp_celery.train_model synchronously
-        # from train.prep import get_next_version, prepare_task_for_training
-        # from train.gcp_job import GCPJob
-        # task_id = id
-        # version = get_next_version(task_id)
-        # prepare_task_for_training(task_id, version)
-        # job = GCPJob(task_id, version)
-        # # TODO: A duplicate job would error out.
-        # job.submit()
+        # TODO use celery to set this up - last I tried there were some issues
+        from train.prep import prepare_task_for_training
+        from train.gcp_job import GCPJob
 
-        # async_result = gcp_poll_status.delay(id, version)
+        task = db.session.query(Task).filter_by(id=id).one_or_none()
+
+        model = prepare_task_for_training(db.session, task.id)
+
+        files_for_inference = task.get_data_filenames(abs=True)
+
+        job = GCPJob(model.uuid, model.version)
+        # TODO: A duplicate job would error out.
+        job.submit(files_for_inference)
+
+        async_result = gcp_poll_status.delay(model.id)
     else:
         async_result = local_train_model.delay(id)
     # TODO
