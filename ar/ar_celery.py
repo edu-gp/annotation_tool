@@ -5,7 +5,7 @@ from celery import Celery
 from ar import generate_annotation_requests as _generate_annotation_requests
 from ar.data import save_new_ar_for_user_db
 from db.config import DevelopmentConfig
-from db.model import db, Database
+from db.model import db, Database, get_or_create, Task, EntityType, Label
 
 from shared.celery_job_status import set_status, JobStatus
 
@@ -43,6 +43,17 @@ def generate_annotation_requests(task_id, max_per_annotator,
         task_id,
         max_per_annotator,
         max_per_dp)
+
+    task = get_or_create(dbsession=db.session, model=Task, id=task_id)
+    entity_type = get_or_create(dbsession=db.session, model=EntityType,
+                                name="company")
+    # TODO this is the label we are using for now.
+    label = get_or_create(dbsession=db.session,
+                          model=Label,
+                          name=task.get_labels()[0],
+                          entity_type_id=entity_type.id)
+
+    count = 0
     for username, annotation_requests in res.items():
         logging.error("Creating annotation requests for user {}".
                       format(username))
@@ -50,9 +61,11 @@ def generate_annotation_requests(task_id, max_per_annotator,
         #  So here we have a user and a list of request in the form of a
         #  dictionary and we want to save it for this user in db.
         save_new_ar_for_user_db(
-            db.session, task_id, username, annotation_requests,
-            clean_existing=True)
+            db.session, task_id, username, annotation_requests, label.id,
+            entity_type.id, clean_existing=True)
+        count += len(annotation_requests)
     print(f"Done")
+    print("The number of requests processed: {}".format(count))
 
     set_status(celery_id, JobStatus.DONE, progress=1.0)
 

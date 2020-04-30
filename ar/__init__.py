@@ -27,6 +27,7 @@ Pred_DB = namedtuple('Pred_DB', ['score', 'entity_name', 'fname',
 
 db = Database.from_config(DevelopmentConfig)
 
+
 def generate_annotation_requests(dbsession, task_id: int,
                                  max_per_annotator: int, max_per_dp: int):
     '''
@@ -88,11 +89,29 @@ def generate_annotation_requests(dbsession, task_id: int,
     # TODO basic logic, given a user_id, task_id, and entity_id, we should
     #  be able to find if there are exisiting requests for this user and
     #  entity under this task. If so, skip those.
-    blacklist_fn_db = _build_blacklist_fn_db(task=task)
+
+    num_of_complete_requests_by_entity_and_user_within_task = \
+        dbsession.query(
+            func.count(AnnotationRequest.id),
+            Entity.name,
+            User.username
+        ). \
+        join(Entity). \
+        join(User). \
+        filter(AnnotationRequest.task_id == task.id,
+               AnnotationRequest.status ==
+               AnnotationRequestStatus.Complete). \
+        group_by(Entity.name, User.username).all()
+
+    lookup_dict = {
+        (item[1], item[2]): item[0]
+        for item in num_of_complete_requests_by_entity_and_user_within_task
+    }
+
+    blacklist_fn_db = _build_blacklist_fn_db(lookup_dict=lookup_dict)
 
     logging.info("Assigning to annotators...")
-    assignments = _assign_db(dbsession,
-                             ordered_examples,
+    assignments = _assign_db(ordered_examples,
                              task.get_annotators(),
                              blacklist_fn=blacklist_fn_db,
                              max_per_annotator=max_per_annotator,
@@ -178,87 +197,17 @@ def generate_annotation_requests(dbsession, task_id: int,
     return annotation_requests
 
 
-# def _build_entity_name_per_file_per_line(data_filenames):
-#     entity_per_file_per_line_dict = PrettyDefaultDict(
-#         lambda: PrettyDefaultDict(str))
-#     for data_file in data_filenames:
-#         raw_data = load_jsonl(data_file, to_df=False)
-#         for i, raw_json in enumerate(raw_data):
-#             entity_per_file_per_line_dict[data_file][i] = raw_json["meta"][
-#                 "domain"]
-#     return entity_per_file_per_line_dict
-
-
-def _build_blacklist_fn_db(task: Task):
+def _build_blacklist_fn_db(lookup_dict: dict):
     UserEntityTaskTuple = namedtuple('UserEntityTaskTuple', ['user', 'entity'])
-    _lookup_db = dict()
 
-    def blacklist_fn(dbsession, pred: Pred_DB, annotator: str):
+    def blacklist_fn(pred: Pred_DB, annotator: str):
         entity_name = pred.entity_name
-
-        num_of_complete_requests_by_entity_and_user_within_task = \
-            dbsession.query(
-                func.count(AnnotationRequest.id),
-                Entity.name,
-                User.username
-            ). \
-            join(Entity). \
-            join(User). \
-            filter(AnnotationRequest.task_id == task.id,
-                   AnnotationRequest.status ==
-                   AnnotationRequestStatus.Complete). \
-            group_by(Entity.name, User.username).all()
-        look_up_dict = {
-            (item[1], item[2]): item[0]
-            for item in num_of_complete_requests_by_entity_and_user_within_task
-        }
-
         lookup_key = UserEntityTaskTuple(annotator, entity_name)
-        if lookup_key not in look_up_dict:
-            look_up_dict[lookup_key] = 0
-        return look_up_dict[lookup_key] > 0
+        if lookup_key not in lookup_dict:
+            lookup_dict[lookup_key] = 0
+        return lookup_dict[lookup_key] > 0
 
     return blacklist_fn
-
-
-def _build_blacklist_fn(task: _Task):
-    _lookup = {
-        user: set(fetch_all_ar_ids(task.task_id, user))
-        for user in task.annotators
-    }
-
-    # blacklist_fn = lambda thing, user : False
-    def blacklist_fn(pred: Pred, annotator: str):
-        ar_id = get_ar_id(pred.fname, pred.line_number)
-        return ar_id in _lookup[annotator]
-
-    return blacklist_fn
-
-
-def _get_predictions(data_filenames: List[str], models: List[ITextCatModel],
-                     cache=True):
-    '''
-    Return the aggregated score from all models for all lines in each data_filenames
-
-    Return Pred namedtuple (score, fname, line_number)
-    '''
-    result = []
-
-    for fname in data_filenames:
-        preds = []
-
-        for model in models:
-            res = get_predicted(fname, model, cache=cache)
-            preds.append([x['score'] for x in res])
-
-        if len(preds) > 0:
-            # Get total score from all models.
-            total_scores = np.sum(preds, axis=0)
-
-            for line_number, score in enumerate(total_scores):
-                result.append(Pred(score, fname, line_number))
-
-    return result
 
 
 def _get_predictions_db(data_filenames: List[str],
@@ -296,75 +245,9 @@ def _get_predictions_db(data_filenames: List[str],
     return result
 
 
-def _assign_db(dbsession, datapoints: List, annotators: List,
+def _assign_db(datapoints: List, annotators: List,
                max_per_annotator: int, max_per_dp: int,
                blacklist_fn=None):
-    # TODO data point is a Pred(score, entity_name, fname, line_number)
-    if blacklist_fn is None:
-        def blacklist_fn(dbsession, datapoint, annotator): return False
-
-    from queue import PriorityQueue
-    from collections import defaultdict
-
-    anno_q = PriorityQueue()
-    for anno in annotators:
-        # Each annotator starts off with 0 datapoint assigned
-        anno_q.put((0, anno))
-
-    per_dp_queue = defaultdict(list)
-    per_anno_queue = defaultdict(list)
-
-    def is_valid(anno, dp):
-        if anno in per_dp_queue[dp]:
-            # This datapoint already assigned to this annotator
-            return False
-        if blacklist_fn(dbsession, dp, anno):
-            # User specified function to not allow this
-            return False
-        if len(per_anno_queue[anno]) >= max_per_annotator:
-            # This annotator has too many datapoints to label already
-            return False
-        return True
-
-    def get_next_anno(dp):
-        put_back = []
-        ret_anno = None
-
-        while not anno_q.empty():
-            item = anno_q.get()
-            anno = item[1]
-
-            if is_valid(anno, dp):
-                ret_anno = anno
-                break
-            else:
-                put_back.append(item)
-
-        for item in put_back:
-            anno_q.put(item)
-
-        return ret_anno
-
-    for dp in datapoints:
-        for i in range(max_per_dp):
-            anno = get_next_anno(dp)
-            # print(dp, i, anno)
-            if anno is None:
-                # No more possible users to annotate this
-                break
-            else:
-                per_dp_queue[dp].append(anno)
-                per_anno_queue[anno].append(dp)
-                anno_q.put((len(per_anno_queue[anno]), anno))
-
-    # TODO insert random jobs to trade explore/exploit?
-
-    return per_anno_queue
-
-
-def _assign(datapoints: List, annotators: List,
-            max_per_annotator: int, max_per_dp: int,
-            blacklist_fn=None):
     '''
     Args:
         datapoints: A list of data points to assign to each annotator.
@@ -379,8 +262,6 @@ def _assign(datapoints: List, annotators: List,
             ...
         }
     '''
-
-    # TODO data point is a Pred(score, fname, line_number)
     if blacklist_fn is None:
         def blacklist_fn(datapoint, annotator): return False
 

@@ -180,7 +180,6 @@ def update(id):
 
 @bp.route('/<string:id>/assign', methods=['POST'])
 def assign(id):
-    logging.error(id)
     max_per_annotator = get_env_int('ANNOTATION_TOOL_MAX_PER_ANNOTATOR', 100)
     max_per_dp = get_env_int('ANNOTATION_TOOL_MAX_PER_DP', 3)
     logging.error("generating annotations asynchronously.")

@@ -31,7 +31,8 @@ EntityAndAnnotationValuePair = namedtuple(
 
 
 def save_new_ar_for_user_db(dbsession, task_id, username,
-                            annotation_requests, clean_existing=True):
+                            annotation_requests, label_id, entity_type_id,
+                            clean_existing=True):
     user = get_or_create(dbsession=dbsession, model=User,
                          username=username)
     if clean_existing:
@@ -53,12 +54,12 @@ def save_new_ar_for_user_db(dbsession, task_id, username,
 
     try:
         for i, req in enumerate(annotation_requests):
-            # print(req)
             # TODO not all entities are created in the db and we don't have
             #  a way to assign entity type here yet so the new ones will not
             #  have entity type.
             entity = get_or_create(dbsession=dbsession, model=Entity,
-                                   name=req['entity_name'])
+                                   name=req['entity_name'],
+                                   entity_type_id=entity_type_id)
             new_request = AnnotationRequest(
                 user_id=user.id,
                 entity_id=entity.id,
@@ -67,7 +68,7 @@ def save_new_ar_for_user_db(dbsession, task_id, username,
                 context=req['data'],
                 # TODO there is no info about the label in the raw data so
                 #  how do we add this?
-                # label_id=??
+                label_id=label_id,
                 order=i,
             )
             dbsession.add(new_request)

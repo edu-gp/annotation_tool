@@ -123,7 +123,6 @@ def receive_annotation():
     username = g.user['username']
     user_id = fetch_user_id_by_username(db.session, username=username)
 
-    logging.error("Here here here")
     data = json.loads(request.data)
     task_id = data['task_id']
     ar_id = data['req']['ar_id']

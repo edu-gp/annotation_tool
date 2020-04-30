@@ -7,7 +7,7 @@ def test_assign_round_robin():
     annotators = ['u1', 'u2']
 
     per_anno_queue = ar._assign_db(
-        None, datapoints, annotators, max_per_annotator=2, max_per_dp=1)
+        datapoints, annotators, max_per_annotator=2, max_per_dp=1)
 
     assert per_anno_queue == {
         'u1': ['a', 'c'],
@@ -20,7 +20,7 @@ def test_assign_unlimited_budget():
     annotators = ['u1', 'u2']
 
     per_anno_queue = ar._assign_db(
-        None, datapoints, annotators, max_per_annotator=999, max_per_dp=999)
+        datapoints, annotators, max_per_annotator=999, max_per_dp=999)
 
     assert per_anno_queue == {
         'u1': ['a', 'b', 'c'],
@@ -33,7 +33,7 @@ def test_assign_limited_by_max_per_annotator():
     annotators = ['u1', 'u2']
 
     per_anno_queue = ar._assign_db(
-        None, datapoints, annotators, max_per_annotator=2, max_per_dp=2)
+        datapoints, annotators, max_per_annotator=2, max_per_dp=2)
 
     assert per_anno_queue == {
         'u1': ['a', 'b'],
@@ -46,7 +46,7 @@ def test_assign_limited_by_max_per_dp():
     annotators = ['u1', 'u2']
 
     per_anno_queue = ar._assign_db(
-        None, datapoints, annotators, max_per_annotator=2, max_per_dp=1)
+        datapoints, annotators, max_per_annotator=2, max_per_dp=1)
 
     assert per_anno_queue == {
         'u1': ['a', 'c'],
@@ -60,7 +60,7 @@ def test_assign_blacklist():
     def blacklist_fn(dbsession, dp, anno): return (dp == 'a' and anno == 'u1')
 
     per_anno_queue = ar._assign_db(
-        None, datapoints, annotators, max_per_annotator=999, max_per_dp=999,
+        datapoints, annotators, max_per_annotator=999, max_per_dp=999,
         blacklist_fn=blacklist_fn)
 
     assert per_anno_queue == {
