@@ -40,6 +40,7 @@ def generate_config():
 
 
 def prepare_task_for_training(dbsession, task_id) -> TextClassificationModel:
+    # TODO rename this to something like `prepare_next_model_for_task`
     """Exports the model and save config when the model is training it does
     not need access to the Task object.
 
