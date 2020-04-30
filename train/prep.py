@@ -1,14 +1,20 @@
 import time
+import os
+import shutil
 
-from ar.data import export_labeled_examples
-from shared.utils import save_json
-
-from .paths import _get_version_dir
 from .no_deps.paths import (
     _get_config_fname, _get_exported_data_fname
 )
-
 from .no_deps.utils import get_env_int, get_env_bool
+
+from db.model import (
+    Task, TextClassificationModel,
+    Label, ClassificationTrainingData,
+    EntityType, EntityTypeEnum,
+    get_or_create
+)
+from train.text_lookup import get_entity_text_lookup_function
+from shared.utils import save_json
 
 
 def generate_config():
@@ -33,22 +39,12 @@ def generate_config():
     }
 
 
-def prepare_task_for_training(dbsession, task_id):
+def prepare_task_for_training(dbsession, task_id) -> TextClassificationModel:
     """Exports the model and save config when the model is training it does
     not need access to the Task object.
 
     Returns the directory in which all the prepared info are stored.
     """
-    import os
-    import shutil
-    from db.model import (
-        Task, TextClassificationModel,
-        Label, ClassificationTrainingData,
-        EntityType, EntityTypeEnum,
-        get_or_create
-    )
-    from train.text_lookup import get_entity_text_lookup_function
-
     task = dbsession.query(Task).filter_by(id=task_id).one_or_none()
 
     # Model uuid by default is the task's uuid; One model per task.
@@ -90,4 +86,4 @@ def prepare_task_for_training(dbsession, task_id):
     # Copy over data
     shutil.copyfile(data.path(abs=True), _get_exported_data_fname(model_dir))
 
-    return model_dir
+    return model

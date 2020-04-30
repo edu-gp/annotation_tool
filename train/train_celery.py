@@ -26,7 +26,8 @@ app = Celery(
 @app.task
 def train_model(task_id):
     db = Database.from_config(DevelopmentConfig)
-    model_dir = prepare_task_for_training(db.session, task_id)
+    model = prepare_task_for_training(db.session, task_id)
+    model_dir = model.dir(abs=True)
 
     _train_model(model_dir)
 

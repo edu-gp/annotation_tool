@@ -128,7 +128,8 @@ def test_train_flow(dbsession, monkeypatch, tmp_path):
     task = dbsession.query(Task).first()
 
     # Part 1. Prepare.
-    model_dir = prepare_task_for_training(dbsession, task.id)
+    model = prepare_task_for_training(dbsession, task.id)
+    model_dir = model.dir(abs=True)
 
     # These are all the files we need to train a model.
     files = os.listdir(model_dir)
