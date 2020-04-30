@@ -33,6 +33,7 @@ Descriptions of the env vars:
 New env vars:
 
 - `ALCHEMY_FILESTORE_DIR`: Local filestore location.
+- `ALCHEMY_DATABASE_URI`: The URI of SQL database.
 
 # Exposing Port on Google Cloud
 
