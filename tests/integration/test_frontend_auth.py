@@ -4,13 +4,18 @@ from shared.frontend_user_password import (
     get_frontend_user_password,
     _generate_frontend_user_login_path
 )
+from db.config import TestingConfig
+from db.model import db
 
 
 @pytest.fixture
 def client(monkeypatch):
     monkeypatch.setenv('ANNOTATION_TOOL_FRONTEND_SECRET', 'asdsad')
 
-    app = create_app()
+    app = create_app(TestingConfig)
+
+    with app.app_context():
+        db.create_all()
 
     with app.test_client() as client:
         yield client

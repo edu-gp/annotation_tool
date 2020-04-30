@@ -1,13 +1,18 @@
 import base64
 import pytest
 from backend import create_app
+from db.config import TestingConfig
+from db.model import db
 
 
 @pytest.fixture
 def client(monkeypatch):
     monkeypatch.setenv('ANNOTATION_TOOL_BACKEND_PASSWORD', 'password')
 
-    app = create_app()
+    app = create_app(TestingConfig)
+
+    with app.app_context():
+        db.create_all()
 
     with app.test_client() as client:
         yield client
