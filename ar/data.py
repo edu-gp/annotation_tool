@@ -374,6 +374,7 @@ def compute_annotation_request_statistics(dbsession, task_id):
         User.username
     ). \
         join(User). \
+        filter(AnnotationRequest.task_id == task_id). \
         filter(AnnotationRequest.status == AnnotationRequestStatus.Pending). \
         group_by(User.username).all()
     n_outstanding_requests_per_user_dict = {
