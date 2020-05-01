@@ -88,6 +88,10 @@ class AnnotationValue:
     NOT_ANNOTATED = -2
 
 
+# A dummy entity is used to store the value of a label that don't have any real
+# annotations yet, but we want to show it to the user as an option.
+DUMMY_ENTITY = '__dummy__'
+
 # =============================================================================
 # Tables
 
@@ -188,10 +192,10 @@ class ClassificationAnnotation(Base):
         """Create a dummy record to mark the existence of a label.
         """
         return get_or_create(dbsession, ClassificationAnnotation,
-                             entity='__dummy__',
+                             entity=DUMMY_ENTITY,
                              entity_type=entity_type,
                              label=label,
-                             value=0)
+                             value=AnnotationValue.NOT_ANNOTATED)
 
 
 def majority_vote_annotations_query(dbsession, label):
@@ -213,7 +217,8 @@ def majority_vote_annotations_query(dbsession, label):
         func.count('*').label('count')
     ) \
         .filter_by(label=label) \
-        .filter(ClassificationAnnotation.value != 0) \
+        .filter(ClassificationAnnotation.value != AnnotationValue.UNSURE) \
+        .filter(ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED) \
         .group_by(ClassificationAnnotation.entity, ClassificationAnnotation.value) \
         .subquery()
 
@@ -686,4 +691,3 @@ def fetch_ar_ids_by_task_and_user(dbsession, task_id, username):
         filter(AnnotationRequest.task_id == task_id,
                User.username == username).join(User).all()
     return [ar.id for ar in res]
-

@@ -115,7 +115,6 @@ def receive_annotation():
     # the db.
     annotation_result = data['anno']['labels']
     for label in annotation_result:
-        logging.error(label)
         value = annotation_result[label]
         annotation = get_or_create(dbsession=db.session,
                                    model=ClassificationAnnotation,
