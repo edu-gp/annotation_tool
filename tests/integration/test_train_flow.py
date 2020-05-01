@@ -4,8 +4,7 @@ import os
 import numpy as np
 
 from db.model import (
-    Task, Label, ClassificationAnnotation, User,
-    EntityType, EntityTypeEnum, Entity,
+    Task, ClassificationAnnotation, User, EntityTypeEnum
 )
 from db.fs import RAW_DATA_DIR
 
@@ -26,10 +25,12 @@ from train.prep import prepare_task_for_training
 
 from shared.utils import save_jsonl, load_jsonl, load_json
 
+LABEL = 'IsTall'
 
 # TODO add a case to cover only 1 class present in the data.
 # This is easy to do, just set N=2.
 # Unclear what's the best way to surface that error just yet.
+
 
 class stub_model:
     def predict(self, text: List[str]):
@@ -61,16 +62,6 @@ def _populate_db_and_fs(dbsession, tmp_path, N):
     # =========================================================================
     # Create dummy data
 
-    # Create an EntityType
-    ent = EntityType(name=EntityTypeEnum.COMPANY)
-    dbsession.add(ent)
-    dbsession.commit()
-
-    # Create many Entities
-    ents = [Entity(name=d['meta']['domain'], entity_type_id=ent.id)
-            for d in data]
-    dbsession.add_all(ents)
-
     # Create many Users
     user = User(username=f'someuser')
     dbsession.add(user)
@@ -78,11 +69,11 @@ def _populate_db_and_fs(dbsession, tmp_path, N):
     dbsession.commit()
 
     # Create many Annotations for a Label
-    label = Label(name='IsTall', entity_type_id=ent.id)
-
     def _create_anno(ent, v): return ClassificationAnnotation(
-        entity=ent, user=user, label=label, value=v)
+        entity_type=EntityTypeEnum.COMPANY, entity=ent, user=user,
+        label=LABEL, value=v)
 
+    ents = [d['meta']['domain'] for d in data]
     annos = [
         # Create a few annotations for the first 2 entities.
         _create_anno(ents[0], 1),
@@ -107,12 +98,12 @@ def _populate_db_and_fs(dbsession, tmp_path, N):
         # Create one annotations for the rest of the entities.
         annos.append(_create_anno(ents[i], 1 if i % 2 else -1))
 
-    dbsession.add_all([label] + annos)
+    dbsession.add_all(annos)
     dbsession.commit()
 
     # Create a Task
     task = Task(name='Bball')
-    task.set_labels(['IsTall'])
+    task.set_labels([LABEL])
     task.set_annotators([user.username])
     task.set_patterns_file(None)
     task.set_patterns(['Shaq', 'Lebron'])

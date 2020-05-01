@@ -15,7 +15,7 @@ from sklearn.metrics import cohen_kappa_score
 from sqlalchemy import func, distinct
 
 from db import _task_dir
-from db.model import db, Label, User, ClassificationAnnotation, \
+from db.model import db, User, ClassificationAnnotation, \
     AnnotationRequest, AnnotationRequestStatus, Task as NewTask, \
     update_instance
 from db.task import Task, DIR_ANNO, DIR_AREQ
@@ -28,7 +28,7 @@ from shared.utils import save_jsonl, load_json, save_json, mkf, mkd, \
 # Utility namedtuples
 UserNameAndIdPair = namedtuple('UserNameAndIdPair', ['username', 'id'])
 EntityAndAnnotationValuePair = namedtuple(
-    'EntityAndAnnotationValuePair', ['entity_id', 'value'])
+    'EntityAndAnnotationValuePair', ['entity', 'value'])
 
 
 def save_new_ar_for_user(task_id, user_id, annotation_requests,
@@ -125,22 +125,23 @@ def fetch_all_ar(task_id, username):
 
 
 def construct_ar_request_dict(dbsession, ar_id) -> Dict:
-    request_id, entity_id, label_id, context = dbsession.query(
-            AnnotationRequest.id,
-            AnnotationRequest.entity_id,
-            AnnotationRequest.label_id,
-            AnnotationRequest.context).\
+    request_id, entity, entity_type, label, context = dbsession.query(
+        AnnotationRequest.id,
+        AnnotationRequest.entity,
+        AnnotationRequest.entity_type,
+        AnnotationRequest.label,
+        AnnotationRequest.context).\
         filter(AnnotationRequest.id == ar_id).one_or_none()
 
     return {
         'ar_id': request_id,
         'fname': context.get('fname', None) if context is not None else None,
-        'line_number': context.get('line_number', None) if context is not
-                                                           None else None,
+        'line_number': context.get('line_number', None) if context is not None else None,
         'score': context.get('score', None) if context is not None else None,
         'data': context,
-        'entity_id': entity_id,
-        'label_id': label_id
+        'entity': entity,
+        'entity_type': entity_type,
+        'label': label
     }
 
 
@@ -204,8 +205,8 @@ def build_empty_annotation(ar):
 
 def mark_ar_complete_in_db(dbsession, ar_id):
     logging.info("Updating the status of the annotation "
-                  "request {} to {}".format(ar_id,
-                                            AnnotationRequestStatus.Complete))
+                 "request {} to {}".format(ar_id,
+                                           AnnotationRequestStatus.Complete))
     update_instance(dbsession=dbsession,
                     model=AnnotationRequest,
                     filter_by_dict={"id": ar_id},
@@ -244,9 +245,9 @@ def fetch_user_id_by_username(dbsession, username):
 
 
 def fetch_existing_classification_annotation_from_db(dbsession, annotation_id):
-    return dbsession.query(Label.name, ClassificationAnnotation.value).\
-        join(Label).filter(ClassificationAnnotation.id == annotation_id).\
-        one_or_none()
+    return dbsession.query(ClassificationAnnotation.label, ClassificationAnnotation.value) \
+        .filter(ClassificationAnnotation.id == annotation_id) \
+        .one_or_none()
 
 
 def fetch_annotation(task_id, user_id, ar_id):
@@ -386,17 +387,17 @@ def compute_annotation_request_statistics(dbsession, task_id):
     }
 
 
-def compute_annotation_statistics_db(dbsession, label_name):
+def compute_annotation_statistics_db(dbsession, label):
     total_distinct_annotations = \
         _compute_total_distinct_number_of_annotations_for_label(
             dbsession=dbsession,
-            label_name=label_name
+            label=label
         )
 
     num_of_annotations_done_per_user = \
         _compute_number_of_annotations_done_per_user(
             dbsession=dbsession,
-            label_name=label_name
+            label=label
         )
 
     total_num_of_annotations_done_by_users = sum(
@@ -407,7 +408,7 @@ def compute_annotation_statistics_db(dbsession, label_name):
     }
 
     num_of_annotations_per_value = _compute_num_of_annotations_per_value(
-        dbsession=dbsession, label_name=label_name
+        dbsession=dbsession, label=label
     )
 
     # kappa stats calculation
@@ -417,7 +418,7 @@ def compute_annotation_statistics_db(dbsession, label_name):
     ])
 
     kappa_stats_raw_data = _construct_kappa_stats_raw_data(
-        db.session, distinct_users, label_name)
+        db.session, distinct_users, label)
 
     kappa_table_per_label = _convert_html_tables(
         kappa_matrices=_compute_kappa_matrix(kappa_stats_raw_data)
@@ -432,13 +433,12 @@ def compute_annotation_statistics_db(dbsession, label_name):
     }
 
 
-def _compute_num_of_annotations_per_value(dbsession, label_name):
+def _compute_num_of_annotations_per_value(dbsession, label):
     res = dbsession.query(
         func.count(ClassificationAnnotation.id),
         ClassificationAnnotation.value
     ).\
-        join(Label).\
-        filter(Label.name == label_name).\
+        filter_by(label=label).\
         group_by(ClassificationAnnotation.value).all()
     data = PrettyDefaultDict(lambda: 0)
     for item in res:
@@ -446,36 +446,31 @@ def _compute_num_of_annotations_per_value(dbsession, label_name):
     return data
 
 
-def _compute_total_distinct_number_of_annotations_for_label(dbsession,
-                                                            label_name):
-    total_distinct_annotations = dbsession.query(
-        ClassificationAnnotation).join(Label).filter(
-        Label.name == label_name
-    ).count()
-    return total_distinct_annotations
+def _compute_total_distinct_number_of_annotations_for_label(dbsession, label):
+    return dbsession.query(ClassificationAnnotation) \
+        .filter_by(label=label).count()
 
 
-def _compute_number_of_annotations_done_per_user(dbsession, label_name):
+def _compute_number_of_annotations_done_per_user(dbsession, label):
     num_of_annotations_done_per_user = dbsession.query(
         func.count(ClassificationAnnotation.id),
         User.username,
         User.id
     ). \
         join(User). \
-        join(Label). \
-        filter(Label.name == label_name). \
+        filter(ClassificationAnnotation.label == label). \
         group_by(User.username).all()
 
     return num_of_annotations_done_per_user
 
 
-def _construct_kappa_stats_raw_data(dbsession, distinct_users, label_name):
+def _construct_kappa_stats_raw_data(dbsession, distinct_users, label):
     entities_and_annotation_values_by_user = \
         _retrieve_entity_ids_and_annotation_values_by_user(dbsession,
                                                            distinct_users)
     user_pairs = list(itertools.combinations(distinct_users, 2))
     kappa_stats_raw_data = {
-        label_name: {
+        label: {
             tuple(sorted([user_pair[0].username, user_pair[1].username])):
                 _retrieve_annotation_with_same_entity_shared_by_two_users(
                     user_pair[0], user_pair[1],
@@ -488,7 +483,7 @@ def _construct_kappa_stats_raw_data(dbsession, distinct_users, label_name):
 
 def _retrieve_entity_ids_and_annotation_values_by_user(dbsession, users):
     res = dbsession.query(
-        ClassificationAnnotation.entity_id,
+        ClassificationAnnotation.entity,
         ClassificationAnnotation.value,
         ClassificationAnnotation.user_id
     ). \
@@ -500,7 +495,7 @@ def _retrieve_entity_ids_and_annotation_values_by_user(dbsession, users):
     data = PrettyDefaultDict(lambda: [])
     for item in res:
         data[item[2]].append(EntityAndAnnotationValuePair(
-            entity_id=item[0],
+            entity=item[0],
             value=item[1]
         ))
     return data
@@ -512,28 +507,28 @@ def _retrieve_annotation_with_same_entity_shared_by_two_users(
     annotations_from_user2 = entities_and_annotation_values_by_user[user2.id]
 
     dict_of_context_value_from_user1 = {
-        annotation.entity_id: annotation.value
+        annotation.entity: annotation.value
         for annotation in annotations_from_user1
     }
 
     dict_of_context_value_from_user2 = {
-        annotation.entity_id: annotation.value
+        annotation.entity: annotation.value
         for annotation in annotations_from_user2
     }
     intersection = set(dict_of_context_value_from_user1.keys()).intersection(
         set(dict_of_context_value_from_user2.keys()))
-    intersection = list(intersection)
+    intersection = sorted(list(intersection))
 
     if len(intersection) == 0:
         return None
 
     values_from_annotations_with_overlapping_context_user1 = [
-        dict_of_context_value_from_user1[entity_id] for entity_id in
+        dict_of_context_value_from_user1[entity] for entity in
         intersection
     ]
 
     values_from_annotations_with_overlapping_context_user2 = [
-        dict_of_context_value_from_user2[entity_id] for entity_id in
+        dict_of_context_value_from_user2[entity] for entity in
         intersection
     ]
 

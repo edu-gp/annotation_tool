@@ -15,7 +15,9 @@ def _populate_db(dbsession):
     def _req(name, user, task, order=None):
         return AnnotationRequest(
             user=user,
-            entity_id=1,
+            entity=1,
+            entity_type='blah',
+            label='blah',
             context={'foo': 'bar'},
             task=task,
             annotation_type=AnnotationType.ClassificationAnnotation,

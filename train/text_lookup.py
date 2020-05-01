@@ -2,16 +2,16 @@ from shared.utils import load_jsonl, json_lookup
 
 
 def get_entity_text_lookup_function(jsonl_file_path, entity_name_key,
-                                    entity_text_key, entity_type_id):
+                                    entity_text_key, entity_type):
     """
     Inputs:
         jsonl_file_path: Path to a jsonl file
         entity_name_key: Key of the entity name
         entity_text_key: Key of the text
-        entity_type_id: Limit to only this type of entity.
+        entity_type: Limit to only this type of entity.
 
     Returns:
-        A function of signature (entity_type_id, entity_name)
+        A function of signature (entity_type, entity_name)
         which returns the entity text if found, else return ''
 
     Example:
@@ -28,7 +28,7 @@ def get_entity_text_lookup_function(jsonl_file_path, entity_name_key,
 
         entity_name_key = 'meta.domain'
         entity_text_key = 'text'
-        entity_type_id = 1
+        entity_type = 'Company'
 
     Then the resulting lookup function `fn` would behave like:
 
@@ -46,8 +46,8 @@ def get_entity_text_lookup_function(jsonl_file_path, entity_name_key,
             text = json_lookup(row, entity_text_key) or ''
             lookup[name] = text
 
-    def fn(_entity_type_id, _entity_name):
-        if entity_type_id == _entity_type_id:
+    def fn(_entity_type, _entity_name):
+        if entity_type == _entity_type:
             return lookup.get(_entity_name, '')
         else:
             return ''

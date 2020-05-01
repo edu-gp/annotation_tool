@@ -1,6 +1,5 @@
 from tests.sqlalchemy_conftest import *
 from db.model import (
-    EntityType, Label,
     Task,
     ClassificationTrainingData,
     TextClassificationModel,
@@ -9,20 +8,11 @@ from db.model import (
 
 
 def test_flow(dbsession):
-    # Given an entity and label
-    entity_type = EntityType(name='Person')
-    label = Label(name='Smart')
-    entity_type.labels.append(label)
-
-    dbsession.add(entity_type)
-    dbsession.commit()
-    dbsession.refresh(entity_type)
-
     # User creates a task with the label they're interested in
     task = Task(
         name="My Task",
         default_params={
-            'labels': [label.name]
+            'labels': ['Smart']
         }
     )
 
@@ -33,14 +23,14 @@ def test_flow(dbsession):
     # Pretend there are some data for this labels, we go ahead and take a
     # snapshot and convert it to training data.
     training_data = ClassificationTrainingData()
-    training_data.label = label
+    training_data.label = 'Smart'
 
     dbsession.add(training_data)
     dbsession.commit()
     dbsession.refresh(training_data)
 
     assert training_data.path() is not None
-    assert training_data.label == label
+    assert training_data.label == 'Smart'
 
     # A model training job is kicked off. A background job runs it and in the
     # case that it succeeds, we save the model and any post-training inferences

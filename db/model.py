@@ -92,53 +92,6 @@ class AnnotationValue:
 # Tables
 
 
-class Label(Base):
-    __tablename__ = 'label'
-
-    id = Column(Integer, primary_key=True)
-    name = Column(String(64), index=True, unique=True, nullable=False)
-    # A label can be part of many annotations.
-    classification_annotations = relationship('ClassificationAnnotation',
-                                              back_populates='label',
-                                              lazy='dynamic')
-    entity_type_id = Column(Integer, ForeignKey('entity_type.id'))
-    entity_type = relationship("EntityType", back_populates="labels")
-
-    def file_friendly_name(self):
-        return secure_filename(self.name)
-
-
-class EntityType(Base):
-    __tablename__ = 'entity_type'
-
-    id = Column(Integer, primary_key=True)
-    name = Column(String(64), index=True, unique=True, nullable=False)
-    labels = relationship(
-        'Label', back_populates='entity_type', lazy='dynamic')
-    entities = relationship(
-        'Entity', back_populates='entity_type', lazy='dynamic')
-
-    def __repr__(self):
-        return '<EntityType {}>'.format(self.name)
-
-
-class Entity(Base):
-    __tablename__ = 'entity'
-
-    id = Column(Integer, primary_key=True)
-    name = Column(String(64), index=True, unique=True, nullable=False)
-
-    entity_type_id = Column(Integer, ForeignKey('entity_type.id'))
-    entity_type = relationship("EntityType", back_populates="entities")
-
-    # An entity can have many annotations on it.
-    classification_annotations = relationship(
-        'ClassificationAnnotation', back_populates='entity', lazy='dynamic')
-
-    def __repr__(self):
-        return '<Entity {}>'.format(self.name)
-
-
 class User(Base):
     __tablename__ = 'user'
     id = Column(Integer, primary_key=True)
@@ -189,12 +142,10 @@ class ClassificationAnnotation(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    entity_id = Column(Integer, ForeignKey('entity.id'))
-    entity = relationship(
-        "Entity", back_populates="classification_annotations")
+    entity = Column(String, index=True, nullable=False)
+    entity_type = Column(String, index=True, nullable=False)
 
-    label_id = Column(Integer, ForeignKey('label.id'))
-    label = relationship("Label", back_populates="classification_annotations")
+    label = Column(String, index=True, nullable=False)
 
     user_id = Column(Integer, ForeignKey('user.id'))
     user = relationship("User", back_populates="classification_annotations")
@@ -214,21 +165,33 @@ class ClassificationAnnotation(Base):
     def __repr__(self):
         return """
         Classification Annotation {}:
-        Entity Id {},
-        Label Id {},
+        Entity {},
+        Entity Type {},
+        Label {},
         User Id {},
         Value {},
         Created at {},
         Last Updated at {}
         """.format(
             self.id,
-            self.entity_id,
-            self.label_id,
+            self.entity,
+            self.entity_type,
+            self.label,
             self.user_id,
             self.value,
             self.created_at,
             self.updated_at
         )
+
+    @staticmethod
+    def create_dummy(dbsession, entity_type, label):
+        """Create a dummy record to mark the existence of a label.
+        """
+        return get_or_create(dbsession, ClassificationAnnotation,
+                             entity='__dummy__',
+                             entity_type=entity_type,
+                             label=label,
+                             value=0)
 
 
 def majority_vote_annotations_query(dbsession, label):
@@ -245,21 +208,20 @@ def majority_vote_annotations_query(dbsession, label):
     Note: This query ignores annotation values of 0 - they are "Unknown"s.
     """
     subquery = dbsession.query(
-        Entity.name,
+        ClassificationAnnotation.entity,
         ClassificationAnnotation.value,
         func.count('*').label('count')
     ) \
-        .join(Label).filter_by(id=label.id) \
-        .join(Entity).filter(Entity.id == ClassificationAnnotation.entity_id) \
+        .filter_by(label=label) \
         .filter(ClassificationAnnotation.value != 0) \
-        .group_by(Entity.id, ClassificationAnnotation.value) \
+        .group_by(ClassificationAnnotation.entity, ClassificationAnnotation.value) \
         .subquery()
 
     query = dbsession.query(
-        subquery.c.name,
+        subquery.c.entity,
         subquery.c.value,
         func.max(subquery.c.count)
-    ).group_by(subquery.c.name)
+    ).group_by(subquery.c.entity)
 
     return query
 
@@ -275,11 +237,10 @@ class ClassificationTrainingData(Base):
     id = Column(Integer, primary_key=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    label_id = Column(Integer, ForeignKey('label.id'), nullable=False)
-    label = relationship("Label")
+    label = Column(String, index=True, nullable=False)
 
     @staticmethod
-    def create_for_label(dbsession, label: Label,
+    def create_for_label(dbsession, entity_type: str, label: str,
                          entity_text_lookup_fn, batch_size=50):
         """
         Create a training data for the given label by taking a snapshot of all
@@ -295,10 +256,10 @@ class ClassificationTrainingData(Base):
         query = majority_vote_annotations_query(dbsession, label)
 
         final = []
-        for ent_name, anno_value, count in query.yield_per(batch_size):
+        for entity, anno_value, count in query.yield_per(batch_size):
             final.append({
-                'text': entity_text_lookup_fn(label.entity_type_id, ent_name),
-                'labels': {label.name: anno_value}
+                'text': entity_text_lookup_fn(entity_type, entity),
+                'labels': {label: anno_value}
             })
 
         # Save the database object, use it to generate filename, then save the
@@ -315,7 +276,7 @@ class ClassificationTrainingData(Base):
         return data
 
     def path(self, abs=False):
-        p = os.path.join(TRAINING_DATA_DIR, self.label.file_friendly_name(),
+        p = os.path.join(TRAINING_DATA_DIR, secure_filename(self.label),
                          str(int(self.created_at.timestamp())) + '.jsonl')
         if abs:
             p = os.path.join(filestore_base_dir(), p)
@@ -616,13 +577,10 @@ class AnnotationRequest(Base):
     user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
     user = relationship("User")
 
-    # What Entity should the user annotate.
-    entity_id = Column(Integer, ForeignKey('entity.id'), nullable=False)
-    entity = relationship("Entity")
+    entity = Column(String, index=True, nullable=False)
+    entity_type = Column(String, index=True, nullable=False)
 
-    # What Label we want the user to annotate. (Can be None)
-    label_id = Column(Integer, ForeignKey('label.id'))
-    label = relationship("Label")
+    label = Column(String, index=True, nullable=False)
 
     # TODO maybe deprecate `annotation_type` since we're already tracking label
     # What kind of annotation should the user be performing.
@@ -694,28 +652,26 @@ def get_or_create(dbsession, model, exclude_keys_in_retrieve=None, **kwargs):
         raise
 
 
-def fetch_labels_by_entity_type(dbsession, entity_type_name):
+def fetch_labels_by_entity_type(dbsession, entity_type: str):
     """Fetch all labels for an entity type.
 
-    :param entity_type_name: the entity type name
+    :param entity_type: the entity type
     :return: all the labels under the entity type
     """
-    labels = dbsession.query(Label).join(EntityType) \
-        .filter(EntityType.name == entity_type_name).all()
-    return [label.name for label in labels]
+    res = dbsession.query(func.distinct(ClassificationAnnotation.label)) \
+        .filter_by(entity_type=entity_type) \
+        .all()
+    res = [x[0] for x in res]
+    return res
 
 
-def save_labels_by_entity_type(dbsession, entity_type_name, label_names):
+def save_labels_by_entity_type(dbsession, entity_type: str, labels: List[str]):
     """Update labels under the entity type.
 
-    If entity type doesn't exist, create it first.
-
-    :param entity_type_name: the entity type name
-    :param label_names: labels to be saved
+    :param entity_type: the entity type name
+    :param labels: labels to be saved
     """
-    logging.info("Finding the EntityType for {}".format(entity_type_name))
-    entity_type = get_or_create(dbsession, EntityType, name=entity_type_name)
-    labels = [Label(name=name, entity_type_id=entity_type.id)
-              for name in label_names]
-    dbsession.add_all(labels)
-    dbsession.commit()
+    # Create a dummy ClassificationAnnotation just to store the label.
+    logging.info("Finding the EntityType for {}".format(entity_type))
+    for label in labels:
+        ClassificationAnnotation.create_dummy(dbsession, entity_type, label)
