@@ -31,7 +31,6 @@ import json
 import tempfile
 from pathlib import Path
 from typing import List
-from db.task import Task
 from .paths import _get_version_dir
 from .no_deps.paths import (
     _get_config_fname,

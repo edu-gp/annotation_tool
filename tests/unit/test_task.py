@@ -1,6 +1,6 @@
 import os
 import tempfile
-from db.task import Task, _convert_to_spacy_patterns
+from db._task import _Task, _convert_to_spacy_patterns
 from shared.utils import save_jsonl
 
 PATTERNS = [
@@ -19,7 +19,7 @@ def test_convert_patterns():
 
 
 def _create_task():
-    return Task.from_json({
+    return _Task.from_json({
         'task_id': 'testing123',
         'data_filenames': ['/blah.csv'],
         'annotators': ['eddie'],
@@ -29,7 +29,7 @@ def _create_task():
 
 
 def _create_task_no_patterns():
-    return Task.from_json({
+    return _Task.from_json({
         'task_id': 'testing123',
         'data_filenames': ['/blah.csv'],
         'annotators': ['eddie'],
@@ -62,7 +62,7 @@ def test_patterns():
 def test_save_load_patterns():
     task = _create_task()
     data = task.to_json()
-    loaded_task = Task.from_json(data)
+    loaded_task = _Task.from_json(data)
     assert loaded_task.patterns == PATTERNS
 
 
@@ -97,7 +97,7 @@ def test_task_with_pattern_file():
             "healthy"
         ]
 
-        task = Task.from_json({
+        task = _Task.from_json({
             'task_id': 'testing123',
             'data_filenames': ['/blah.csv'],
             'annotators': ['eddie'],

@@ -9,7 +9,7 @@ from db.model import db
 from db.config import DevelopmentConfig
 from .auth import login_required
 
-from db.task import Task
+from db._task import _Task
 from ar.data import fetch_tasks_for_user, fetch_tasks_for_user_from_db
 
 

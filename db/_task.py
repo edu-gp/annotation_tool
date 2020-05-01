@@ -27,7 +27,7 @@ def _convert_to_spacy_patterns(patterns: List[str]):
     ]
 
 
-class Task:
+class _Task:
     def __init__(self, name=None):
         self.task_id = str(uuid.uuid4())
         self.annotators = []  # A list of user_id's
@@ -66,7 +66,7 @@ class Task:
 
     @staticmethod
     def from_json(data):
-        task = Task(data.get('name'))
+        task = _Task(data.get('name'))
         task.task_id = data['task_id']
         task._data_filenames = data['data_filenames']
         task.annotators = data['annotators']
@@ -86,7 +86,7 @@ class Task:
         task_config_path = os.path.join(_task_dir(task_id), 'config.json')
         data = load_json(task_config_path)
         if data:
-            return Task.from_json(data)
+            return _Task.from_json(data)
         else:
             return None
 
@@ -105,7 +105,7 @@ class Task:
         task_ids = [x.name for x in task_ids]
         if id_only:
             return task_ids
-        tasks = [Task.fetch(task_id) for task_id in task_ids]
+        tasks = [_Task.fetch(task_id) for task_id in task_ids]
         return tasks
 
     def delete(self):
@@ -185,6 +185,8 @@ class Task:
     # ------------------------------------------------------------
 
     def get_full_data_fnames(self):
+        # This creates a list of file paths specified in the data_filenames
+        # of config.json.
         d = _data_dir()
         return [os.path.join(d, fname) for fname in self._data_filenames]
 

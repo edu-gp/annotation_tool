@@ -125,7 +125,8 @@
       <div class="col">
         <div>
           <form action="{{ url_for('tasks.assign', id=task.id) }}" method="POST">
-            <button type="submit" class="btn btn-sm btn-secondary">Request More Annotations</button>
+            <button type="submit" class="btn btn-sm btn-secondary" value={{ task.get_labels() }}>Request
+                More Annotations</button>
           </form>
         </div>
 

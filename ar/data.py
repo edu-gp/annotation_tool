@@ -1,24 +1,23 @@
 import glob
 import itertools
-import json
 import logging
 import os
 import re
 import shutil
 import time
 from collections import defaultdict, Counter, namedtuple
-from typing import Tuple, Dict
+from typing import Dict
 
 import pandas as pd
 from pandas import DataFrame
 from sklearn.metrics import cohen_kappa_score
-from sqlalchemy import func, distinct
+from sqlalchemy import func
 
 from db import _task_dir
 from db.model import db, User, ClassificationAnnotation, \
     AnnotationRequest, AnnotationRequestStatus, Task as NewTask, \
-    update_instance
-from db.task import Task, DIR_ANNO, DIR_AREQ
+    update_instance, Entity, AnnotationType, get_or_create
+from db._task import _Task, DIR_ANNO, DIR_AREQ
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd, \
     PrettyDefaultDict
 
@@ -29,6 +28,54 @@ from shared.utils import save_jsonl, load_json, save_json, mkf, mkd, \
 UserNameAndIdPair = namedtuple('UserNameAndIdPair', ['username', 'id'])
 EntityAndAnnotationValuePair = namedtuple(
     'EntityAndAnnotationValuePair', ['entity', 'value'])
+
+
+def save_new_ar_for_user_db(dbsession, task_id, username,
+                            annotation_requests, label_id, entity_type_id,
+                            clean_existing=True):
+    user = get_or_create(dbsession=dbsession, model=User,
+                         username=username)
+    if clean_existing:
+        try:
+            dbsession.query(AnnotationRequest).\
+                filter(AnnotationRequest.task_id == task_id,
+                       AnnotationRequest.user_id == user.id).\
+                delete(synchronize_session=False)
+            dbsession.commit()
+        except Exception as e:
+            logging.error(e)
+            dbsession.rollback()
+            raise
+
+    # NOTE insert these in reverse order so the most recently created ones are
+    # the ones to be labeled first.
+    annotation_requests = annotation_requests[::-1]
+
+    try:
+        for i, req in enumerate(annotation_requests):
+            # TODO not all entities are created in the db and we don't have
+            #  a way to assign entity type here yet so the new ones will not
+            #  have entity type.
+            entity = get_or_create(dbsession=dbsession, model=Entity,
+                                   name=req['entity_name'],
+                                   entity_type_id=entity_type_id)
+            new_request = AnnotationRequest(
+                user_id=user.id,
+                entity_id=entity.id,
+                annotation_type=AnnotationType.ClassificationAnnotation,
+                task_id=task_id,
+                context=req['data'],
+                # TODO there is no info about the label in the raw data so
+                #  how do we add this?
+                label_id=label_id,
+                order=i,
+            )
+            dbsession.add(new_request)
+        dbsession.commit()
+    except Exception as e:
+        logging.error(e)
+        dbsession.rollback()
+        raise
 
 
 def save_new_ar_for_user(task_id, user_id, annotation_requests,
@@ -44,7 +91,7 @@ def save_new_ar_for_user(task_id, user_id, annotation_requests,
     # Save each file individually for fast random access.
 
     # TODO save to Redis?
-    task = Task.fetch(task_id)
+    task = _Task.fetch(task_id)
 
     basedir = [task.get_dir(), DIR_AREQ, str(user_id)]
     _basedir = os.path.join(*basedir)

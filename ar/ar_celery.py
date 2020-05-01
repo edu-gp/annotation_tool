@@ -1,7 +1,11 @@
+import logging
+
 from celery import Celery
 
 from ar import generate_annotation_requests as _generate_annotation_requests
-from ar.data import save_new_ar_for_user
+from ar.data import save_new_ar_for_user_db
+from db.config import DevelopmentConfig
+from db.model import db, Database, get_or_create, Task, EntityType, Label
 
 from shared.celery_job_status import set_status, JobStatus
 
@@ -23,17 +27,45 @@ def hello():
 
 
 @app.task
-def generate_annotation_requests(task_id, max_per_annotator, max_per_dp):
+def generate_annotation_requests(task_id, max_per_annotator,
+                                 max_per_dp):
+    logging.error("Here here")
+    print("Here here")
     celery_id = str(generate_annotation_requests.request.id)
     set_status(celery_id, JobStatus.STARTED, progress=0.0)
 
-    print(
+    logging.error(
         f"Generate max={max_per_annotator} annotations per user with max_per_dp={max_per_dp}, task_id={task_id}")
-    res = _generate_annotation_requests(task_id, max_per_annotator, max_per_dp)
-    for user_id, annotation_requests in res.items():
-        save_new_ar_for_user(
-            task_id, user_id, annotation_requests, clean_existing=True)
+    # TODO Touching file systems, need to migrate
+    db = Database.from_config(DevelopmentConfig)
+    res = _generate_annotation_requests(
+        db.session,
+        task_id,
+        max_per_annotator,
+        max_per_dp)
+
+    task = get_or_create(dbsession=db.session, model=Task, id=task_id)
+    entity_type = get_or_create(dbsession=db.session, model=EntityType,
+                                name="company")
+    # TODO this is the label we are using for now.
+    label = get_or_create(dbsession=db.session,
+                          model=Label,
+                          name=task.get_labels()[0],
+                          entity_type_id=entity_type.id)
+
+    count = 0
+    for username, annotation_requests in res.items():
+        logging.error("Creating annotation requests for user {}".
+                      format(username))
+        # TODO touching file system, need to migrate
+        #  So here we have a user and a list of request in the form of a
+        #  dictionary and we want to save it for this user in db.
+        save_new_ar_for_user_db(
+            db.session, task_id, username, annotation_requests, label.id,
+            entity_type.id, clean_existing=True)
+        count += len(annotation_requests)
     print(f"Done")
+    print("The number of requests processed: {}".format(count))
 
     set_status(celery_id, JobStatus.DONE, progress=1.0)
 

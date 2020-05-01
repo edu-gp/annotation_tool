@@ -119,7 +119,6 @@ def receive_annotation():
     username = g.user['username']
     user_id = fetch_user_id_by_username(db.session, username=username)
 
-    logging.error("Here here here")
     data = json.loads(request.data)
     task_id = data['task_id']
     ar_id = data['req']['ar_id']
@@ -172,7 +171,8 @@ def receive_annotation():
 @bp.route('/kitchen_sink')
 # @login_required
 def kitchen_sink():
-    task = Task()
+    from db._task import _Task
+    task = _Task()
 
     simple_ar = {
         "ar_id": "059429e8faee44e2aabfeb0baaf5d44eb770c5fc9ff88043c9ff191f",

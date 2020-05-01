@@ -536,7 +536,7 @@ class Task(Base):
 
     def get_pattern_model(self):
         from inference.pattern_model import PatternModel
-        from db.task import _convert_to_spacy_patterns
+        from db._task import _convert_to_spacy_patterns
 
         if safe_getattr(self, '__cached_pattern_model') is None:
             patterns = []
@@ -559,6 +559,10 @@ class Task(Base):
     def get_active_nlp_model(self):
         # TODO refactor this to a different name later (e.g. get_latest_model)
         return self.text_classification_models.first()
+
+    def __repr__(self):
+        return "<Task with id {}, \nname {}, \ndefault_params {}>".format(
+            self.id, self.name, self.default_params)
 
     def __repr__(self):
         return "<Task with id {}, \nname {}, \ndefault_params {}>".format(
@@ -675,3 +679,11 @@ def save_labels_by_entity_type(dbsession, entity_type: str, labels: List[str]):
     logging.info("Finding the EntityType for {}".format(entity_type))
     for label in labels:
         ClassificationAnnotation.create_dummy(dbsession, entity_type, label)
+
+
+def fetch_ar_ids_by_task_and_user(dbsession, task_id, username):
+    res = dbsession.query(AnnotationRequest).\
+        filter(AnnotationRequest.task_id == task_id,
+               User.username == username).join(User).all()
+    return [ar.id for ar in res]
+

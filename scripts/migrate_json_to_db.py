@@ -28,7 +28,7 @@ from db.model import (
     AnnotationRequest, ClassificationAnnotation,
     ClassificationTrainingData, TextClassificationModel, FileInference,
 )
-from db.task import Task as _Task
+from db._task import _Task as _Task
 from shared.utils import generate_md5_hash, stem
 
 db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
