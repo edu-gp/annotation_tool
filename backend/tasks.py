@@ -5,9 +5,7 @@ from flask import (
     Blueprint, flash, redirect, render_template, request, url_for
 )
 
-from db.model import (
-    db, Task, Model, TextClassificationModel, FileInference
-)
+from db.model import db, Task, Model
 from db.utils import get_all_data_files, get_all_pattern_files
 from ar.data import compute_annotation_statistics, \
     compute_annotation_statistics_db, compute_annotation_request_statistics
@@ -224,11 +222,10 @@ def download_prediction(id):
     model_id = int(request.form['model_id'])
     fname = request.form['fname']
 
-    inf = db.session.query(FileInference).filter_by(
-        model_id=model_id, input_filename=fname).one_or_none()
+    model = db.session.query(Model).filter_by(id=model_id).one_or_none()
 
-    if task is not None and inf is not None:
-        df = inf.create_exported_dataframe()
+    if task is not None and model is not None:
+        df = model.export_inference(fname)
 
         # Write it to a temp file and send it.
         import tempfile

@@ -67,10 +67,18 @@ def get_env_int(key, default):
     return val
 
 
-def stem(fname):
+def stem(fname, include_suffix=False):
     """/blah/my_file.json.gz --> my_file"""
-    stem = Path(fname).stem
-    return stem[:stem.index('.')] if '.' in stem else stem
+    path = Path(fname)
+    stem = path.stem
+
+    # If a filename has multiple suffixes, take them all off.
+    stem = stem[:stem.index('.')] if '.' in stem else stem
+
+    if include_suffix:
+        stem = stem + ''.join(path.suffixes)
+
+    return stem
 
 
 def generate_md5_hash(data: str):

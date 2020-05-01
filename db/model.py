@@ -18,7 +18,8 @@ from db.fs import (
 )
 from train.no_deps.paths import (
     _get_config_fname, _get_data_parser_fname, _get_metrics_fname,
-    _get_all_plots, _get_exported_data_fname, _get_all_inference_fnames
+    _get_all_plots, _get_exported_data_fname, _get_all_inference_fnames,
+    _get_inference_fname
 )
 from train.paths import _get_version_dir
 
@@ -313,9 +314,6 @@ class Model(Base):
 
     config = Column(JSON)
 
-    # All the inferences we have ran on files
-    file_inferences = relationship("FileInference", back_populates="model")
-
     # Optionally associated with a Task
     task_id = Column(Integer, ForeignKey('task.id'))
     task = relationship("Task", back_populates="models")
@@ -356,6 +354,7 @@ class Model(Base):
         return _get_version_dir(self.uuid, self.version, abs=abs)
 
     def inference_dir(self):
+        # TODO replace with official no_deps
         return os.path.join(self.dir(), "inference")
 
     def _load_json(self, fname_fn):
@@ -385,9 +384,40 @@ class Model(Base):
         return _get_all_inference_fnames(model_dir)
 
     def get_inference_fnames(self):
-        """Special function to put together information for the UI"""
+        """Get the original filenames of the raw data for inference"""
         return [stem(path) + '.jsonl'
                 for path in self.get_inference_fname_paths()]
+
+    def export_inference(self, data_fname, include_text=False):
+        # TODO EDDIE rename create_exported_dataframe -> export_inference
+        """Exports the given inferenced file data_fname as a dataframe.
+        Returns None if the file has not been inferenced yet.
+        """
+        from train.no_deps.inference_results import InferenceResults
+
+        path = _get_inference_fname(self.dir(abs=True), data_fname)
+
+        # Load Inference Results
+        ir = InferenceResults.load(path)
+
+        # Load Original Data
+        df = load_jsonl(_raw_data_file_path(data_fname), to_df=True)
+
+        # Check they exist and are the same size
+        assert df is not None, f"Raw data not found: {data_fname}"
+        assert len(df) == len(ir.probs), "Inference size != Raw data size"
+
+        # Combine the two together.
+        df['probs'] = ir.probs
+        # TODO We have hard-coded domain and name.
+        df['domain'] = df['meta'].apply(lambda x: x.get('domain'))
+        df['name'] = df['meta'].apply(lambda x: x.get('name'))
+        if include_text:
+            df = df[['name', 'domain', 'text', 'probs']]
+        else:
+            df = df[['name', 'domain', 'probs']]
+
+        return df
 
     def get_len_data(self):
         """Return how many datapoints were used to train this model.
@@ -406,50 +436,6 @@ class TextClassificationModel(Model):
 
     def __str__(self):
         return f'TextClassificationModel:{self.uuid}:v{self.version}'
-
-
-class FileInference(Base):
-    __tablename__ = 'file_inference'
-
-    id = Column(Integer, primary_key=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    model_id = Column(Integer, ForeignKey('model.id'), nullable=False)
-    model = relationship("Model", back_populates="file_inferences")
-
-    # We want to be able to query, for a given file, all the inferences on it.
-    input_filename = Column(Text, index=True, nullable=False)
-
-    def path(self):
-        return os.path.join(self.model.inference_dir(),
-                            stem(self.input_filename) + '.pred.npy')
-
-    def create_exported_dataframe(self, include_text=False):
-        from train.no_deps.inference_results import InferenceResults
-
-        _base = filestore_base_dir()
-
-        # Load Inference Results
-        ir = InferenceResults.load(os.path.join(_base, self.path()))
-
-        # Load Original Data
-        df = load_jsonl(
-            os.path.join(_base, RAW_DATA_DIR, self.input_filename), to_df=True)
-
-        # Check they're the same size
-        assert len(df) == len(ir.probs)
-
-        # Combine the two together.
-        df['probs'] = ir.probs
-        # TODO we must use these fields. Can we make `meta` more flexible?
-        df['domain'] = df['meta'].apply(lambda x: x.get('domain'))
-        df['name'] = df['meta'].apply(lambda x: x.get('name'))
-        if include_text:
-            df = df[['name', 'domain', 'text', 'probs']]
-        else:
-            df = df[['name', 'domain', 'probs']]
-
-        return df
 
 
 class Task(Base):
@@ -535,8 +521,7 @@ class Task(Base):
     def get_data_filenames(self, abs=False):
         fnames = self.default_params.get('data_filenames', [])
         if abs:
-            fnames = [os.path.join(filestore_base_dir(), RAW_DATA_DIR, f)
-                      for f in fnames]
+            fnames = [_raw_data_file_path(f) for f in fnames]
         return fnames
 
     def get_pattern_model(self):
@@ -548,10 +533,8 @@ class Task(Base):
 
             _patterns_file = self.default_params.get('patterns_file')
             if _patterns_file:
-                patterns += load_jsonl(
-                    os.path.join(filestore_base_dir(),
-                                 RAW_DATA_DIR, _patterns_file),
-                    to_df=False)
+                patterns += load_jsonl(_raw_data_file_path(_patterns_file),
+                                       to_df=False)
 
             _patterns = self.get_patterns()
             if _patterns is not None:
@@ -691,3 +674,8 @@ def fetch_ar_ids_by_task_and_user(dbsession, task_id, username):
         filter(AnnotationRequest.task_id == task_id,
                User.username == username).join(User).all()
     return [ar.id for ar in res]
+
+
+def _raw_data_file_path(fname):
+    """Absolute path to a data file in the default raw data directory"""
+    return os.path.join(filestore_base_dir(), RAW_DATA_DIR, fname)

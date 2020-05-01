@@ -1,7 +1,5 @@
 from tests.sqlalchemy_conftest import *
-from db.model import (
-    Task, TextClassificationModel, FileInference
-)
+from db.model import Task, TextClassificationModel
 from inference.nlp_model import NLPModel
 from shared.utils import stem
 import numpy as np
@@ -17,7 +15,7 @@ def test_create(dbsession, monkeypatch, tmp_path):
 
     model_uuid = "abc"
     version = 1
-    data_fname = "myfile.csv"
+    data_fname = "myfile.jsonl"
 
     # Save the data file
     d = tmp_path / "raw_data"
@@ -44,15 +42,14 @@ def test_create(dbsession, monkeypatch, tmp_path):
     ])
     save(p, raw_results)
 
-    # A Task has a Model. A Model has a FileInference.
+    # A Task has a Model.
     task = Task(name="mytask", default_params={
         'data_filenames': [data_fname]
     })
     model = TextClassificationModel(
         uuid=model_uuid, version=version, task=task)
-    inf = FileInference(model=model, input_filename=data_fname)
 
-    dbsession.add_all([task, model, inf])
+    dbsession.add_all([task, model])
     dbsession.commit()
 
     # =========================================================================
