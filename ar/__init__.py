@@ -18,7 +18,6 @@ from inference.random_model import RandomModel
 from .data import fetch_all_ar_ids
 from .utils import get_ar_id, timeit
 
-# TODO eddie
 Pred = namedtuple('Pred', ['score', 'entity', 'fname',  'line_number'])
 UserEntityTaskTuple = namedtuple('UserEntityTaskTuple', ['user', 'entity'])
 

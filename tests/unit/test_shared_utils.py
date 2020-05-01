@@ -12,6 +12,14 @@ def test_stem():
     assert stem('my_file.csv') == 'my_file'
     assert stem('my_file') == 'my_file'
 
+    assert stem('/foo/bar/my_file.json.gz', include_suffix=True) \
+        == 'my_file.json.gz'
+    assert stem('/blah/my_file.json.gz', include_suffix=True) \
+        == 'my_file.json.gz'
+    assert stem('my_file.json.gz', include_suffix=True) == 'my_file.json.gz'
+    assert stem('my_file.csv', include_suffix=True) == 'my_file.csv'
+    assert stem('my_file', include_suffix=True) == 'my_file'
+
 
 def test_list_to_textarea_and_back():
     ls = ['a', 'bb', 'ccc']

@@ -26,10 +26,9 @@ from db.model import (
     EntityTypeEnum, AnnotationRequestStatus, AnnotationType,
     User, Task,
     AnnotationRequest, ClassificationAnnotation,
-    ClassificationTrainingData, TextClassificationModel, FileInference,
+    ClassificationTrainingData, TextClassificationModel
 )
 from db._task import _Task as _Task
-from shared.utils import generate_md5_hash, stem
 
 db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
 
@@ -264,22 +263,10 @@ if __name__ == "__main__":
 
                 logging.info(f"Created Model {db_model}")
 
-                # Inference
-                _inference_dir = os.path.join(_source_dir, 'inference')
-                if os.path.isdir(_inference_dir):
-                    for file in os.listdir(_inference_dir):
-                        if file.endswith('.npy'):
-                            inf = get_or_create(
-                                db.session, FileInference, model_id=db_model.id,
-                                input_filename=f'{stem(file)}.jsonl')
-                            logging.info("Created FileInference "
-                                         f"input_filename={inf.input_filename} "
-                                         f"path={inf.path()}")
-
     print("--Counts--")
     tables = [
         User, Task,
         AnnotationRequest, ClassificationAnnotation,
-        ClassificationTrainingData, TextClassificationModel, FileInference]
+        ClassificationTrainingData, TextClassificationModel]
     for t in tables:
         print(t, db.session.query(t).count())

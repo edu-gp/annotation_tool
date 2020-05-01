@@ -2,10 +2,6 @@ import hashlib
 import numpy as np
 
 from inference.base import ITextCatModel
-from train.no_deps.utils import load_original_data_text
-from train.no_deps.inference_results import InferenceResults
-from train.no_deps.paths import _get_inference_fname
-from train.paths import _get_version_dir
 from db.model import Task
 
 
@@ -31,12 +27,11 @@ class NLPModel(ITextCatModel):
 
             model = task.get_active_nlp_model()
 
-            for inf in model.file_inferences:
-                if inf.input_filename in task.get_data_filenames():
-                    df = inf.create_exported_dataframe(include_text=True)
-                    df['hashed_text'] = df['text'].apply(_hash_text)
-                    self._cache.update(
-                        dict(zip(df['hashed_text'], df['probs'])))
+            for fname in model.get_inference_fnames():
+                df = model.export_inference(fname, include_text=True)
+                df['hashed_text'] = df['text'].apply(_hash_text)
+                self._cache.update(
+                    dict(zip(df['hashed_text'], df['probs'])))
 
         return self._cache
 
