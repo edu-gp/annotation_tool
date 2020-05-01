@@ -8,29 +8,13 @@ import json
 from flask import (
     Blueprint, g, render_template, request, url_for)
 
-from db._task import _Task
-from db.model import db, AnnotationRequest, Task, \
-    get_or_create, ClassificationAnnotation, Label, \
-    AnnotationValue, AnnotationRequestStatus, Entity
+from db.model import (
+    db, AnnotationRequest, Task, get_or_create, ClassificationAnnotation,
+    AnnotationValue, AnnotationRequestStatus)
 
 from .auth import login_required
 
 bp = Blueprint('tasks', __name__, url_prefix='/tasks')
-
-# TODO eddie update with new way of showing annotations
-# TODO this has to be rewritten with
-
-# def load_annotation_requests(task_id, user_id):
-#     task = Task.fetch(task_id)
-#     assert task is not None
-#     fname = os.path.join(_task_dir(task_id), 'annotators', f'{user_id}.jsonl')
-#     data = load_jsonl(fname, to_df=False)
-#     return task, data
-
-# from joblib import Memory
-# location = './cachedir'
-# memory = Memory(location, verbose=0)
-# load_annotation_requests_cached = memory.cache(load_annotation_requests)
 
 
 @bp.route('/<string:id>')
@@ -73,30 +57,27 @@ def annotate(task_id, ar_id):
         current_ar_id=ar_dict['ar_id']
     )
 
-    # TODO could be optimized without this query as we only need the name
-    #  later on.
-    label = get_or_create(dbsession=db.session,
-                          model=Label,
-                          id=ar_dict['label_id'])
+    # TODO get_next_ar_id_from_db should just return the AnnotationRequest
+    next_req = db.session.query(AnnotationRequest) \
+        .filter_by(id=next_ar_id).one_or_none()
+    label = next_req.label
 
     # Fetch all existing annotations on this particular entity done by this
     # user regardless of the label.
-    annotations_on_entity_done_by_user = \
-        db.session.query(ClassificationAnnotation).filter(
-            ClassificationAnnotation.entity_id == ar_dict['entity_id'],
-            ClassificationAnnotation.user_id == user_id).all()
+    annotations_on_entity_done_by_user = db.session.query(ClassificationAnnotation).filter(
+        ClassificationAnnotation.entity == ar_dict['entity'],
+        ClassificationAnnotation.user_id == user_id).all()
 
     # Building the annotation request data for the suggested label
     anno = build_empty_annotation(ar_dict)
     for existing_annotation in annotations_on_entity_done_by_user:
         # TODO label.name add an extra query to db.
-        anno['anno']['labels'][existing_annotation.label.name] = \
-            existing_annotation.value
+        anno['anno']['labels'][existing_annotation.label] = existing_annotation.value
 
-    if label.name not in anno['anno']['labels']:
-        anno['anno']['labels'][label.name] = AnnotationValue.NOT_ANNOTATED
+    if label not in anno['anno']['labels']:
+        anno['anno']['labels'][label] = AnnotationValue.NOT_ANNOTATED
 
-    anno['suggested_labels'] = [label.name]
+    anno['suggested_labels'] = [label]
     anno['task_id'] = task.id
 
     # et = time.time()
@@ -126,33 +107,30 @@ def receive_annotation():
     data = json.loads(request.data)
     task_id = data['task_id']
     ar_id = data['req']['ar_id']
-    entity_id = data['req']['entity_id']
+    entity_type = data['req']['entity_type']
+    entity = data['req']['entity']
     context = data['req']['data']['text']
-
-    entity_type_id = db.session.query(Entity.entity_type_id).\
-        filter(Entity.id == entity_id).first()[0]
 
     # For all the labels received, we need to create/update annotations in
     # the db.
     annotation_result = data['anno']['labels']
-    for label_name in annotation_result:
-        label_instance = get_or_create(dbsession=db.session, model=Label,
-                                       name=label_name,
-                                       entity_type_id=entity_type_id)
-        logging.error(label_instance)
-        value = annotation_result[label_name]
+    for label in annotation_result:
+        value = annotation_result[label]
         annotation = get_or_create(dbsession=db.session,
                                    model=ClassificationAnnotation,
                                    exclude_keys_in_retrieve=["context",
                                                              "value"],
-                                   entity_id=data['req']['entity_id'],
-                                   label_id=label_instance.id,
+                                   entity=entity,
+                                   entity_type=entity_type,
+                                   label=label,
                                    user_id=user_id,
                                    context=context,
                                    value=AnnotationValue.NOT_ANNOTATED)
         annotation.value = value
         db.session.add(annotation)
 
+    # TODO only mark request as complete if the incoming label matches the
+    # request label.
     annotatation_request = get_or_create(dbsession=db.session,
                                          model=AnnotationRequest,
                                          id=ar_id)
@@ -177,6 +155,7 @@ def receive_annotation():
 @bp.route('/kitchen_sink')
 # @login_required
 def kitchen_sink():
+    from db._task import _Task
     task = _Task()
 
     simple_ar = {

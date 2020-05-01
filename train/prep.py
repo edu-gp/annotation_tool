@@ -8,10 +8,8 @@ from .no_deps.paths import (
 from .no_deps.utils import get_env_int, get_env_bool
 
 from db.model import (
-    Task, TextClassificationModel,
-    Label, ClassificationTrainingData,
-    EntityType, EntityTypeEnum,
-    get_or_create
+    Task, TextClassificationModel,  ClassificationTrainingData,
+    EntityTypeEnum
 )
 from train.text_lookup import get_entity_text_lookup_function
 from shared.utils import save_json
@@ -53,23 +51,19 @@ def prepare_task_for_training(dbsession, task_id) -> TextClassificationModel:
     version = TextClassificationModel.get_next_version(dbsession, uuid)
 
     # By default use the first label the task has.
-    label_name = task.get_labels()[0]
+    label = task.get_labels()[0]
     # By default use the Company entity type
     # TODO this should be part of Task
-    entity_type = get_or_create(
-        dbsession, EntityType, name=EntityTypeEnum.COMPANY)
-
-    label = dbsession.query(Label).filter_by(
-        name=label_name, entity_type=entity_type).first()
+    ENTITY_TYPE = EntityTypeEnum.COMPANY
 
     # TODO these defaults should be stored in Task
     jsonl_file_path = task.get_data_filenames(abs=True)[0]
     entity_text_lookup_fn = get_entity_text_lookup_function(
-        jsonl_file_path, 'meta.domain', 'text', entity_type.id
+        jsonl_file_path, 'meta.domain', 'text', ENTITY_TYPE
     )
 
     data = ClassificationTrainingData.create_for_label(
-        dbsession, label, entity_text_lookup_fn)
+        dbsession, ENTITY_TYPE, label, entity_text_lookup_fn)
 
     config = generate_config()
 

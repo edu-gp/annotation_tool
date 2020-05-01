@@ -23,8 +23,8 @@ from db.fs import (
 )
 from db.model import (
     Database, get_or_create,
-    EntityType, EntityTypeEnum, AnnotationRequestStatus, AnnotationType,
-    User, Entity, Label, Task,
+    EntityTypeEnum, AnnotationRequestStatus, AnnotationType,
+    User, Task,
     AnnotationRequest, ClassificationAnnotation,
     ClassificationTrainingData, TextClassificationModel, FileInference,
 )
@@ -32,16 +32,6 @@ from db._task import _Task as _Task
 from shared.utils import generate_md5_hash, stem
 
 db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
-
-
-def _get_or_create_company_entity(company_name, domain):
-    entity_type = get_or_create(
-        db.session, EntityType, name=EntityTypeEnum.COMPANY)
-    company_name = company_name if company_name is not None else "unknown"
-    domain = domain if domain is not None else company_name
-    entity = get_or_create(db.session, Entity, name=domain,
-                           entity_type_id=entity_type.id)
-    return entity_type, entity
 
 
 def convert_annotation_result_in_batch(task_uuid, username):
@@ -52,43 +42,46 @@ def convert_annotation_result_in_batch(task_uuid, username):
         print("Converted annotation with ar_id {}".format(ar_id))
 
 
+def _make_company_entity(meta_dict):
+    company_name = meta_dict.get("name", "unknown")
+    domain = meta_dict.get("domain", company_name)
+    return EntityTypeEnum.COMPANY, domain
+
+
 def _convert_single_annotation(anno, username):
     user = get_or_create(db.session, User, username=username)
 
-    company_name = anno["req"]["data"]["meta"]["name"]
-    domain = anno["req"]["data"]["meta"].get("domain", company_name)
-    entity_type, entity = _get_or_create_company_entity(company_name, domain)
+    entity_type, entity = _make_company_entity(anno["req"]["data"]["meta"])
 
-    # TODO WARNING: This only works for this migration where there is only
-    #  one label in the annotation result.
-    for label_name, label_value in anno["anno"]["labels"].items():
-        label = get_or_create(db.session, Label, name=label_name,
-                              entity_type_id=entity_type.id)
-
-        annotation = get_or_create(db.session, ClassificationAnnotation,
-                                   value=label_value,
-                                   entity_id=entity.id,
-                                   label_id=label.id,
-                                   user_id=user.id,
-                                   context=anno["req"]["data"],
-                                   exclude_keys_in_retrieve=['context'])
-        return annotation.id
+    if entity:
+        # TODO WARNING: This only works for this migration where there is only
+        #  one label in the annotation result.
+        for label, label_value in anno["anno"]["labels"].items():
+            annotation = get_or_create(db.session, ClassificationAnnotation,
+                                       value=label_value,
+                                       entity_type=entity_type,
+                                       entity=entity,
+                                       label=label,
+                                       user_id=user.id,
+                                       context=anno["req"]["data"],
+                                       exclude_keys_in_retrieve=['context'])
+            return annotation.id
 
 
 def convert_annotation_request_in_batch(task_uuid, task, username):
     requested_ar_ids = fetch_all_ar(task_uuid, username)
 
-    label_name = task.get_labels()[0]
+    label = task.get_labels()[0]
 
     for order, ar_id in enumerate(requested_ar_ids):
         req = fetch_ar(task_uuid, username, ar_id)
         _convert_single_request_with_annotated_result(
-            req, username, task_uuid, task.id, order, label_name)
+            req, username, task_uuid, task.id, order, label)
         print("Converted request with ar_id {}".format(ar_id))
 
 
 def _convert_single_request_with_annotated_result(
-        req, username, task_uuid, task_id, order, label_name):
+        req, username, task_uuid, task_id, order, label):
     user = get_or_create(db.session, User, username=username)
 
     '''
@@ -107,12 +100,7 @@ def _convert_single_request_with_annotated_result(
         }
     }
     '''
-    company_name = req["data"]["meta"]["name"]
-    domain = req["data"]["meta"].get("domain", company_name)
-    entity_type, entity = _get_or_create_company_entity(company_name, domain)
-
-    label = get_or_create(db.session, Label, name=label_name,
-                          entity_type_id=entity_type.id)
+    entity_type, entity = _make_company_entity(req["data"]["meta"])
 
     anno_from_file = fetch_annotation(task_uuid, username, ar_id=req['ar_id'])
     if anno_from_file:
@@ -124,28 +112,21 @@ def _convert_single_request_with_annotated_result(
         logging.info("No annotation results found for this request {}".
                      format(req['ar_id']))
 
-    context = req["data"]
-    context.update({
-        'ar_id': req['ar_id'],
-        'fname': req['fname'],
-        'line_number': req['line_number'],
-        'score': req['score'],
-        'source': 'db-migration'
-    })
-
-    get_or_create(
-        db.session, AnnotationRequest,
-        user_id=user.id,
-        context=context,
-        label_id=label.id,
-        entity_id=entity.id,
-        annotation_type=AnnotationType.ClassificationAnnotation,
-        status=AnnotationRequestStatus.Pending,
-        task_id=task_id,
-        order=order,
-        name=req['ar_id'],
-        exclude_keys_in_retrieve=['context']
-    )
+    if entity:
+        get_or_create(
+            db.session, AnnotationRequest,
+            user_id=user.id,
+            context=req,
+            entity_type=entity_type,
+            entity=entity,
+            label=label,
+            annotation_type=AnnotationType.ClassificationAnnotation,
+            status=AnnotationRequestStatus.Pending,
+            task_id=task_id,
+            order=order,
+            name=req['ar_id'],
+            exclude_keys_in_retrieve=['context']
+        )
 
 
 if __name__ == "__main__":
@@ -248,15 +229,10 @@ if __name__ == "__main__":
                 _source_data_path = os.path.join(_source_dir, 'data.jsonl')
                 data = None
                 if os.path.isfile(_source_data_path):
-                    entity_type = get_or_create(
-                        db.session, EntityType, name=EntityTypeEnum.COMPANY)
-                    label = get_or_create(
-                        db.session, Label,
-                        name=task.default_params['labels'][0],
-                        entity_type_id=entity_type.id)
+                    label = task.default_params['labels'][0]
                     data = get_or_create(
                         db.session, ClassificationTrainingData,
-                        label_id=label.id,
+                        label=label,
                         created_at=datetime.datetime.fromtimestamp(mock_time))
                     mock_time += 1
 
@@ -302,7 +278,7 @@ if __name__ == "__main__":
 
     print("--Counts--")
     tables = [
-        User, Entity, Label, Task,
+        User, Task,
         AnnotationRequest, ClassificationAnnotation,
         ClassificationTrainingData, TextClassificationModel, FileInference]
     for t in tables:

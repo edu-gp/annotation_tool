@@ -22,7 +22,9 @@ def test_create_annotation_request(dbsession):
 
     req = AnnotationRequest(
         user=user,
-        entity_id=1,
+        entity_type='blah',
+        entity='blah',
+        label='blah',
         context={'foo': 'bar'},
         task=task,
         annotation_type=AnnotationType.ClassificationAnnotation,
@@ -42,7 +44,9 @@ def test_create_minimal_annotation_request(dbsession):
 
     req = AnnotationRequest(
         user=user,
-        entity_id=1,
+        entity_type='blah',
+        entity='blah',
+        label='blah',
         context={'foo': 'bar'},
         annotation_type=AnnotationType.ClassificationAnnotation,
         order=12,

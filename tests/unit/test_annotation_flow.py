@@ -1,27 +1,24 @@
 from tests.sqlalchemy_conftest import *
 from db.model import (
-    EntityType, Entity, User,
-    Label, AnnotationRequest, AnnotationType, AnnotationRequestStatus,
+    User, AnnotationRequest, AnnotationType, AnnotationRequestStatus,
     ClassificationAnnotation,
 )
 
 
 def test_annotation_flow(dbsession):
-    entity_type = EntityType(name='Fruit')
     user = User(username='Bob')
-    dbsession.add_all([user, entity_type])
+    dbsession.add(user)
     dbsession.commit()
 
-    # When we set up an annotation request, we create the following, as needed:
-    label = Label(name="IsSweet", entity_type=entity_type)
-    entity = Entity(name="Banana", entity_type=entity_type)
+    # Set up an annotation request:
     req = AnnotationRequest(
-        user=user, entity=entity, label=label, order=1,
+        user=user, order=1,
+        entity_type="Fruit", entity="Banana", label="IsSweet",
         annotation_type=AnnotationType.ClassificationAnnotation,
         name="Is a Banana Sweet?", context={
             "text": "Studies have shown that banana is sweet when ripe."
         })
-    dbsession.add_all([entity, label, req])
+    dbsession.add(req)
     dbsession.commit()
 
     # [INDEX] <- user_id
@@ -37,9 +34,9 @@ def test_annotation_flow(dbsession):
     # "This request is called..."
     assert req.name == "Is a Banana Sweet?"
     # "We'd like your opinion on..."
-    assert req.entity.name == "Banana"
+    assert req.entity == "Banana"
     # "We'd like you to tell us..."
-    assert req.label.name == "IsSweet"
+    assert req.label == "IsSweet"
     # "Here's the evidence we found..."
     assert len(req.context['text']) > 0
     # "You have no previous annotations on this"
@@ -49,8 +46,9 @@ def test_annotation_flow(dbsession):
     # [RECEIVE_ANNOTATION] <- user_id, req_id, entity_name, label_name, value
     # Bob fulfills the request.
     anno = ClassificationAnnotation(
-        label=label, value=1,
-        user=user, entity=entity, context=req.context)
+        label=req.label, value=1,
+        user=user, entity=req.entity, entity_type=req.entity_type,
+        context=req.context)
     # Note we copied the context over from the AnnotationRequest.
     dbsession.add(anno)
     # (!) Because this label is exactly the request's label, we also mark this
@@ -61,10 +59,10 @@ def test_annotation_flow(dbsession):
 
     # [RECEIVE_ANNOTATION] <- user_id, req_id, entity_name, label_name, value
     # Bob suddenly remembers something else about Bananas.
-    label_is_yellow = Label(name="IsYellow", entity_type=entity_type)
     anno = ClassificationAnnotation(
-        label=label_is_yellow, value=1,
-        user=user, entity=entity, context=req.context)
+        label='IsYellow', value=1,
+        user=user, entity=req.entity, entity_type=req.entity_type,
+        context=req.context)
     # Note we copied the context over from the AnnotationRequest.
     dbsession.add(anno)
     dbsession.commit()

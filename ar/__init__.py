@@ -9,7 +9,7 @@ from sqlalchemy import func
 
 from db.fs import filestore_base_dir, RAW_DATA_DIR
 from db.model import get_or_create, Task, \
-    AnnotationRequest, Entity, User, AnnotationRequestStatus
+    AnnotationRequest, User, AnnotationRequestStatus
 from shared.utils import load_jsonl
 from inference.base import ITextCatModel
 from inference import get_predicted
@@ -18,7 +18,8 @@ from inference.random_model import RandomModel
 from .data import fetch_all_ar_ids
 from .utils import get_ar_id, timeit
 
-Pred = namedtuple('Pred', ['score', 'entity_name', 'fname',  'line_number'])
+# TODO eddie
+Pred = namedtuple('Pred', ['score', 'entity', 'fname',  'line_number'])
 UserEntityTaskTuple = namedtuple('UserEntityTaskTuple', ['user', 'entity'])
 
 
@@ -74,15 +75,14 @@ def generate_annotation_requests(dbsession, task_id: int,
     num_of_complete_requests_by_entity_and_user_within_task = \
         dbsession.query(
             func.count(AnnotationRequest.id),
-            Entity.name,
+            AnnotationRequest.entity,
             User.username
         ). \
-        join(Entity). \
         join(User). \
         filter(AnnotationRequest.task_id == task.id,
                AnnotationRequest.status ==
                AnnotationRequestStatus.Complete). \
-        group_by(Entity.name, User.username).all()
+        group_by(AnnotationRequest.entity, User.username).all()
     lookup_dict = {
         (item[1], item[2]): item[0]
         for item in num_of_complete_requests_by_entity_and_user_within_task
@@ -144,7 +144,6 @@ def generate_annotation_requests(dbsession, task_id: int,
                                    __basic_decor,
                                    __example_idx_lookup)
             for ex in list_of_examples]
-
         annotation_requests[user] = decorated_list_of_examples
 
     logging.info("Finished generating annotation requests.")
@@ -161,7 +160,7 @@ def _get_decorated_example(pred: Pred,
         'fname': pred.fname,
         'line_number': pred.line_number,
         'score': pred.score,
-        'entity_name': pred.entity_name
+        'entity': pred.entity
     }
     res.update({
         'data': basic_decor[idx]
@@ -176,8 +175,8 @@ def _get_decorated_example(pred: Pred,
 def _build_blacklist_fn(lookup_dict: dict):
 
     def blacklist_fn(pred: Pred, annotator: str):
-        entity_name = pred.entity_name
-        lookup_key = UserEntityTaskTuple(annotator, entity_name)
+        entity = pred.entity
+        lookup_key = UserEntityTaskTuple(annotator, entity)
         if lookup_key not in lookup_dict:
             lookup_dict[lookup_key] = 0
         return lookup_dict[lookup_key] > 0
@@ -192,7 +191,7 @@ def _get_predictions(data_filenames: List[str],
     Return the aggregated score from all models for all lines in each
     data_filenames
 
-    Return Pred namedtuple (score, entity_name, fname, line_number)
+    Return Pred namedtuple (score, entity, fname, line_number)
     '''
     result = []
 
@@ -214,8 +213,7 @@ def _get_predictions(data_filenames: List[str],
 
             for line_number, score in enumerate(total_scores):
                 result.append(Pred(score=score,
-                                   entity_name=metas[0][line_number][
-                                          'domain'],
+                                   entity=metas[0][line_number]['domain'],
                                    fname=fname,
                                    line_number=line_number))
 
@@ -340,13 +338,13 @@ def _shuffle_together_examples(list_of_examples: List[List[Pred]],
             ls_idx[which_list] += 1
             # TODO could name and/or domain be null? How would that affect
             #  the tuple as a key? Can we just skip it?
-            if pred.entity_name is None:
+            if pred.entity is None:
                 continue
 
-            if pred.entity_name not in seen:
+            if pred.entity not in seen:
                 # We've found an element from ls that can be added to res!
                 # TODO keep track of which list the pred comes from; for easier debugging
-                seen.add(pred.entity_name)
+                seen.add(pred.entity)
                 res.append(pred)
                 break
 
