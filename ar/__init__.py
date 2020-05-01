@@ -9,7 +9,8 @@ from sqlalchemy import func
 
 from db.fs import filestore_base_dir, RAW_DATA_DIR
 from db.model import get_or_create, Task, \
-    AnnotationRequest, User, AnnotationRequestStatus
+    AnnotationRequest, User, AnnotationRequestStatus, ClassificationAnnotation, \
+    AnnotationValue
 from shared.utils import load_jsonl
 from inference.base import ITextCatModel
 from inference import get_predicted
@@ -20,7 +21,7 @@ from .utils import get_ar_id, timeit
 
 # TODO eddie
 Pred = namedtuple('Pred', ['score', 'entity', 'fname',  'line_number'])
-UserEntityTaskTuple = namedtuple('UserEntityTaskTuple', ['user', 'entity'])
+EntityUserTuple = namedtuple('EntityUserTuple', ['entity', 'user'])
 
 
 def generate_annotation_requests(dbsession, task_id: int,
@@ -72,21 +73,7 @@ def generate_annotation_requests(dbsession, task_id: int,
     # be able to find if there are exisiting requests for this user and
     # entity under this task. If so, skip those.
     logging.info("Constructing blacklisting criteria...")
-    num_of_complete_requests_by_entity_and_user_within_task = \
-        dbsession.query(
-            func.count(AnnotationRequest.id),
-            AnnotationRequest.entity,
-            User.username
-        ). \
-        join(User). \
-        filter(AnnotationRequest.task_id == task.id,
-               AnnotationRequest.status ==
-               AnnotationRequestStatus.Complete). \
-        group_by(AnnotationRequest.entity, User.username).all()
-    lookup_dict = {
-        (item[1], item[2]): item[0]
-        for item in num_of_complete_requests_by_entity_and_user_within_task
-    }
+    lookup_dict = _build_blacklisting_lookup_dict(dbsession=dbsession)
     blacklist_fn = _build_blacklist_fn(lookup_dict=lookup_dict)
 
     logging.info("Assigning to annotators...")
@@ -150,6 +137,24 @@ def generate_annotation_requests(dbsession, task_id: int,
     return annotation_requests
 
 
+def _build_blacklisting_lookup_dict(dbsession):
+    num_of_annotations_by_entity_and_user_within_task = \
+        dbsession.query(
+            func.count(ClassificationAnnotation.id),
+            ClassificationAnnotation.entity,
+            User.username
+        ). \
+        join(User). \
+        filter(ClassificationAnnotation.value !=
+               AnnotationValue.NOT_ANNOTATED). \
+        group_by(ClassificationAnnotation.entity, User.username).all()
+    lookup_dict = {
+        EntityUserTuple(item[1], item[2]): item[0]
+        for item in num_of_annotations_by_entity_and_user_within_task
+    }
+    return lookup_dict
+
+
 def _get_decorated_example(pred: Pred,
                            pattern_decor: List,
                            basic_decor: List,
@@ -176,7 +181,7 @@ def _build_blacklist_fn(lookup_dict: dict):
 
     def blacklist_fn(pred: Pred, annotator: str):
         entity = pred.entity
-        lookup_key = UserEntityTaskTuple(annotator, entity)
+        lookup_key = EntityUserTuple(entity, annotator)
         if lookup_key not in lookup_dict:
             lookup_dict[lookup_key] = 0
         return lookup_dict[lookup_key] > 0
