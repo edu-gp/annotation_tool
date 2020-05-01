@@ -112,20 +112,11 @@ def _convert_single_request_with_annotated_result(
         logging.info("No annotation results found for this request {}".
                      format(req['ar_id']))
 
-    context = req["data"]
-    context.update({
-        'ar_id': req['ar_id'],
-        'fname': req['fname'],
-        'line_number': req['line_number'],
-        'score': req['score'],
-        'source': 'db-migration'
-    })
-
     if entity:
         get_or_create(
             db.session, AnnotationRequest,
             user_id=user.id,
-            context=context,
+            context=req,
             entity_type=entity_type,
             entity=entity,
             label=label,

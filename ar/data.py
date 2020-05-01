@@ -48,24 +48,35 @@ def save_new_ar_for_user_db(dbsession, task_id, username,
             dbsession.rollback()
             raise
 
-    # NOTE insert these in reverse order so the most recently created ones are
-    # the ones to be labeled first.
-    annotation_requests = annotation_requests[::-1]
-
     try:
-        for i, req in enumerate(annotation_requests):
-            # TODO not all entities are created in the db and we don't have
-            #  a way to assign entity type here yet so the new ones will not
-            #  have entity type.
-            entity = req['entity']
+        # TODO requests were generated in reverse order.
+        for i, req in enumerate(annotation_requests[::-1]):
+            """
+            Currently the full request looks like:
+            {
+                "fname": "myfile.jsonl",             <-- (optional)
+                "line_number": 78,                   <-- (optional)
+                "score": 0.11627906976744186,
+                "entity": "blah",
+                "data": {
+                    "text": "Blah blah ...",
+                    "meta": {"name": "Blah", "domain": "blah"}
+                },
+                "pattern_info": {                    <-- (optional)
+                    "tokens": ["Blah", "blah", ...],
+                    "matches": [(1, 2, "Blah"), ...],
+                    "score": 0.11627906976744186
+                }
+            }
+            """
             new_request = AnnotationRequest(
                 user_id=user.id,
                 entity_type=entity_type,
-                entity=entity,
+                entity=req['entity'],
                 label=label,
                 annotation_type=AnnotationType.ClassificationAnnotation,
                 task_id=task_id,
-                context=req['data'],
+                context=req,
                 order=i,
             )
             dbsession.add(new_request)
@@ -178,16 +189,30 @@ def construct_ar_request_dict(dbsession, ar_id) -> Dict:
         AnnotationRequest.context).\
         filter(AnnotationRequest.id == ar_id).one_or_none()
 
-    return {
+    result = {
+        # Essential fields
         'ar_id': request_id,
-        'fname': context.get('fname', None) if context is not None else None,
-        'line_number': context.get('line_number', None) if context is not None else None,
-        'score': context.get('score', None) if context is not None else None,
-        'data': context,
         'entity': entity,
         'entity_type': entity_type,
-        'label': label
+        'label': label,
+        # Optional fields
+        'fname': None,
+        'line_number': None,
+        'score': None,
+        'data': None,
+        'pattern_info': None,
     }
+
+    if context is not None:
+        result.update({
+            'fname': context.get('fname'),
+            'line_number': context.get('line_number'),
+            'score': context.get('score'),
+            'data': context.get('data'),
+            'pattern_info': context.get('pattern_info'),
+        })
+
+    return result
 
 
 def fetch_ar(task_id, user_id, ar_id):

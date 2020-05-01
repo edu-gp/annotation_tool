@@ -144,7 +144,6 @@ def generate_annotation_requests(dbsession, task_id: int,
                                    __basic_decor,
                                    __example_idx_lookup)
             for ex in list_of_examples]
-
         annotation_requests[user] = decorated_list_of_examples
 
     logging.info("Finished generating annotation requests.")

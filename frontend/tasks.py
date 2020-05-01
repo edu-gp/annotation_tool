@@ -16,21 +16,6 @@ from .auth import login_required
 
 bp = Blueprint('tasks', __name__, url_prefix='/tasks')
 
-# TODO eddie update with new way of showing annotations
-# TODO this has to be rewritten with
-
-# def load_annotation_requests(task_id, user_id):
-#     task = Task.fetch(task_id)
-#     assert task is not None
-#     fname = os.path.join(_task_dir(task_id), 'annotators', f'{user_id}.jsonl')
-#     data = load_jsonl(fname, to_df=False)
-#     return task, data
-
-# from joblib import Memory
-# location = './cachedir'
-# memory = Memory(location, verbose=0)
-# load_annotation_requests_cached = memory.cache(load_annotation_requests)
-
 
 @bp.route('/<string:id>')
 @login_required

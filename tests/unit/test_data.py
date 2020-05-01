@@ -247,7 +247,16 @@ def _populate_annotation_requests(dbsession):
         'fname': 'fname1',
         'line_number': 1,
         'score': 0.98,
-        'source': 'db-migration'
+        'source': 'testing',
+        "data": {
+            "text": "Blah blah ...",
+            "meta": {"name": "Blah", "domain": "blah"}
+        },
+        "pattern_info": {
+            "tokens": ["Blah", "blah"],
+            "matches": [(1, 2, "Blah")],
+            "score": 0.11627906976744186
+        }
     }
 
     user1 = User(username=username1)
@@ -403,7 +412,8 @@ def test_construct_ar_request_dict(dbsession):
         'fname': request1.context['fname'],
         'line_number': request1.context['line_number'],
         'score': request1.context['score'],
-        'data': request1.context,
+        'data': request1.context['data'],
+        'pattern_info': request1.context['pattern_info'],
         'entity': request1.entity,
         'entity_type': ENTITY_TYPE,
         'label': request1.label
@@ -416,7 +426,8 @@ def test_construct_ar_request_dict(dbsession):
         'fname': None,
         'line_number': None,
         'score': None,
-        'data': request2.context,
+        'data': None,
+        'pattern_info': None,
         'entity': request2.entity,
         'entity_type': ENTITY_TYPE,
         'label': request2.label
