@@ -1,12 +1,12 @@
 import os
 import numpy as np
-from db.task import Task
+from db._task import _Task
 from train.no_deps.inference_results import InferenceResults
 
 
 class TestInferenceResultsSaveLoad:
     def setup_method(self, test_method):
-        task = Task('testing')
+        task = _Task('testing')
         task.task_id = '__testing_'+task.task_id
         task.save()
         self.task = task

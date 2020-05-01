@@ -1,6 +1,8 @@
 import math
 from collections import namedtuple
 
+from sqlalchemy import distinct, func
+
 from tests.sqlalchemy_conftest import *
 from ar.data import _compute_kappa_matrix, \
     _compute_number_of_annotations_done_per_user, \
@@ -10,10 +12,10 @@ from ar.data import _compute_kappa_matrix, \
     _retrieve_entity_ids_and_annotation_values_by_user, \
     EntityAndAnnotationValuePair, compute_annotation_request_statistics, \
     _compute_total_distinct_number_of_annotations_for_label, \
-    _compute_num_of_annotations_per_value, PrettyDefaultDict, \
-    fetch_annotated_ar_ids_from_db, fetch_ar_ids, construct_ar_request_dict
-from db.model import User, ClassificationAnnotation, Label, Entity, \
-    AnnotationRequest, AnnotationType, AnnotationRequestStatus, Task, \
+    _compute_num_of_annotations_per_value, PrettyDefaultDict, fetch_ar_ids, \
+    fetch_annotated_ar_ids_from_db, construct_ar_request_dict
+from db.model import User, ClassificationAnnotation, Label, \
+    AnnotationRequest, AnnotationType, AnnotationRequestStatus, Task, Entity, \
     update_instance
 
 
