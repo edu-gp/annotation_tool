@@ -14,9 +14,10 @@ from sklearn.metrics import cohen_kappa_score
 from sqlalchemy import func
 
 from db import _task_dir
-from db.model import db, User, ClassificationAnnotation, \
-    AnnotationRequest, AnnotationRequestStatus, Task as NewTask, \
-    update_instance, Entity, AnnotationType, get_or_create
+from db.model import (
+    db, User, ClassificationAnnotation, Task as NewTask,
+    AnnotationRequest, AnnotationRequestStatus,
+    update_instance, AnnotationType, get_or_create)
 from db._task import _Task, DIR_ANNO, DIR_AREQ
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd, \
     PrettyDefaultDict
@@ -31,7 +32,7 @@ EntityAndAnnotationValuePair = namedtuple(
 
 
 def save_new_ar_for_user_db(dbsession, task_id, username,
-                            annotation_requests, label_id, entity_type_id,
+                            annotation_requests, label, entity_type,
                             clean_existing=True):
     user = get_or_create(dbsession=dbsession, model=User,
                          username=username)
@@ -56,18 +57,15 @@ def save_new_ar_for_user_db(dbsession, task_id, username,
             # TODO not all entities are created in the db and we don't have
             #  a way to assign entity type here yet so the new ones will not
             #  have entity type.
-            entity = get_or_create(dbsession=dbsession, model=Entity,
-                                   name=req['entity_name'],
-                                   entity_type_id=entity_type_id)
+            entity = req['entity']
             new_request = AnnotationRequest(
                 user_id=user.id,
-                entity_id=entity.id,
+                entity_type=entity_type,
+                entity=entity,
+                label=label,
                 annotation_type=AnnotationType.ClassificationAnnotation,
                 task_id=task_id,
                 context=req['data'],
-                # TODO there is no info about the label in the raw data so
-                #  how do we add this?
-                label_id=label_id,
                 order=i,
             )
             dbsession.add(new_request)
