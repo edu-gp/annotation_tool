@@ -18,7 +18,7 @@ from inference.random_model import RandomModel
 from .data import fetch_all_ar_ids
 from .utils import get_ar_id, timeit
 
-Pred = namedtuple('Pred_DB', ['score', 'entity_name', 'fname',  'line_number'])
+Pred = namedtuple('Pred', ['score', 'entity_name', 'fname',  'line_number'])
 UserEntityTaskTuple = namedtuple('UserEntityTaskTuple', ['user', 'entity'])
 
 
@@ -39,7 +39,7 @@ def generate_annotation_requests(dbsession, task_id: int,
 
     # Random Examples
     _examples.append(
-        _get_predictions_db(data_filenames, [RandomModel()])
+        _get_predictions(data_filenames, [RandomModel()])
     )
     _proportions.append(1)
     logging.info("Prediction from random model finished...")
@@ -48,7 +48,7 @@ def generate_annotation_requests(dbsession, task_id: int,
     _patterns_model = task.get_pattern_model()
     if _patterns_model is not None:
         _examples.append(
-            _get_predictions_db(data_filenames, [_patterns_model])
+            _get_predictions(data_filenames, [_patterns_model])
         )
         _proportions.append(3)  # [1,3] -> [0.25, 0.75]
         logging.info("Prediction from pattern model finished...")
@@ -57,7 +57,7 @@ def generate_annotation_requests(dbsession, task_id: int,
     _nlp_model = task.get_active_nlp_model()
     if _nlp_model is not None:
         _examples.append(
-            _get_predictions_db(data_filenames, [_nlp_model])
+            _get_predictions(data_filenames, [_nlp_model])
         )
         _proportions.append(12)  # [1,3,12] -> [0.0625, 0.1875, 0.75]
         logging.info("Prediction from nlp model finished...")
@@ -87,14 +87,14 @@ def generate_annotation_requests(dbsession, task_id: int,
         (item[1], item[2]): item[0]
         for item in num_of_complete_requests_by_entity_and_user_within_task
     }
-    blacklist_fn_db = _build_blacklist_fn_db(lookup_dict=lookup_dict)
+    blacklist_fn = _build_blacklist_fn(lookup_dict=lookup_dict)
 
     logging.info("Assigning to annotators...")
-    assignments = _assign_db(ordered_examples,
-                             task.get_annotators(),
-                             blacklist_fn=blacklist_fn_db,
-                             max_per_annotator=max_per_annotator,
-                             max_per_dp=max_per_dp)
+    assignments = _assign(ordered_examples,
+                          task.get_annotators(),
+                          blacklist_fn=blacklist_fn,
+                          max_per_annotator=max_per_annotator,
+                          max_per_dp=max_per_dp)
     logging.info("Assigning to annotators finished...")
 
     # ---- Populate Cache ----
@@ -173,7 +173,7 @@ def _get_decorated_example(pred: Pred,
     return res
 
 
-def _build_blacklist_fn_db(lookup_dict: dict):
+def _build_blacklist_fn(lookup_dict: dict):
 
     def blacklist_fn(pred: Pred, annotator: str):
         entity_name = pred.entity_name
@@ -185,9 +185,9 @@ def _build_blacklist_fn_db(lookup_dict: dict):
     return blacklist_fn
 
 
-def _get_predictions_db(data_filenames: List[str],
-                        models: List[ITextCatModel],
-                        cache=True) -> List[Pred]:
+def _get_predictions(data_filenames: List[str],
+                     models: List[ITextCatModel],
+                     cache=True) -> List[Pred]:
     '''
     Return the aggregated score from all models for all lines in each
     data_filenames
@@ -222,9 +222,9 @@ def _get_predictions_db(data_filenames: List[str],
     return result
 
 
-def _assign_db(datapoints: List, annotators: List,
-               max_per_annotator: int, max_per_dp: int,
-               blacklist_fn=None):
+def _assign(datapoints: List, annotators: List,
+            max_per_annotator: int, max_per_dp: int,
+            blacklist_fn=None):
     '''
     Args:
         datapoints: A list of data points to assign to each annotator.
