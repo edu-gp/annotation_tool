@@ -37,7 +37,6 @@ def save_new_ar_for_user_db(dbsession, task_id, username,
                          username=username)
     if clean_existing:
         try:
-            # TODO can't do join when using Query.delete()
             dbsession.query(AnnotationRequest).\
                 filter(AnnotationRequest.task_id == task_id,
                        AnnotationRequest.user_id == user.id).\

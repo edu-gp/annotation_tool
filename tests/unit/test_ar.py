@@ -101,13 +101,13 @@ def _do_test_shuffle(random_pred_class_a, random_pred_class_b, is_pred_class_a):
 def test_shuffle():
     import random
 
-    def random_pred_class_a(linenum): return ar.Pred_DB(
+    def random_pred_class_a(linenum): return ar.Pred(
         score=0.1 + random.random()/100,
         entity_name=str(linenum) + ".com",
         fname='data.jsonl',
         line_number=linenum)
 
-    def random_pred_class_b(linenum): return ar.Pred_DB(
+    def random_pred_class_b(linenum): return ar.Pred(
         score=0.9 + random.random()/100,
         entity_name=str(linenum) + ".com",
         fname='data.jsonl',
@@ -119,12 +119,12 @@ def test_shuffle():
 
 
 def test_shuffle_2():
-    def random_pred_class_a(linenum): return ar.Pred_DB(
+    def random_pred_class_a(linenum): return ar.Pred(
         score=0.1,
         entity_name=str(linenum) + ".com",
         fname='data.jsonl', line_number=linenum)
 
-    def random_pred_class_b(linenum): return ar.Pred_DB(
+    def random_pred_class_b(linenum): return ar.Pred(
         score=0.9,
         entity_name=str(linenum) + ".com",
         fname='data.jsonl',
