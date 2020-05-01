@@ -60,7 +60,8 @@ def annotate(task_id, ar_id):
     # TODO get_next_ar_id_from_db should just return the AnnotationRequest
     next_req = db.session.query(AnnotationRequest) \
         .filter_by(id=next_ar_id).one_or_none()
-    label = next_req.label
+    # next_req could be None.
+    label = ar_dict['label']
 
     # Fetch all existing annotations on this particular entity done by this
     # user regardless of the label.

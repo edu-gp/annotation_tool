@@ -1,6 +1,7 @@
 import ar
 from ar import Pred
-
+from db.model import ClassificationAnnotation, get_or_create, User
+from tests.sqlalchemy_conftest import *
 
 def test_assign_round_robin():
     datapoints = ['a', 'b', 'c']
@@ -66,6 +67,70 @@ def test_assign_blacklist():
     assert per_anno_queue == {
         'u1': ['b', 'c'],
         'u2': ['a', 'b', 'c']
+    }
+
+
+def populate_db(dbsession):
+    entity1 = "whatever1"
+    entity2 = "whatever2"
+    user1 = get_or_create(dbsession=dbsession,
+                          model=User,
+                          username="user1")
+    annotation0 = get_or_create(dbsession=dbsession,
+                                model=ClassificationAnnotation,
+                                value=1,
+                                entity=entity1,
+                                entity_type="company",
+                                label="b2c",
+                                user_id=user1.id)
+    annotation1 = get_or_create(dbsession=dbsession,
+                                model=ClassificationAnnotation,
+                                value=1,
+                                entity=entity1,
+                                entity_type="company",
+                                label="healthcare",
+                                user_id=user1.id)
+    user2 = get_or_create(dbsession=dbsession,
+                          model=User,
+                          username="user2")
+    annotation2 = get_or_create(dbsession=dbsession,
+                                model=ClassificationAnnotation,
+                                value=1,
+                                entity=entity2,
+                                entity_type="company",
+                                label="b2c",
+                                user_id=user2.id)
+    annotations = [annotation0, annotation1, annotation2]
+    return user1, user2, annotations, entity1, entity2
+
+
+def test_build_blacklist_lookup_dict(dbsession):
+    user1, user2, annotations, _, _ = populate_db(dbsession)
+    lookup_dict = ar._build_blacklisting_lookup_dict(dbsession)
+    assert lookup_dict == {
+        ar.EntityUserTuple(annotations[0].entity, user1.username): 2,
+        ar.EntityUserTuple(annotations[2].entity, user2.username): 1,
+    }
+
+
+def test_blacklisting_requests(dbsession):
+    user1, user2, annotations, entity1, entity2 = populate_db(dbsession)
+    dp1 = Pred(score=1, entity="new_entity", fname="fname", line_number=1)
+    dp2 = Pred(score=1, entity=entity1, fname="fname", line_number=1)
+    dp3 = Pred(score=1, entity=entity2, fname="fname", line_number=1)
+    dp4 = Pred(score=1, entity="entity_new", fname="fname", line_number=1)
+    datapoints = [dp1, dp2, dp3, dp4]
+    annotators = [user1.username, user2.username]
+    lookup_dict = ar._build_blacklisting_lookup_dict(dbsession=dbsession)
+    blacklist_fn = ar._build_blacklist_fn(lookup_dict=lookup_dict)
+
+    per_anno_queue = ar._assign(
+        datapoints, annotators, max_per_annotator=999, max_per_dp=999,
+        blacklist_fn=blacklist_fn)
+
+    assert per_anno_queue == {
+        user1.username: [dp1, dp3, dp4],
+        user2.username: [dp1, dp2, dp4]
     }
 
 
