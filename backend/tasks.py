@@ -126,7 +126,7 @@ def show(id):
     # -------------------------------------------------------------------------
     # Models
     models = task.text_classification_models.all()
-    active_model: Model = task.get_active_nlp_model()
+    active_model: Model = task.get_latest_model()
 
     return render_template(
         'tasks/show.html',

@@ -2,19 +2,19 @@ import hashlib
 import numpy as np
 
 from inference.base import ITextCatModel
-from db.model import Task
+from db.model import Model
 
 
 class NLPModel(ITextCatModel):
     # TODO exploit vs explore
-    def __init__(self, dbsession, task_id):
+    def __init__(self, dbsession, model_id):
         self.dbsession = dbsession
-        self.task_id = task_id
+        self.model_id = model_id
         self._cache = None
 
     def __str__(self):
         # Note: This is also used as a cache key.
-        return f"NLPModel v{self.version}"
+        return f"NLPModel-model_id={self.model_id}"
 
     def _warm_up_cache(self):
         if self._cache is None:
@@ -22,10 +22,8 @@ class NLPModel(ITextCatModel):
 
             self._cache = {}
 
-            task = self.dbsession.query(Task).filter_by(
-                id=self.task_id).one_or_none()
-
-            model = task.get_active_nlp_model()
+            model = self.dbsession.query(Model).filter_by(
+                id=self.model_id).one_or_none()
 
             for fname in model.get_inference_fnames():
                 df = model.export_inference(fname, include_text=True)

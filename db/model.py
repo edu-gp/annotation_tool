@@ -389,7 +389,6 @@ class Model(Base):
                 for path in self.get_inference_fname_paths()]
 
     def export_inference(self, data_fname, include_text=False):
-        # TODO EDDIE rename create_exported_dataframe -> export_inference
         """Exports the given inferenced file data_fname as a dataframe.
         Returns None if the file has not been inferenced yet.
         """
@@ -544,13 +543,12 @@ class Task(Base):
 
         return self.__cached_pattern_model
 
-    def get_active_nlp_model(self):
-        # TODO refactor this to a different name later (e.g. get_latest_model)
+    def get_latest_model(self):
         return self.text_classification_models.first()
 
-    def __repr__(self):
-        return "<Task with id {}, \nname {}, \ndefault_params {}>".format(
-            self.id, self.name, self.default_params)
+    def get_active_nlp_model(self):
+        from inference.nlp_model import NLPModel
+        return NLPModel(inspect(self).session, self.get_latest_model().id)
 
     def __repr__(self):
         return "<Task with id {}, \nname {}, \ndefault_params {}>".format(
