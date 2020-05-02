@@ -7,7 +7,7 @@
       <a href="{{ url_for('index') }}">Home</a>
     </li>
     <li class="breadcrumb-item">
-      <a href="{{ url_for('tasks.show', id=task.task_id) }}">Task</a>
+      <a href="{{ url_for('tasks.show', id=task.id) }}">Task</a>
     </li>
     <li class="breadcrumb-item active" aria-current="page">
       Edit
@@ -17,7 +17,7 @@
 {% endblock %}
 
 {% block content %}
-<form action="{{ url_for('tasks.update', id=task.task_id) }}" method="POST">
+<form action="{{ url_for('tasks.update', id=task.id) }}" method="POST">
 
   <div class="form-group">
     <label for="name">Name</label>
@@ -33,7 +33,7 @@
           <div class="form-group">
             <label for="annotators">Annotators (one per line)</label>
             <textarea class="form-control" name="annotators" id="annotators" rows=5 required>
-                  {{- request.form['annotators'] | default(task.jinjafy('annotators')) -}}
+                  {{- request.form['annotators'] | default(list_to_textarea(task.get_annotators())) -}}
                 </textarea>
           </div>
         </div>
@@ -44,7 +44,7 @@
           <div class="form-group">
             <label for="labels">Labels (one per line)</label>
             <textarea class="form-control" name="labels" id="labels" rows=5 required>
-                  {{- request.form['labels'] | default(task.jinjafy('labels')) -}}
+                  {{- request.form['labels'] | default(list_to_textarea(task.get_labels())) -}}
                 </textarea>
           </div>
         </div>
@@ -56,7 +56,7 @@
       <div class="form-group">
         <label for="labels">Patterns (one per line)</label>
         <textarea class="form-control" name="patterns" id="patterns" rows=15>
-              {{- request.form['patterns'] | default(task.jinjafy('patterns')) -}}
+              {{- request.form['patterns'] | default(list_to_textarea(task.get_patterns())) -}}
             </textarea>
       </div>
 

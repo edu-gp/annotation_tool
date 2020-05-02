@@ -1,23 +1,91 @@
-import os
-import shutil
-import itertools
-import re
 import glob
-import time
-from collections import defaultdict, Counter
+import itertools
 import logging
+import os
+import re
+import shutil
+import time
+from collections import defaultdict, Counter, namedtuple
+from typing import Dict
 
 import pandas as pd
 from pandas import DataFrame
 from sklearn.metrics import cohen_kappa_score
+from sqlalchemy import func
 
-from shared.utils import save_jsonl, load_json, save_json, mkf, mkd
-from db.task import Task, DIR_ANNO, DIR_AREQ
 from db import _task_dir
-
+from db.model import (
+    db, User, ClassificationAnnotation, Task as NewTask,
+    AnnotationRequest, AnnotationRequestStatus,
+    update_instance, AnnotationType, get_or_create)
+from db._task import _Task, DIR_ANNO, DIR_AREQ
+from shared.utils import save_jsonl, load_json, save_json, mkf, mkd, \
+    PrettyDefaultDict
 
 ###############################################################################
 # I chose to write it all on disk for now - we can change it to a db later.
+
+# Utility namedtuples
+UserNameAndIdPair = namedtuple('UserNameAndIdPair', ['username', 'id'])
+EntityAndAnnotationValuePair = namedtuple(
+    'EntityAndAnnotationValuePair', ['entity', 'value'])
+
+
+def save_new_ar_for_user_db(dbsession, task_id, username,
+                            annotation_requests, label, entity_type,
+                            clean_existing=True):
+    user = get_or_create(dbsession=dbsession, model=User,
+                         username=username)
+    if clean_existing:
+        try:
+            dbsession.query(AnnotationRequest).\
+                filter(AnnotationRequest.task_id == task_id,
+                       AnnotationRequest.user_id == user.id).\
+                delete(synchronize_session=False)
+            dbsession.commit()
+        except Exception as e:
+            logging.error(e)
+            dbsession.rollback()
+            raise
+
+    try:
+        # TODO requests were generated in reverse order.
+        for i, req in enumerate(annotation_requests[::-1]):
+            """
+            Currently the full request looks like:
+            {
+                "fname": "myfile.jsonl",             <-- (optional)
+                "line_number": 78,                   <-- (optional)
+                "score": 0.11627906976744186,
+                "entity": "blah",
+                "data": {
+                    "text": "Blah blah ...",
+                    "meta": {"name": "Blah", "domain": "blah"}
+                },
+                "pattern_info": {                    <-- (optional)
+                    "tokens": ["Blah", "blah", ...],
+                    "matches": [(1, 2, "Blah"), ...],
+                    "score": 0.11627906976744186
+                }
+            }
+            """
+            new_request = AnnotationRequest(
+                user_id=user.id,
+                entity_type=entity_type,
+                entity=req['entity'],
+                label=label,
+                annotation_type=AnnotationType.ClassificationAnnotation,
+                task_id=task_id,
+                context=req,
+                order=i,
+            )
+            dbsession.add(new_request)
+        dbsession.commit()
+    except Exception as e:
+        logging.error(e)
+        dbsession.rollback()
+        raise
+
 
 def save_new_ar_for_user(task_id, user_id, annotation_requests,
                          clean_existing=True):
@@ -32,7 +100,7 @@ def save_new_ar_for_user(task_id, user_id, annotation_requests,
     # Save each file individually for fast random access.
 
     # TODO save to Redis?
-    task = Task.fetch(task_id)
+    task = _Task.fetch(task_id)
 
     basedir = [task.get_dir(), DIR_AREQ, str(user_id)]
     _basedir = os.path.join(*basedir)
@@ -76,12 +144,75 @@ def fetch_tasks_for_user(user_id):
     return task_ids
 
 
-def fetch_all_ar(task_id, user_id):
+def fetch_tasks_for_user_from_db(dbsession, username):
+    res = dbsession.query(AnnotationRequest.task_id, NewTask.name).distinct(
+        AnnotationRequest.task_id, NewTask.name).join(NewTask).join(
+        User).filter(User.username == username).all()
+    TaskIdAndNamePair = namedtuple('TaskIdAndNamePair', ['task_id', 'name'])
+    return [
+        TaskIdAndNamePair(item[0], item[1]) for item in res
+    ]
+
+
+def fetch_ar_ids(dbsession, task_id, username):
+    query = dbsession.query(AnnotationRequest.id).join(User).filter(
+        User.username == username, AnnotationRequest.task_id == task_id)
+    res = query.all()
+    print(res)
+    return [
+        item[0] for item in res
+    ]
+
+
+def fetch_ar_id_and_status(dbsession, task_id, username):
+    query = dbsession.query(AnnotationRequest.id, AnnotationRequest.status).\
+        join(User).filter(User.username == username,
+                          AnnotationRequest.task_id == task_id)
+    return query.all()
+
+
+# TODO delete after the migration to db is done.
+def fetch_all_ar(task_id, username):
     '''
     Return a list of ar_id for this task
     '''
-    _dir = os.path.join(_task_dir(task_id), DIR_AREQ, user_id)
+    _dir = os.path.join(_task_dir(task_id), DIR_AREQ, username)
     return _get_all_ar_ids_in_dir(_dir, sort_by_ctime=True)
+
+
+def construct_ar_request_dict(dbsession, ar_id) -> Dict:
+    request_id, entity, entity_type, label, context = dbsession.query(
+        AnnotationRequest.id,
+        AnnotationRequest.entity,
+        AnnotationRequest.entity_type,
+        AnnotationRequest.label,
+        AnnotationRequest.context).\
+        filter(AnnotationRequest.id == ar_id).one_or_none()
+
+    result = {
+        # Essential fields
+        'ar_id': request_id,
+        'entity': entity,
+        'entity_type': entity_type,
+        'label': label,
+        # Optional fields
+        'fname': None,
+        'line_number': None,
+        'score': None,
+        'data': None,
+        'pattern_info': None,
+    }
+
+    if context is not None:
+        result.update({
+            'fname': context.get('fname'),
+            'line_number': context.get('line_number'),
+            'score': context.get('score'),
+            'data': context.get('data'),
+            'pattern_info': context.get('pattern_info'),
+        })
+
+    return result
 
 
 def fetch_ar(task_id, user_id, ar_id):
@@ -94,6 +225,18 @@ def fetch_ar(task_id, user_id, ar_id):
         return load_json(fname)
     else:
         return None
+
+
+def get_next_ar_id_from_db(dbsession, task_id, user_id, current_ar_id):
+    res = dbsession.query(AnnotationRequest.id).filter(
+        AnnotationRequest.task_id == task_id,
+        AnnotationRequest.user_id == user_id,
+        AnnotationRequest.id > current_ar_id
+    ).order_by(AnnotationRequest.id.asc()).first()
+    if res is not None:
+        return res[0]
+    else:
+        return res
 
 
 def get_next_ar(task_id, user_id, ar_id):
@@ -134,6 +277,23 @@ def build_empty_annotation(ar):
     }
 
 
+def mark_ar_complete_in_db(dbsession, ar_id):
+    logging.info("Updating the status of the annotation "
+                 "request {} to {}".format(ar_id,
+                                           AnnotationRequestStatus.Complete))
+    update_instance(dbsession=dbsession,
+                    model=AnnotationRequest,
+                    filter_by_dict={"id": ar_id},
+                    update_dict={"status": AnnotationRequestStatus.Complete})
+    # logging.info("Updating the value of the annotation {} to {}".format(
+    #     annotation_id, annotation_result))
+    # update_instance(dbsession=dbsession,
+    #                 model=ClassificationAnnotation,
+    #                 filter_by_dict={"id": annotation_id},
+    #                 update_dict={"value": annotation_result})
+    # logging.info("Updated annotation request and result.")
+
+
 def annotate_ar(task_id, user_id, ar_id, annotation):
     '''
     Annotate a annotation request
@@ -153,6 +313,17 @@ def annotate_ar(task_id, user_id, ar_id, annotation):
         return None
 
 
+def fetch_user_id_by_username(dbsession, username):
+    return dbsession.query(User.id).filter(User.username ==
+                                           username).one_or_none()[0]
+
+
+def fetch_existing_classification_annotation_from_db(dbsession, annotation_id):
+    return dbsession.query(ClassificationAnnotation.label, ClassificationAnnotation.value) \
+        .filter(ClassificationAnnotation.id == annotation_id) \
+        .one_or_none()
+
+
 def fetch_annotation(task_id, user_id, ar_id):
     '''
     Return the details of an annotation to a annotation request
@@ -163,6 +334,16 @@ def fetch_annotation(task_id, user_id, ar_id):
         return load_json(fname)
     else:
         return None
+
+
+def fetch_annotated_ar_ids_from_db(dbsession, task_id, username):
+    res = dbsession.query(AnnotationRequest.id).join(User).filter(
+        AnnotationRequest.task_id == task_id,
+        AnnotationRequest.status == AnnotationRequestStatus.Complete,
+        User.username == username
+    ).all()
+
+    return [item[0] for item in res]
 
 
 def fetch_all_ar_ids(task_id, user_id):
@@ -241,10 +422,7 @@ def compute_annotation_statistics(task_id):
         n_outstanding_requests_per_user[user_id] = len(
             set(ar_ids) - set(anno_ids))
 
-    # kappa stats calculation
-    kappa_table_per_label = _calculate_per_label_kappa_stats_table(
-        task_id, user_ids, anno_ids_per_user,
-        results_per_task_user_anno_id)
+    kappa_table_per_label = {}
 
     return {
         'total_annotations': sum(n_annotations_per_user.values()),
@@ -258,107 +436,181 @@ def compute_annotation_statistics(task_id):
     }
 
 
-def _calculate_per_label_kappa_stats_table(task_id, user_ids,
-                                           anno_ids_per_user,
-                                           results_per_task_user_anno_id):
-    """Calculate per label kappa matrix stats.
+def compute_annotation_request_statistics(dbsession, task_id):
+    total_number_of_outstanding_requests = dbsession.query(AnnotationRequest).\
+        filter(
+            AnnotationRequest.task_id == task_id,
+            AnnotationRequest.status == AnnotationRequestStatus.Pending
+    ).count()
 
-    Input structure of the annotations_per_user:
-    {
-        "user1": set(anno1, anno2, anno3, anno4),
-        "user2": set(anno2, anno3, anno5, anno8),
-        ...
+    n_outstanding_requests_per_user = dbsession.query(
+        func.count(AnnotationRequest.id),
+        User.username
+    ). \
+        join(User). \
+        filter(AnnotationRequest.task_id == task_id). \
+        filter(AnnotationRequest.status == AnnotationRequestStatus.Pending). \
+        group_by(User.username).all()
+    n_outstanding_requests_per_user_dict = {
+        username: num
+        for num, username in n_outstanding_requests_per_user
     }
 
-    :param task_id: the id of a task
-    :param user_ids: the user id list
-    :param anno_ids_per_user: annotation ids per user
-    :return: the per label kappa matrix html table
-    """
-    if len(user_ids) == 1:
-        return ['There is only one user {}'.format(list(user_ids)[0])]
-    if len(anno_ids_per_user) == 0:
-        return ['There are no annotations from any user yet.']
-    kappa_stats_raw_data = _construct_per_label_per_user_pair_result(
-        task_id,
-        user_ids,
-        anno_ids_per_user,
-        results_per_task_user_anno_id
+    return {
+        'total_outstanding_requests': total_number_of_outstanding_requests,
+        'n_outstanding_requests_per_user': n_outstanding_requests_per_user_dict
+    }
+
+
+def compute_annotation_statistics_db(dbsession, label):
+    total_distinct_annotations = \
+        _compute_total_distinct_number_of_annotations_for_label(
+            dbsession=dbsession,
+            label=label
+        )
+
+    num_of_annotations_done_per_user = \
+        _compute_number_of_annotations_done_per_user(
+            dbsession=dbsession,
+            label=label
+        )
+
+    total_num_of_annotations_done_by_users = sum(
+        [num for num, username, user_id in num_of_annotations_done_per_user])
+    n_annotations_done_per_user_dict = {
+        username: num
+        for num, username, user_id in num_of_annotations_done_per_user
+    }
+
+    num_of_annotations_per_value = _compute_num_of_annotations_per_value(
+        dbsession=dbsession, label=label
     )
-    kappa_matrices = _compute_kappa_matrix(kappa_stats_raw_data)
-    kappa_matrix_html_tables = _convert_html_tables(kappa_matrices)
-    return kappa_matrix_html_tables
 
+    # kappa stats calculation
+    distinct_users = set([
+        UserNameAndIdPair(username=item[1], id=item[2]) for item in
+        num_of_annotations_done_per_user
+    ])
 
-def _construct_per_label_per_user_pair_result(task_id, user_ids,
-                                              annos_per_user,
-                                              results_per_task_user_anno_id):
-    """Construct the per label per user_pair labeling result dictionary.
+    kappa_stats_raw_data = _construct_kappa_stats_raw_data(
+        db.session, distinct_users, label)
 
-    :param task_id: the id of a task
-    :param user_ids: the user ids
-    :param annos_per_user: annotation ids per user
-    :return: a dictionary of per label per user pair labeling result
+    kappa_table_per_label = _convert_html_tables(
+        kappa_matrices=_compute_kappa_matrix(kappa_stats_raw_data)
+    )
 
-    Input structure of the annotations_per_user:
-    {
-        "user1": [anno1, anno2, anno3, anno4],
-        "user2": [anno2, anno3, anno5, anno8],
-        ...
+    return {
+        'total_annotations': total_num_of_annotations_done_by_users,
+        'total_distinct_annotations': total_distinct_annotations,
+        'n_annotations_per_value': num_of_annotations_per_value,
+        'n_annotations_per_user': n_annotations_done_per_user_dict,
+        'kappa_table': kappa_table_per_label,
     }
 
-    Output structure of the labeling results per label per user_pair for the
-    same set of annotations:
-    {
-        "label1": {
-            ("user_id1", "user_id2"): {
-                "user_id1": [1, -1, 1, 1, -1],
-                "user_id2": [-1, 1, 1, -1, 1]
-            },
-            ("user_id1", "user_id3"): {
-                "user_id1": [1, -1],
-                "user_id2": [-1, 1]
-            }
-            ...
-        },
-        "label12": {
-            ("user_id1", "user_id3"): {
-                "user_id1": [1, -1],
-                "user_id2": [-1, 1]
-            },
-            ...
-        },
-        ...
+
+def _compute_num_of_annotations_per_value(dbsession, label):
+    res = dbsession.query(
+        func.count(ClassificationAnnotation.id),
+        ClassificationAnnotation.value
+    ).\
+        filter_by(label=label).\
+        group_by(ClassificationAnnotation.value).all()
+    data = PrettyDefaultDict(lambda: 0)
+    for item in res:
+        data[item[1]] = item[0]
+    return data
+
+
+def _compute_total_distinct_number_of_annotations_for_label(dbsession, label):
+    return dbsession.query(ClassificationAnnotation) \
+        .filter_by(label=label).count()
+
+
+def _compute_number_of_annotations_done_per_user(dbsession, label):
+    num_of_annotations_done_per_user = dbsession.query(
+        func.count(ClassificationAnnotation.id),
+        User.username,
+        User.id
+    ). \
+        join(User). \
+        filter(ClassificationAnnotation.label == label). \
+        group_by(User.username).all()
+
+    return num_of_annotations_done_per_user
+
+
+def _construct_kappa_stats_raw_data(dbsession, distinct_users, label):
+    entities_and_annotation_values_by_user = \
+        _retrieve_entity_ids_and_annotation_values_by_user(dbsession,
+                                                           distinct_users)
+    user_pairs = list(itertools.combinations(distinct_users, 2))
+    kappa_stats_raw_data = {
+        label: {
+            tuple(sorted([user_pair[0].username, user_pair[1].username])):
+                _retrieve_annotation_with_same_entity_shared_by_two_users(
+                    user_pair[0], user_pair[1],
+                    entities_and_annotation_values_by_user)
+            for user_pair in user_pairs
+        }
     }
-    """
-    kappa_stats_raw_data = PrettyDefaultDict(
-        lambda: PrettyDefaultDict(lambda: PrettyDefaultDict(lambda: [])))
-
-    all_pairs_of_users = list(itertools.combinations(user_ids, 2))
-
-    for user1, user2 in all_pairs_of_users:
-        annotations_user1 = annos_per_user[user1]
-        annotations_user2 = annos_per_user[user2]
-
-        annotation_intersection = set.intersection(annotations_user1,
-                                                   annotations_user2)
-        # WE NEED TO SORT THIS. OTHERWISE WE GOT UNSTABLE OUTPUT WHICH FAILS
-        # UNIT TESTS!
-        for anno_id in sorted(annotation_intersection):
-            anno_by_user1 = results_per_task_user_anno_id[(task_id, user1,
-                                                           anno_id)]
-            anno_by_user2 = results_per_task_user_anno_id[(task_id, user2,
-                                                           anno_id)]
-
-            for label, result in anno_by_user1['anno']['labels'].items():
-                kappa_stats_raw_data[label][(user1, user2)][user1].append(
-                    result)
-
-            for label, result in anno_by_user2['anno']['labels'].items():
-                kappa_stats_raw_data[label][(user1, user2)][user2].append(
-                    result)
-
     return kappa_stats_raw_data
+
+
+def _retrieve_entity_ids_and_annotation_values_by_user(dbsession, users):
+    res = dbsession.query(
+        ClassificationAnnotation.entity,
+        ClassificationAnnotation.value,
+        ClassificationAnnotation.user_id
+    ). \
+        filter(ClassificationAnnotation.user_id.in_(
+            [user.id for user in users]
+        )
+    ).all()
+
+    data = PrettyDefaultDict(lambda: [])
+    for item in res:
+        data[item[2]].append(EntityAndAnnotationValuePair(
+            entity=item[0],
+            value=item[1]
+        ))
+    return data
+
+
+def _retrieve_annotation_with_same_entity_shared_by_two_users(
+        user1, user2, entities_and_annotation_values_by_user):
+    annotations_from_user1 = entities_and_annotation_values_by_user[user1.id]
+    annotations_from_user2 = entities_and_annotation_values_by_user[user2.id]
+
+    dict_of_context_value_from_user1 = {
+        annotation.entity: annotation.value
+        for annotation in annotations_from_user1
+    }
+
+    dict_of_context_value_from_user2 = {
+        annotation.entity: annotation.value
+        for annotation in annotations_from_user2
+    }
+    intersection = set(dict_of_context_value_from_user1.keys()).intersection(
+        set(dict_of_context_value_from_user2.keys()))
+    intersection = sorted(list(intersection))
+
+    if len(intersection) == 0:
+        return None
+
+    values_from_annotations_with_overlapping_context_user1 = [
+        dict_of_context_value_from_user1[entity] for entity in
+        intersection
+    ]
+
+    values_from_annotations_with_overlapping_context_user2 = [
+        dict_of_context_value_from_user2[entity] for entity in
+        intersection
+    ]
+
+    return {
+        user1.username: values_from_annotations_with_overlapping_context_user1,
+        user2.username: values_from_annotations_with_overlapping_context_user2
+    }
 
 
 def _compute_kappa_matrix(kappa_stats_raw_data):
@@ -406,9 +658,11 @@ def _compute_kappa_matrix(kappa_stats_raw_data):
     for label, result_per_user_pair_per_label in kappa_stats_raw_data.items():
         for user_pair, result_per_user in \
                 result_per_user_pair_per_label.items():
+            if result_per_user is None:
+                continue
             result_user1 = result_per_user[user_pair[0]]
             result_user2 = result_per_user[user_pair[1]]
-            logging.error("Calculating the kappa score for {} and {}".format(
+            logging.info("Calculating the kappa score for {} and {}".format(
                 user_pair[0], user_pair[1]))
             result_user1, result_user2 = \
                 _exclude_unknowns_for_kappa_calculation(result_user1,
@@ -446,7 +700,7 @@ def _exclude_unknowns_for_kappa_calculation(result_user1, result_user2):
             labeling_results2.append(result_user2[i])
         else:
             ignored_count += 1
-    logging.error("Unknown ignored count: {}".format(ignored_count))
+    logging.info("Unknown ignored count: {}".format(ignored_count))
     return labeling_results1, labeling_results2
 
 
@@ -459,13 +713,8 @@ def _convert_html_tables(kappa_matrices):
     return kappa_html_tables
 
 
-class PrettyDefaultDict(defaultdict):
-    """An wrapper around defaultdict so the print out looks like
-    a normal dict."""
-    __repr__ = dict.__repr__
-
-
 def _majority_label(labels):
+    # TODO deprecate
     '''
     Get the majority of non-zero labels
     Input: [1,1,0,0,0,0,-1,-1,1,1]
@@ -479,6 +728,7 @@ def _majority_label(labels):
 
 
 def _export_distinct_labeled_examples(annotations_iterator):
+    # TODO deprecate
     """
     Inputs:
         annotations_iterator: A iterator that returns annotations.
@@ -578,6 +828,7 @@ def _gather_distinct_labeled_examples(task_id):
     return final
 
 
+# TODO deprecate in favor of ClassificationTrainingData.create_for_label
 def export_labeled_examples(task_id, outfile=None):
     final = _gather_distinct_labeled_examples(task_id)
 

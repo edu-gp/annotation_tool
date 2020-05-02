@@ -1,29 +1,12 @@
 import os
 from shared.utils import mkd
-from db import _task_dir
+from db.fs import filestore_base_dir, MODELS_DIR
 
 
-def _get_all_model_versions(task_id):
-    _dir = os.path.join(_task_dir(task_id), 'models')
-    if os.path.isdir(_dir):
-        versions = []
-        for dirname in os.listdir(_dir):
-            try:
-                versions.append(int(dirname))
-            except:
-                pass
-        return versions
+def _get_version_dir(uuid, version, abs=True):
+    # TODO: Legacy function with side effect of creating a dir when abs=True.
+    # TODO: Rename to get_model_dir
+    if abs:
+        return mkd(filestore_base_dir(), MODELS_DIR, uuid, str(version))
     else:
-        return []
-
-
-def _get_latest_model_version(task_id):
-    versions = _get_all_model_versions(task_id)
-    if len(versions) > 0:
-        return max(versions)
-    else:
-        return 0
-
-
-def _get_version_dir(task_id, version):
-    return mkd(_task_dir(task_id), 'models', str(version))
+        return os.path.join(MODELS_DIR, uuid, str(version))

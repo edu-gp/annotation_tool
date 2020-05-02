@@ -1,8 +1,11 @@
 import hashlib
 import os
+from collections import defaultdict
 import pandas as pd
 import json
+import uuid
 from pathlib import Path
+from typing import List
 
 
 def load_json(fname):
@@ -64,10 +67,18 @@ def get_env_int(key, default):
     return val
 
 
-def stem(fname):
+def stem(fname, include_suffix=False):
     """/blah/my_file.json.gz --> my_file"""
-    stem = Path(fname).stem
-    return stem[:stem.index('.')] if '.' in stem else stem
+    path = Path(fname)
+    stem = path.stem
+
+    # If a filename has multiple suffixes, take them all off.
+    stem = stem[:stem.index('.')] if '.' in stem else stem
+
+    if include_suffix:
+        stem = stem + ''.join(path.suffixes)
+
+    return stem
 
 
 def generate_md5_hash(data: str):
@@ -77,3 +88,60 @@ def generate_md5_hash(data: str):
     :return: the md5 hash string
     """
     return hashlib.md5(data.encode()).hexdigest()
+
+
+class PrettyDefaultDict(defaultdict):
+    """An wrapper around defaultdict so the print out looks like
+    a normal dict."""
+    __repr__ = dict.__repr__
+
+
+def gen_uuid():
+    return str(uuid.uuid4())
+
+
+def file_len(fname):
+    try:
+        with open(fname) as f:
+            for i, l in enumerate(f):
+                pass
+        return i + 1
+    except:
+        return -1
+
+
+def safe_getattr(object, attr):
+    try:
+        return getattr(object, attr)
+    except AttributeError:
+        return None
+
+
+def list_to_textarea(ls: List[str]):
+    """Converts a list of strings to a string joined by newlines.
+    This is meant to be used when rendering into a textarea.
+    """
+    return "\n".join(ls)
+
+
+def textarea_to_list(text: str):
+    """Converts a textarea into a list of strings, assuming each line is an
+    item. This is meant to be the inverse of `list_to_textarea`.
+    """
+    res = [x.strip() for x in text.split('\n')]
+    res = [x for x in res if len(x) > 0]
+    return res
+
+
+def json_lookup(json_data, key):
+    """
+    Give a key "a.b.c", look up json_data['a']['b']['c']
+    Returns None if any of the keys were not found.
+    """
+    sofar = json_data
+    for k in key.split('.'):
+        try:
+            sofar = sofar[k]
+        except:
+            return None
+    return sofar

@@ -84,6 +84,7 @@ class AnnotationBox extends React.Component {
                 </div >
             )
         }
+        console.log(content)
 
         // Special Meta Key "image_url"
         if (req.data.meta.image_url !== undefined) {
@@ -98,7 +99,7 @@ class AnnotationBox extends React.Component {
 
         var textStyle = { padding: '5px' };
 
-        if (req.pattern_info !== undefined) {
+        if (req.pattern_info !== undefined && req.pattern_info !== null) {
             let tokens = req.pattern_info.tokens;
             let matches = req.pattern_info.matches;
 

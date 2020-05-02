@@ -26,10 +26,9 @@ def save_labels():
     entity_type_name = data['entity_type']
     new_labels = set(data['labels'])
     labels = set(fetch_labels_by_entity_type(db.session, entity_type_name))
-    logging.error("Existing labels: {}".format(labels))
     new_labels = new_labels.difference(labels)
     try:
-        logging.error("Updating new labels {} for EntityType {}".format(
+        logging.info("Updating new labels {} for EntityType {}".format(
             str(new_labels), entity_type_name
         ))
         save_labels_by_entity_type(

@@ -31,7 +31,6 @@ import json
 import tempfile
 from pathlib import Path
 from typing import List
-from db.task import Task
 from .paths import _get_version_dir
 from .no_deps.paths import (
     _get_config_fname,
@@ -110,10 +109,11 @@ def build_job_config(
         version=version)
 
 
-def build_remote_model_dir(task_id, version):
+def build_remote_model_dir(model_uuid, model_version):
     bucket = os.environ.get('GOOGLE_AI_PLATFORM_BUCKET')
     assert bucket
-    return f'gs://{bucket}/tasks/{task_id}/models/{version}'
+    # Legacy path system - let's not change it in fear of breaking things
+    return f'gs://{bucket}/tasks/{model_uuid}/models/{model_version}'
 
 
 def build_remote_data_fname(data_filename):
@@ -127,16 +127,16 @@ def build_remote_data_fname(data_filename):
     return f'gs://{bucket}/data/{name}'
 
 
-def get_exp_id(task_id, version):
+def get_exp_id(model_uuid, model_version):
     # Generate a Exp ID that hopefully is (likely to be) unique.
     # Note: They don't allow '-' in the name, just '_'.
-    return f't_{task_id.replace("-", "_")}_v_{version}'
+    return f't_{model_uuid.replace("-", "_")}_v_{model_version}'
 
 
-def prepare_model_assets_for_training(task_id, version):
+def prepare_model_assets_for_training(model_uuid, model_version):
     # Training only needs the config and exported data.
 
-    version_dir = _get_version_dir(task_id, version)
+    version_dir = _get_version_dir(model_uuid, model_version)
     config_fname = _get_config_fname(version_dir)
     data_fname = _get_exported_data_fname(version_dir)
 
@@ -145,7 +145,7 @@ def prepare_model_assets_for_training(task_id, version):
         f'Config File Not Found: {config_fname}'
     assert os.path.isfile(data_fname), f'Data File Not Found: {data_fname}'
 
-    output_dir = build_remote_model_dir(task_id, version)
+    output_dir = build_remote_model_dir(model_uuid, model_version)
 
     gs_copy_file(config_fname,
                  os.path.join(output_dir, Path(config_fname).name))
@@ -158,18 +158,16 @@ def prepare_model_assets_for_training(task_id, version):
 class GCPJob:
     """Remote job on the Google AI Platform
     This can be used either for training or batch inference.
-
-    This is tightly coupled with a model specific to a (task, version) tuple.
     """
 
-    def __init__(self, task_id, version):
-        self.task_id = task_id
-        self.version = version
+    def __init__(self, model_uuid, model_version):
+        self.model_uuid = model_uuid
+        self.model_version = model_version
 
     def download(self):
         # Download everything except the 'model' dir to save space.
-        src_dir = build_remote_model_dir(self.task_id, self.version)
-        dst_dir = _get_version_dir(self.task_id, self.version)
+        src_dir = build_remote_model_dir(self.model_uuid, self.model_version)
+        dst_dir = _get_version_dir(self.model_uuid, self.model_version)
         run_cmd(f'gsutil -m rsync -x "model" -r {src_dir} {dst_dir}')
 
     def get_status(self):
@@ -213,7 +211,7 @@ class GCPJob:
         # TODO also use logs
         # gcloud ai-platform jobs stream-logs {exp_id}
 
-        exp_id = get_exp_id(self.task_id, self.version)
+        exp_id = get_exp_id(self.model_uuid, self.model_version)
         cmd = f"gcloud ai-platform jobs describe {exp_id} --format json"
 
         # TODO this is not best way to capture real error
@@ -226,14 +224,14 @@ class GCPJob:
         else:
             return json.loads(res.stdout)
 
-    def submit(self):
+    def submit(self, files_for_inference=None):
         print("Upload model assets for training")
         model_dir = prepare_model_assets_for_training(
-            self.task_id, self.version)
+            self.model_uuid, self.model_version)
 
         print("Upload data for inference")
         infer_filenames = []
-        for fname in Task.fetch(self.task_id).get_full_data_fnames():
+        for fname in files_for_inference or []:
             remote_fname = build_remote_data_fname(fname)
             # TODO check file does not already exist remotely
             gs_copy_file(fname, remote_fname)
@@ -247,7 +245,7 @@ class GCPJob:
             fp.write(model_config)
             fp.flush()
 
-            exp_id = get_exp_id(self.task_id, self.version)
+            exp_id = get_exp_id(self.model_uuid, self.model_version)
 
             cmd = f'gcloud ai-platform jobs submit training {exp_id} --config {fp.name}'
             run_cmd(cmd)

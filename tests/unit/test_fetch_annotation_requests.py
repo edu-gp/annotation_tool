@@ -1,5 +1,5 @@
 from tests.sqlalchemy_conftest import *
-from db.model import AnnotationRequest, User, Context, Task, AnnotationType
+from db.model import AnnotationRequest, User, Task, AnnotationType
 
 
 def _populate_db(dbsession):
@@ -15,7 +15,10 @@ def _populate_db(dbsession):
     def _req(name, user, task, order=None):
         return AnnotationRequest(
             user=user,
-            context=Context(hash=name, data={'foo': 'bar'}),
+            entity=1,
+            entity_type='blah',
+            label='blah',
+            context={'foo': 'bar'},
             task=task,
             annotation_type=AnnotationType.ClassificationAnnotation,
             order=order,

@@ -1,5 +1,5 @@
 import os
-from db.task import Task
+from db._task import _Task
 from ar.data import (
     save_new_ar_for_user,
     compute_annotation_statistics,
@@ -24,7 +24,7 @@ from ar.utils import get_ar_id
 
 class TestARFlow:
     def setup_method(self, test_method):
-        task = Task('just testing ar')
+        task = _Task('just testing ar')
         task.task_id = '__testing_'+task.task_id
         task.save()
         self.task = task

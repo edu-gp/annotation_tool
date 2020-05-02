@@ -9,8 +9,8 @@ from db.model import db
 from db.config import DevelopmentConfig
 from .auth import login_required
 
-from db.task import Task
-from ar.data import fetch_tasks_for_user
+from db._task import _Task
+from ar.data import fetch_tasks_for_user, fetch_tasks_for_user_from_db
 
 
 def create_app(test_config=None):
@@ -20,8 +20,6 @@ def create_app(test_config=None):
     app.config.from_mapping(
         SECRET_KEY='athena_todo_change_this_in_prod',
     )
-
-    logging.error(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
 
     if test_config is None:
         # load the instance config, if it exists, when not testing
@@ -38,7 +36,6 @@ def create_app(test_config=None):
         pass
 
     db.init_app(app)
-    # migrate.init_app(app=app)
 
     @app.route('/ok')
     def hello():
@@ -49,8 +46,10 @@ def create_app(test_config=None):
     def index():
         username = g.user['username']
         task_ids = fetch_tasks_for_user(username)
-        tasks = [Task.fetch(task_id) for task_id in task_ids]
-        return render_template('index.html', tasks=tasks)
+        task_id_and_name_pairs = fetch_tasks_for_user_from_db(
+            db.session, username)
+        # tasks = [Task.fetch(task_id) for task_id in task_ids]
+        return render_template('index.html', tasks=task_id_and_name_pairs)
 
     @app.route('/secret')
     @login_required

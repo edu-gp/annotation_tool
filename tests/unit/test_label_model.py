@@ -1,6 +1,6 @@
 from tests.sqlalchemy_conftest import *
 from db.model import (
-    Label, EntityType,
+    ClassificationAnnotation,
     fetch_labels_by_entity_type, save_labels_by_entity_type
 )
 
@@ -8,13 +8,8 @@ test_labels = ["B2C", "HEALTHCARE"]
 
 
 def _populate_db(dbsession):
-    entity_type = EntityType(name="company")
-    dbsession.add(entity_type)
-    dbsession.commit()
-    labels = [Label(name=label, entity_type_id=entity_type.id) for
-              label in test_labels]
-    dbsession.bulk_save_objects(labels)
-    dbsession.commit()
+    for label in test_labels:
+        ClassificationAnnotation.create_dummy(dbsession, 'company', label)
 
 
 def test_fetch_labels_by_entity_type(dbsession):
