@@ -81,11 +81,18 @@ def train_model(version_dir, train_fn=None, force_retrain=False):
     assert problem_type == BINARY_CLASSIFICATION, 'Currently Only Supporting Binary Classification'
 
     # Train test split
-    print("Train / Test split...")
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y,
-        test_size=config['test_size'],
-        random_state=config['random_state'])
+    if config.get('test_size', 0) > 0:
+        print("Train / Test split...")
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y,
+            test_size=config['test_size'],
+            random_state=config.get('random_state', 42))
+    else:
+        print("No train test split used")
+        X_train = X
+        y_train = y
+        X_test = None
+        y_test = None
 
     # Train
     print("Train model...")
@@ -102,8 +109,12 @@ def train_model(version_dir, train_fn=None, force_retrain=False):
     print("Evaluate model...")
     print("--- Train ---")
     train_result = evaluate_model(model, X_train, y_train)
-    print("--- Test ---")
-    test_result = evaluate_model(model, X_test, y_test)
+
+    if X_test is not None:
+        print("--- Test ---")
+        test_result = evaluate_model(model, X_test, y_test)
+    else:
+        test_result = {}
 
     save_json(metrics_fname, {
         'train': train_result,
