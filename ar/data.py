@@ -165,9 +165,11 @@ def fetch_ar_ids(dbsession, task_id, username):
 
 
 def fetch_ar_id_and_status(dbsession, task_id, username):
-    query = dbsession.query(AnnotationRequest.id, AnnotationRequest.status).\
-        join(User).filter(User.username == username,
-                          AnnotationRequest.task_id == task_id)
+    query = dbsession.query(AnnotationRequest.id, AnnotationRequest.status) \
+        .join(User) \
+        .filter(User.username == username,
+                AnnotationRequest.task_id == task_id) \
+        .order_by(AnnotationRequest.order)
     return query.all()
 
 
@@ -534,7 +536,7 @@ def _compute_number_of_annotations_done_per_user(dbsession, label):
     ). \
         join(User). \
         filter(ClassificationAnnotation.label == label). \
-        group_by(User.username).all()
+        group_by(User.username, User.id).all()
 
     return num_of_annotations_done_per_user
 

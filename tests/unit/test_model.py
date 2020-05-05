@@ -2,6 +2,7 @@ from mockito import when
 from sqlalchemy.exc import ArgumentError
 
 from tests.sqlalchemy_conftest import *
+from tests.utils import fake_train_model
 from db.model import TextClassificationModel, get_or_create, User
 import pytest
 import sqlalchemy
@@ -69,3 +70,18 @@ def test_get_or_create(dbsession):
         _ = get_or_create(dbsession=dbsession,
                           model=User,
                           username="invalid_user_name")
+
+
+def test_is_ready(dbsession, monkeypatch, tmp_path):
+    monkeypatch.setenv('ALCHEMY_FILESTORE_DIR', str(tmp_path))
+
+    model = TextClassificationModel(uuid='123', version=1)
+    dbsession.add(model)
+    dbsession.commit()
+    dbsession.refresh(model)
+
+    assert model.is_ready() is False
+
+    fake_train_model(model, str(tmp_path))
+
+    assert model.is_ready() is True
