@@ -75,6 +75,9 @@ def create_app(test_config=None):
     from . import tasks
     app.register_blueprint(tasks.bp)
 
+    from . import models
+    app.register_blueprint(models.bp)
+
     # --- Admin Routes ---
 
     import subprocess
