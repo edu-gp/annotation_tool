@@ -1,17 +1,13 @@
 from tests.sqlalchemy_conftest import *
 from tests.utils import create_example_model
-from db.model import Task, TextClassificationModel
+from db.model import Task
 from inference.nlp_model import NLPModel
-import numpy as np
-import json
 
 
 def test_create(dbsession, monkeypatch, tmp_path):
     monkeypatch.setenv('ALCHEMY_FILESTORE_DIR', str(tmp_path))
 
-    create_example_model(dbsession, tmp_path)
-
-    # Using NLPModel
+    create_example_model(dbsession)
 
     task = dbsession.query(Task).first()
 

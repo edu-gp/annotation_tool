@@ -15,9 +15,10 @@ def fake_train_model(model, filestore_base_dir):
         f.write(json.dumps({'accuracy': 0.95}))
 
 
-def create_example_model(dbsession, root_dir: Path):
-    # Create mock files
+def create_example_model(dbsession):
+    root_dir = Path(os.environ.get('ALCHEMY_FILESTORE_DIR'))
 
+    # Create mock files
     model_uuid = "abc"
     version = 1
     data_fname = "myfile.jsonl"
