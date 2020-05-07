@@ -95,11 +95,17 @@ def test_export_new_raw_data(dbsession, monkeypatch, tmp_path):
     model = dbsession.query(TextClassificationModel).first()
 
     from bg.jobs import export_new_raw_data
-    output_path = str(tmp_path / 'raw_data' / 'test_export_new_raw_data.jsonl')
-    output_path = export_new_raw_data(model, ctx['data_fname'], output_path)
-
-    assert os.path.isfile(output_path)
-
     from shared.utils import load_jsonl
+
+    output_path = str(tmp_path / 'raw_data' / 'test_export_new_raw_data.jsonl')
+
+    output_path = export_new_raw_data(model, ctx['data_fname'], output_path)
+    assert os.path.isfile(output_path)
     df = load_jsonl(output_path)
     assert len(df) == 3
+
+    output_path = export_new_raw_data(model, ctx['data_fname'], output_path,
+                                      cutoff=0.9)
+    assert os.path.isfile(output_path)
+    df = load_jsonl(output_path)
+    assert len(df) == 2

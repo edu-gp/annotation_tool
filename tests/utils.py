@@ -41,9 +41,9 @@ def create_example_model(dbsession, root_dir: Path):
 
     p = d / f"{stem(data_fname)}.pred.npy"
     raw_results = np.array([
-        [0.1234, 0.234],
-        [-2.344, 0.100],
-        [-2.344, 0.100],
+        [0.1234, 0.234],  # prob = 0.527
+        [-2.344, 0.100],  # prob = 0.920
+        [-2.344, 0.100],  # prob = 0.920
     ])
     save(p, raw_results)
 
