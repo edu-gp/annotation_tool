@@ -4,7 +4,8 @@ import os
 import numpy as np
 
 from db.model import (
-    Task, ClassificationAnnotation, User, EntityTypeEnum
+    Task, ClassificationAnnotation, User, EntityTypeEnum,
+    majority_vote_annotations_query
 )
 from db.fs import RAW_DATA_DIR
 
@@ -110,6 +111,15 @@ def _populate_db_and_fs(dbsession, tmp_path, N):
     task.set_data_filenames(['data.jsonl'])
     dbsession.add(task)
     dbsession.commit()
+
+
+def test_train_flow_simple(dbsession, monkeypatch, tmp_path):
+    monkeypatch.setenv('ALCHEMY_FILESTORE_DIR', str(tmp_path))
+    N = 2
+    _populate_db_and_fs(dbsession, tmp_path, N)
+    query = majority_vote_annotations_query(dbsession, LABEL)
+    res = query.all()
+    assert sorted(res) == [('0.com', 1, 3), ('1.com', -1, 4)]
 
 
 def test_train_flow(dbsession, monkeypatch, tmp_path):

@@ -212,7 +212,8 @@ def majority_vote_annotations_query(dbsession, label):
 
     Note: This query ignores annotation values of 0 - they are "Unknown"s.
     """
-    subquery = dbsession.query(
+
+    q1 = dbsession.query(
         ClassificationAnnotation.entity,
         ClassificationAnnotation.value,
         func.count('*').label('count')
@@ -220,14 +221,22 @@ def majority_vote_annotations_query(dbsession, label):
         .filter_by(label=label) \
         .filter(ClassificationAnnotation.value != AnnotationValue.UNSURE) \
         .filter(ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED) \
-        .group_by(ClassificationAnnotation.entity, ClassificationAnnotation.value) \
-        .subquery()
+        .group_by(ClassificationAnnotation.entity, ClassificationAnnotation.value)
+
+    q1 = q1.cte('count_query')
+
+    q2 = dbsession.query(
+        q1.c.entity,
+        func.max(q1.c.count).label('count')
+    ).group_by(q1.c.entity)
+
+    q2 = q2.cte('max_query')
 
     query = dbsession.query(
-        subquery.c.entity,
-        subquery.c.value,
-        func.max(subquery.c.count)
-    ).group_by(subquery.c.entity)
+        q1.c.entity,
+        q1.c.value,
+        q1.c.count
+    ).join(q2, (q1.c.entity == q2.c.entity) & (q1.c.count == q2.c.count))
 
     return query
 
@@ -364,6 +373,10 @@ class Model(Base):
             return load_json(fname)
         else:
             return None
+
+    def is_ready(self):
+        # Model is ready when it has a metrics file.
+        return self.get_metrics() is not None
 
     def get_metrics(self):
         return self._load_json(_get_metrics_fname)
@@ -548,7 +561,11 @@ class Task(Base):
 
     def get_active_nlp_model(self):
         from inference.nlp_model import NLPModel
-        return NLPModel(inspect(self).session, self.get_latest_model().id)
+        latest_model = self.get_latest_model()
+        if latest_model is not None and latest_model.is_ready():
+            return NLPModel(inspect(self).session, latest_model.id)
+        else:
+            return None
 
     def __repr__(self):
         return "<Task with id {}, \nname {}, \ndefault_params {}>".format(
