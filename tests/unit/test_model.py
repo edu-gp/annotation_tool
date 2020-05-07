@@ -1,11 +1,11 @@
-from mockito import when
-from sqlalchemy.exc import ArgumentError
-
-from tests.sqlalchemy_conftest import *
-from tests.utils import fake_train_model
-from db.model import TextClassificationModel, get_or_create, User
+import os
 import pytest
 import sqlalchemy
+from mockito import when
+from sqlalchemy.exc import ArgumentError
+from tests.sqlalchemy_conftest import *
+from tests.utils import fake_train_model, create_example_model
+from db.model import TextClassificationModel, get_or_create, User
 
 
 def test_default_uuid_and_version(dbsession):
@@ -85,3 +85,21 @@ def test_is_ready(dbsession, monkeypatch, tmp_path):
     fake_train_model(model, str(tmp_path))
 
     assert model.is_ready() is True
+
+
+def test_export_new_raw_data(dbsession, monkeypatch, tmp_path):
+    monkeypatch.setenv('ALCHEMY_FILESTORE_DIR', str(tmp_path))
+
+    ctx = create_example_model(dbsession, tmp_path)
+
+    model = dbsession.query(TextClassificationModel).first()
+
+    from bg.jobs import export_new_raw_data
+    output_path = str(tmp_path / 'raw_data' / 'test_export_new_raw_data.jsonl')
+    output_path = export_new_raw_data(model, ctx['data_fname'], output_path)
+
+    assert os.path.isfile(output_path)
+
+    from shared.utils import load_jsonl
+    df = load_jsonl(output_path)
+    assert len(df) == 3
