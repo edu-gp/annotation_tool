@@ -78,6 +78,9 @@ def create_app(test_config=None):
     from . import models
     app.register_blueprint(models.bp)
 
+    from . import annotation_guide
+    app.register_blueprint(annotation_guide.bp)
+
     # --- Admin Routes ---
 
     import subprocess

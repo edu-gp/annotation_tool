@@ -620,6 +620,16 @@ class AnnotationRequest(Base):
     context = Column(JSON)
 
 
+class AnnotationGuide(Base):
+    __tablename__ = 'annotation_guide'
+
+    id = Column(Integer, primary_key=True)
+
+    label = Column(String, index=True, nullable=False)
+
+    url = Column(Text)
+
+
 # =============================================================================
 # Convenience Functions
 def update_instance(dbsession, model, filter_by_dict, update_dict):
