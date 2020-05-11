@@ -26,6 +26,8 @@ Make changes in the `db/model.py` file. All models are currently saved there.
 `alembic upgrade head`. This will update the table to the latest version.
 
 ### Downgrade
+`alembic downgrade -1` undo the most recent migration.
+
 `alembic downgrade base`. Warning: this will downgrade the table to nothing!
 
 ### Choose a specific version
