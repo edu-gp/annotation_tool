@@ -1,24 +1,9 @@
+from tests.fixtures import *
 import pytest
-from frontend import create_app
 from shared.frontend_user_password import (
     get_frontend_user_password,
     _generate_frontend_user_login_path
 )
-from db.config import TestingConfig
-from db.model import db
-
-
-@pytest.fixture
-def client(monkeypatch):
-    monkeypatch.setenv('ANNOTATION_TOOL_FRONTEND_SECRET', 'asdsad')
-
-    app = create_app(TestingConfig)
-
-    with app.app_context():
-        db.create_all()
-
-    with app.test_client() as client:
-        yield client
 
 
 def _assert_has_logged_in(response, username):
@@ -31,8 +16,8 @@ def _assert_has_logged_in(response, username):
     assert username in response.get_data().decode()
 
 
-def test_login_with_post(client):
-    response = client.post('/auth/login', data=dict(
+def test_login_with_post(frontend_client):
+    response = frontend_client.post('/auth/login', data=dict(
         username='blah',
         password=get_frontend_user_password('blah')
     ), follow_redirects=True)
@@ -40,15 +25,15 @@ def test_login_with_post(client):
     _assert_has_logged_in(response, 'blah')
 
 
-def test_login_with_link(client):
+def test_login_with_link(frontend_client):
     path = _generate_frontend_user_login_path('a_very_long_username')
-    response = client.get(path, follow_redirects=True)
+    response = frontend_client.get(path, follow_redirects=True)
 
     _assert_has_logged_in(response, 'a_very_long_username')
 
 
-def test_login_with_post_wrong_password(client):
-    response = client.post('/auth/login', data=dict(
+def test_login_with_post_wrong_password(frontend_client):
+    response = frontend_client.post('/auth/login', data=dict(
         username='blah',
         password='wrong_password'
     ), follow_redirects=True)
