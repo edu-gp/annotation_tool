@@ -620,21 +620,18 @@ class AnnotationRequest(Base):
     context = Column(JSON)
 
 
-class Label(Base):
-    __tablename__ = 'label'
+class AnnotationGuide(Base):
+    __tablename__ = 'annotation_guide'
 
     id = Column(Integer, primary_key=True)
 
-    # Same as AnnotationRequest.label or ClassificationAnnotation.label
-    name = Column(String, index=True, nullable=False)
+    label = Column(String, index=True, nullable=False)
 
-    annotation_guide_url = Column(Text)
+    url = Column(Text)
 
 
 # =============================================================================
 # Convenience Functions
-
-
 def update_instance(dbsession, model, filter_by_dict, update_dict):
     dbsession.query(model).filter_by(**filter_by_dict).update(update_dict)
     dbsession.commit()
