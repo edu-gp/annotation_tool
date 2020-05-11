@@ -7,6 +7,12 @@ class AnnotationBox extends React.Component {
         this.state = this.props['anno'];
     }
 
+    getAnnotationGuide(label) {
+        let annotation_guides = this.props['annotation_guides'] || {};
+        let guide = annotation_guides[label] || { 'text': 'N/A' };
+        return guide['text'];
+    }
+
     isBinaryClassification() {
         return this.props['suggested_labels'].length == 1;
     }
@@ -84,7 +90,6 @@ class AnnotationBox extends React.Component {
                 </div >
             )
         }
-        console.log(content)
 
         // Special Meta Key "image_url"
         if (req.data.meta.image_url !== undefined) {
@@ -191,16 +196,39 @@ class AnnotationBox extends React.Component {
             var key = 'controls-' + index;
 
             controls.push(
-                <div key={key} style={{ textAlign: 'center' }}>
-                    <button className={yes_btn_class} style={{ margin: "5px" }} onClick={() => self.setLabel(label, 1)}>
-                        {yes_btn_icon} {label}
-                    </button>
-                    <button className={no_btn_class} style={{ margin: "5px" }} onClick={() => self.setLabel(label, -1)}>
-                        {no_btn_icon} Not {label}
-                    </button>
-                    <button className={skip_btn_class} style={{ margin: "5px" }} onClick={() => self.setLabel(label, 0)}>
-                        Not Sure
-                </button>
+                <div key={key} style={{ position: 'relative' }}>
+                    <div style={{ textAlign: 'center' }}>
+                        <button className={yes_btn_class} style={{ margin: "5px" }} onClick={() => self.setLabel(label, 1)}>
+                            {yes_btn_icon} {label}
+                        </button>
+                        <button className={no_btn_class} style={{ margin: "5px" }} onClick={() => self.setLabel(label, -1)}>
+                            {no_btn_icon} Not {label}
+                        </button>
+                        <button className={skip_btn_class} style={{ margin: "5px" }} onClick={() => self.setLabel(label, 0)}>
+                            Not Sure
+                        </button>
+                    </div>
+
+                    <div style={{ textAlign: 'right', position: 'absolute', right: 0, top: "5px" }}>
+                        <button type="button" className="btn btn-info" data-toggle="modal" data-target={'#annotation_guide__' + label}>
+                            ?
+                        </button>
+                    </div>
+                    <div id={'annotation_guide__' + label} className="modal" tabIndex="-1" role="dialog">
+                        <div className="modal-dialog modal-dialog-centered" role="document">
+                            <div className="modal-content">
+                                <div className="modal-header">
+                                    <h5 className="modal-title">Annotation Guide for "{label}"</h5>
+                                    <button type="button" className="close" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <div className="modal-body">
+                                    <p dangerouslySetInnerHTML={{ __html: self.getAnnotationGuide(label) }}></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             );
         });
@@ -211,7 +239,7 @@ class AnnotationBox extends React.Component {
                 <div key='controls-last' style={{ textAlign: 'center', marginTop: '1em' }}>
                     <button className='btn btn-dark' style={{ margin: "5px" }} onClick={() => self.submitResults()}>
                         Save & Next
-                </button>
+                    </button>
                 </div>
             )
         }

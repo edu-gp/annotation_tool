@@ -216,6 +216,17 @@ def kitchen_sink():
         'suggested_labels': ['B2C', 'Healthcare', 'Fintech'],
         'task_id': task.task_id,
         'testing': True,
+        'annotation_guides': {
+            'B2C': {
+                'text': 'Consumer Company, excluding marketplace.'
+            },
+            'Healthcare': {
+                'text': '<b>Anything</b> related to health.<br/>Does not include any related to fitness.'
+            },
+            'Fintech': {
+                'text': '<i>Next generation</i> finance.'
+            }
+        }
     }
 
     anno_b = {
@@ -226,6 +237,17 @@ def kitchen_sink():
         'suggested_labels': ['Healthcare'],
         'task_id': task.task_id,
         'testing': True,
+        'annotation_guides': {
+            'B2C': {
+                'text': 'Consumer Company, excluding marketplace.'
+            },
+            'Healthcare': {
+                'text': '<b>Anything</b> related to health.<br/>Does not include any related to fitness.'
+            },
+            'Fintech': {
+                'text': '<i>Next generation</i> finance.'
+            }
+        }
     }
 
     anno_c = {
@@ -241,6 +263,7 @@ def kitchen_sink():
     # TODO what if an existing label does not exist in 'suggested_labels'? Do not show it? Undefined behavior?
 
     return render_template('tasks/annotate.html',
+                           anno=anno_a,
                            task=task,
                            data=json.dumps([anno_a, anno_b, anno_c]),
                            next_ar_id='#')
