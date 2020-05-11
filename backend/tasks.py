@@ -5,7 +5,7 @@ from flask import (
     Blueprint, flash, redirect, render_template, request, url_for
 )
 
-from db.model import db, Task, Model
+from db.model import db, Task, Model, AnnotationGuide
 from db.utils import get_all_data_files, get_all_pattern_files
 from ar.data import compute_annotation_statistics, \
     compute_annotation_statistics_db, compute_annotation_request_statistics
@@ -94,6 +94,18 @@ def show(id):
     task = db.session.query(Task).filter_by(id=id).one_or_none()
 
     # -------------------------------------------------------------------------
+    # Labels
+
+    _labels = task.get_labels()
+    _guides = db.session.query(AnnotationGuide).filter(
+        AnnotationGuide.label.in_(_labels)).all()
+    # Not all labels have an AnnotationGuide, so we use this _lookup to only
+    # keep the ones with a guide.
+    _lookup = dict([(g.label, g) for g in _guides])
+    labels_and_guides = [(label, _lookup.get(label)) for label in _labels]
+    labels_and_guides = sorted(labels_and_guides)
+
+    # -------------------------------------------------------------------------
     # Annotations
     annotation_statistics_per_label = dict()
     for label in task.get_labels():
@@ -137,6 +149,7 @@ def show(id):
         models=models,
         active_model=active_model,
         annotator_login_links=annotator_login_links,
+        labels_and_guides=labels_and_guides,
     )
 
 
