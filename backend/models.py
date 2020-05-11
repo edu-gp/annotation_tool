@@ -1,6 +1,7 @@
 from flask import (
     Blueprint, request, jsonify
 )
+
 from bg.jobs import export_new_raw_data as _export_new_raw_data
 from db.model import db, Model
 

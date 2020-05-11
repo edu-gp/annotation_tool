@@ -59,13 +59,35 @@
             <span class="badge badge-light">{{annotator}}</span>
             {% endfor %}
           </li>
-          <li>
-            Labels:
-            {% for label in task.get_labels() %}
-            <span class="badge badge-light">{{label}}</span>
-            {% endfor %}
-          </li>
         </ul>
+
+        <h4>Labels</h4>
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Label</th>
+              <th scope="col">Annotation Guide</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for label, guide in labels_and_guides %}
+            <tr>
+              <td>{{label}}</td>
+              <td>
+                {% if guide.url %}
+                {{ guide.url | urlize }}
+                {% else %}
+                N/A
+                {% endif %}
+                <a class="btn btn-sm btn-secondary float-right"
+                  href="{{ url_for('annotation_guide.show', label=label, redirect_to=url_for(request.endpoint, id=task.id)) }}">
+                  Edit
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
       <div class="col">
         <a class="btn btn-sm btn-secondary" href="{{ url_for('tasks.edit', id=task.id) }}">Edit</a>

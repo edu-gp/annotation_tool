@@ -41,16 +41,21 @@ def convert_annotation_result_in_batch(task_uuid, username):
         print("Converted annotation with ar_id {}".format(ar_id))
 
 
-def _make_company_entity(meta_dict):
-    company_name = meta_dict.get("name", "unknown")
+def _make_company_entity(meta_dict, text=None):
+    company_name = meta_dict.get("name")
     domain = meta_dict.get("domain", company_name)
+    if domain is None:
+        # To make sure we don't lose data, assign a unique UNK entity
+        assert text
+        domain = f"UNK_ENTITY_{hash(text)}"
     return EntityTypeEnum.COMPANY, domain
 
 
 def _convert_single_annotation(anno, username):
     user = get_or_create(db.session, User, username=username)
 
-    entity_type, entity = _make_company_entity(anno["req"]["data"]["meta"])
+    entity_type, entity = _make_company_entity(anno["req"]["data"]["meta"],
+                                               text=anno["req"]["data"]["text"])
 
     if entity:
         # TODO WARNING: This only works for this migration where there is only
@@ -99,7 +104,8 @@ def _convert_single_request_with_annotated_result(
         }
     }
     '''
-    entity_type, entity = _make_company_entity(req["data"]["meta"])
+    entity_type, entity = _make_company_entity(req["data"]["meta"],
+                                               text=req['data']['text'])
 
     anno_from_file = fetch_annotation(task_uuid, username, ar_id=req['ar_id'])
     if anno_from_file:
@@ -158,7 +164,7 @@ if __name__ == "__main__":
     os.makedirs(os.path.join(fsdir, MODELS_DIR), exist_ok=True)
 
     # Move over raw data
-    os.system(f'cp -r {data_dir}/ {os.path.join(fsdir, RAW_DATA_DIR)}')
+    os.system(f'cp -r {data_dir}/* {os.path.join(fsdir, RAW_DATA_DIR)}')
 
     # Training data and models are moved over below.
 
@@ -170,16 +176,20 @@ if __name__ == "__main__":
 
     if drop:
         # Drop database and restart from scratch.
+        # Note: If this gets stuck, make sure all your other sessions are
+        # closed (e.g. restart all processes in supervisor)
         from db.model import Base
         Base.metadata.drop_all(db.engine)
         Base.metadata.create_all(db.engine)
 
     mock_time = 1000000000
 
-    # task_uuids = ["8a79a035-56fa-415c-8202-9297652dfe75"]
+    #task_uuids = ["fe9a1e62-80e3-4e58-9e12-3247ac0d18f5"]
+    #task_uuids = ["f29dca1f-f03b-4667-b7fd-643e6f1a4611"]
     task_uuids = os.listdir(tasks_dir)
 
-    for task_uuid in task_uuids:
+    from tqdm import tqdm
+    for task_uuid in tqdm(task_uuids):
         # Check if this is a proper task.
         if not os.path.isfile(tasks_dir + '/' + task_uuid + '/config.json'):
             continue
@@ -254,12 +264,14 @@ if __name__ == "__main__":
                     version=int(model_version),
                     config=_config,
                     classification_training_data=data,
-                    exclude_keys_in_retrieve=['data']
+                    exclude_keys_in_retrieve=['config']
                 )
+
+                # TODO why is there an extra inference folder under each model?
 
                 _target_dir = os.path.join(fsdir, db_model.dir())
                 os.system(f'mkdir -p {_target_dir}')
-                os.system(f'cp -r {_source_dir}/ {_target_dir}')
+                os.system(f'cp -r {_source_dir}/* {_target_dir}')
 
                 logging.info(f"Created Model {db_model}")
 
