@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block header %}
-<h2>Annotation Guide</h2>
+<h2>Edit Annotation Guide</h2>
 {% endblock %}
 
 {% block content %}
@@ -15,8 +15,8 @@
     </div>
 
     <div class="form-group">
-        <label for="name">Annotation Guide URL</label>
-        <input type="text" class="form-control" name="url" id="url" value="{{ url }}">
+        <label for="name">Annotation Guide</label>
+        <textarea type="text" class="form-control" name="text" id="text" rows=15>{{ text }}</textarea>
     </div>
 
     <button type="submit" class="btn btn-primary">Save</button>

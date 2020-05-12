@@ -23,15 +23,15 @@ bp.before_request(_before_request)
 def show():
     label = request.args['label']
 
-    url = ''
+    text = ''
     guide = db.session.query(AnnotationGuide).filter_by(label=label).first()
     if guide:
-        url = guide.url
+        text = guide.get_text()
 
     return render_template(
         'annotation_guide/edit.html',
         label=label,
-        url=url,
+        text=text,
         redirect_to=request.args.get('redirect_to')
     )
 
@@ -39,10 +39,10 @@ def show():
 @bp.route('', methods=['POST'])
 def update():
     label = request.form['label']
-    url = request.form['url']
+    text = request.form['text']
 
     guide = get_or_create(db.session, AnnotationGuide, label=label)
-    guide.url = url
+    guide.set_text(text)
     db.session.add(guide)
     db.session.commit()
 

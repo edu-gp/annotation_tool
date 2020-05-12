@@ -627,7 +627,29 @@ class AnnotationGuide(Base):
 
     label = Column(String, index=True, nullable=False)
 
-    url = Column(Text)
+    data = Column(JSON)
+
+    @staticmethod
+    def plaintext_to_html(plaintext):
+        return '<br />'.join(plaintext.split('\n'))
+
+    def set_text(self, text):
+        self.data = {
+            'text': text,
+            'html': AnnotationGuide.plaintext_to_html(text)
+        }
+
+    def get_text(self):
+        if self.data and self.data.get('text'):
+            return self.data.get('text')
+        else:
+            return ''
+
+    def get_html(self):
+        if self.data and self.data.get('html'):
+            return self.data.get('html')
+        else:
+            return ''
 
 
 # =============================================================================

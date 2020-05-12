@@ -72,17 +72,42 @@
           <tbody>
             {% for label, guide in labels_and_guides %}
             <tr>
-              <td>{{label}}</td>
+              <td class="align-middle">{{label}}</td>
               <td>
-                {% if guide.url %}
-                {{ guide.url | urlize }}
+                {% set html = guide.get_html() -%}
+                {% set editLink = url_for('annotation_guide.show', label=label, redirect_to=url_for(request.endpoint, id=task.id)) -%}
+                {% if html %}
+
+                <!-- Button trigger modal -->
+                <button type="button" class="btn btn-info" data-toggle="modal" data-target="#anno-guide-{{loop.index}}">
+                  View
+                </button>
+
+                <!-- Modal -->
+                <div class="modal fade" id="anno-guide-{{loop.index}}" tabindex="-1" role="dialog"
+                  aria-labelledby="exampleModalLabel" aria-hidden="true">
+                  <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title" id="exampleModalLabel">Annotation Guide for "{{label}}"</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                          <span aria-hidden="true">&times;</span>
+                        </button>
+                      </div>
+
+                      <form class="form-export-new-raw-data">
+                        <div class="modal-body">
+                          {{html | safe}}
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+
+                <a class="ml-2" href="{{ editLink }}">Edit</a>
                 {% else %}
-                N/A
+                <a href="{{ editLink }}">Add</a>
                 {% endif %}
-                <a class="btn btn-sm btn-secondary float-right"
-                  href="{{ url_for('annotation_guide.show', label=label, redirect_to=url_for(request.endpoint, id=task.id)) }}">
-                  Edit
-                </a>
               </td>
             </tr>
             {% endfor %}
