@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block header %}
+<h1>Data</h1>
+{% endblock %}
+
+{% block content %}
+
+<h3>Raw Data</h3>
+
+<ul>
+    {% for fname in data_fnames %}
+    <li>{{fname}}</li>
+    {% endfor %}
+</ul>
+
+<h3>Pattern Data</h3>
+
+<ul>
+    {% for fname in pattern_fnames %}
+    <li>{{fname}}</li>
+    {% endfor %}
+</ul>
+
+{% endblock %}
