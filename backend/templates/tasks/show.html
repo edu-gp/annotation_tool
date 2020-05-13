@@ -90,7 +90,7 @@
         </table>
       </div>
       <div class="col">
-        <a class="btn btn-sm btn-secondary" href="{{ url_for('tasks.edit', id=task.id) }}">Edit</a>
+        <a class="btn btn-primary" href="{{ url_for('tasks.edit', id=task.id) }}">Edit</a>
       </div>
     </div>
 
@@ -147,8 +147,9 @@
       <div class="col">
         <div>
           <form action="{{ url_for('tasks.assign', id=task.id) }}" method="POST">
-            <button type="submit" class="btn btn-sm btn-secondary" value={{ task.get_labels() }}>Request
-              More Annotations</button>
+            <button type="submit" class="btn btn-primary click-once" value={{ task.get_labels() }}>
+              Request More Annotations
+            </button>
           </form>
         </div>
 
@@ -270,20 +271,26 @@ length > 0 %}
 
             {% for fname in mv.get_inference_fnames() %}
             <div class="row">
-              <div class="col-6">
-                <form action="{{ url_for('tasks.download_prediction', id=mv.task_id) }}" method="POST">
-                  <input type="hidden" name="model_id" value="{{mv.id}}">
-                  <input type="hidden" name="fname" value="{{fname}}">
-                  <button type="submit" class="btn btn-secondary">Download Prediction: "{{fname}}"</button>
-                </form>
-              </div>
-
-              <div class="col-6">
-                <!-- Button trigger modal -->
-                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModal">
-                  Export to a new raw data file
-                </button>
-              </div>
+              <table class="table">
+                <tbody>
+                  <tr>
+                    <td>Data File:<br /><code>{{fname}}</code></td>
+                    <td>
+                      <form action="{{ url_for('tasks.download_prediction', id=mv.task_id) }}" method="POST">
+                        <input type="hidden" name="model_id" value="{{mv.id}}">
+                        <input type="hidden" name="fname" value="{{fname}}">
+                        <button type="submit" class="btn btn-secondary">Download Prediction</button>
+                      </form>
+                    </td>
+                    <td>
+                      <!-- Button trigger modal -->
+                      <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModal">
+                        Export to new data file
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
 
               <!-- Modal -->
               <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel"
@@ -380,7 +387,7 @@ length > 0 %}
       </div>
       <div class="col">
         <form action="{{ url_for('tasks.train', id=task.id) }}" method="POST">
-          <button type="submit" class="btn btn-sm btn-secondary">Train new model</button>
+          <button type="submit" class="btn btn-primary click-once">Train new model</button>
         </form>
         <p>
           <a href="{{ url_for('admin_view_train_logs') }}" target="_blank">View Train Worker Logs</a>
@@ -446,6 +453,8 @@ length > 0 %}
 
     showLoadingScreen();
   })
+
+  $('.click-once').click(showLoadingScreen);
 
 </script>
 {% endblock %}
