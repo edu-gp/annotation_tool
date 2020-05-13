@@ -19,8 +19,83 @@ from inference.random_model import RandomModel
 from .data import fetch_all_ar_ids
 from .utils import get_ar_id, timeit
 
-Pred = namedtuple('Pred', ['score', 'entity', 'fname',  'line_number'])
+Example = namedtuple('Example', ['score', 'entity', 'fname', 'line_number'])
 EntityUserTuple = namedtuple('EntityUserTuple', ['entity', 'user'])
+
+
+def get_ranked_examples_for_label(task, label, data_filenames) -> List[Example]:
+    """Get the ranking for each datapoint in data_filenames for this label.
+    (We're also passing in the task, but in the future I hope to remove this
+    dependency)
+    A lower ranking means higher desire to be labeled.
+    """
+    logging.info(f"Get prediction from label={label}")
+
+    examples: List[List[Example]] = []
+    proportions: List[int] = []
+
+    # Random Examples
+    examples.append(_get_predictions(data_filenames, [RandomModel()]))
+    proportions.append(1)
+    logging.info("Prediction from random model finished...")
+
+    # Pattern-driven Examples
+    _patterns_model = task.get_pattern_model()
+    if _patterns_model is not None:
+        examples.append(_get_predictions(data_filenames, [_patterns_model]))
+        proportions.append(3)  # [1,3] -> [0.25, 0.75]
+        logging.info("Prediction from pattern model finished...")
+
+    # NLP-driven Examples
+    _nlp_model = task.get_active_nlp_model()
+    if _nlp_model is not None:
+        examples.append(_get_predictions(data_filenames, [_nlp_model]))
+        proportions.append(12)  # [1,3,12] -> [0.0625, 0.1875, 0.75]
+        logging.info("Prediction from nlp model finished...")
+
+    logging.error("Shuffling together examples...")
+    ranked_examples = _shuffle_together_examples(
+        examples, proportions=proportions)
+
+    return ranked_examples
+
+
+def consolidate_ranked_examples_per_label(
+        ranked_examples_per_label: List[List[Example]]) -> List[Example]:
+    """
+    Inputs:
+        ranked_examples_per_label: Each element in this list, List[Example], 
+            represents the ranked examples according to a label.
+    """
+    # A naive way to consolidate is just to round-robin preferences across all
+    # the lists. Eg. 1st choice of label A, 1st choice of label B, ... then
+    # 2nd choice of label A, 2nd choice of label B, ...
+
+    # Alternative approach is we aggregate preferences, sort by that.
+    # However a potential issue is that if all the top preferences are not
+    # shared, but the mediocre preferences are, then we might end up selecting
+    # mediocre examples that won't benefit any label in particular.
+
+    # Will stick with the naive way for now.
+
+    # Note: Our current algo assumes all labels are weighted equally - in the
+    # future we can add something to favor certain labels over others.
+
+    seen = set()
+    res = []
+    i = 0
+    max_len = max([len(ls) for ls in ranked_examples_per_label])
+    while i < max_len:
+        for ls in ranked_examples_per_label:
+            if i < len(ls):
+                example = ls[i]
+                # print(example)
+                if example.entity not in seen:
+                    seen.add(example.entity)
+                    res.append(example)
+        i += 1
+
+    return res
 
 
 def generate_annotation_requests(dbsession, task_id: int,
@@ -28,44 +103,20 @@ def generate_annotation_requests(dbsession, task_id: int,
     '''
     NOTE: This could be super slow, but that's okay for now!
     '''
-    task = get_or_create(dbsession=dbsession, model=Task, id=task_id)
+    task = dbsession.query(Task).filter_by(id=task_id).one_or_none()
+    assert task is not None, f"Task is missing task_id={task_id}"
 
-    logging.info("Get prediction from each model...")
-
-    _examples = []
-    _proportions = []
-
+    # TODO Restrict each task to use only 1 file?
     data_filenames = [os.path.join(filestore_base_dir(), RAW_DATA_DIR, fname)
                       for fname in task.get_data_filenames()]
 
-    # Random Examples
-    _examples.append(
-        _get_predictions(data_filenames, [RandomModel()])
-    )
-    _proportions.append(1)
-    logging.info("Prediction from random model finished...")
+    ranked_examples_per_label = []
+    for label in task.get_labels():
+        _res = get_ranked_examples_for_label(task, label, data_filenames)
+        ranked_examples_per_label.append(_res)
 
-    # Pattern-driven Examples
-    _patterns_model = task.get_pattern_model()
-    if _patterns_model is not None:
-        _examples.append(
-            _get_predictions(data_filenames, [_patterns_model])
-        )
-        _proportions.append(3)  # [1,3] -> [0.25, 0.75]
-        logging.info("Prediction from pattern model finished...")
-
-    # NLP-driven Examples
-    _nlp_model = task.get_active_nlp_model()
-    if _nlp_model is not None:
-        _examples.append(
-            _get_predictions(data_filenames, [_nlp_model])
-        )
-        _proportions.append(12)  # [1,3,12] -> [0.0625, 0.1875, 0.75]
-        logging.info("Prediction from nlp model finished...")
-
-    logging.error("Shuffling together examples...")
-    ordered_examples = _shuffle_together_examples(
-        _examples, proportions=_proportions)
+    ranked_examples = consolidate_ranked_examples_per_label(
+        ranked_examples_per_label)
 
     # Blacklist whatever users have labeled already
     # basic logic, given a user_id, task_id, and entity_id, we should
@@ -76,7 +127,7 @@ def generate_annotation_requests(dbsession, task_id: int,
     blacklist_fn = _build_blacklist_fn(lookup_dict=lookup_dict)
 
     logging.info("Assigning to annotators...")
-    assignments = _assign(ordered_examples,
+    assignments = _assign(ranked_examples,
                           task.get_annotators(),
                           blacklist_fn=blacklist_fn,
                           max_per_annotator=max_per_annotator,
@@ -154,7 +205,7 @@ def _build_blacklisting_lookup_dict(dbsession):
     return lookup_dict
 
 
-def _get_decorated_example(pred: Pred,
+def _get_decorated_example(pred: Example,
                            pattern_decor: List,
                            basic_decor: List,
                            example_idx_lookup: Dict) -> Dict:
@@ -178,7 +229,7 @@ def _get_decorated_example(pred: Pred,
 
 def _build_blacklist_fn(lookup_dict: dict):
 
-    def blacklist_fn(pred: Pred, annotator: str):
+    def blacklist_fn(pred: Example, annotator: str):
         entity = pred.entity
         lookup_key = EntityUserTuple(entity, annotator)
         if lookup_key not in lookup_dict:
@@ -190,12 +241,12 @@ def _build_blacklist_fn(lookup_dict: dict):
 
 def _get_predictions(data_filenames: List[str],
                      models: List[ITextCatModel],
-                     cache=True) -> List[Pred]:
+                     cache=True) -> List[Example]:
     '''
     Return the aggregated score from all models for all lines in each
     data_filenames
 
-    Return Pred namedtuple (score, entity, fname, line_number)
+    Return Example namedtuple (score, entity, fname, line_number)
     '''
     result = []
 
@@ -216,10 +267,10 @@ def _get_predictions(data_filenames: List[str],
             print(total_scores)
 
             for line_number, score in enumerate(total_scores):
-                result.append(Pred(score=score,
-                                   entity=metas[0][line_number]['domain'],
-                                   fname=fname,
-                                   line_number=line_number))
+                result.append(Example(score=score,
+                                      entity=metas[0][line_number]['domain'],
+                                      fname=fname,
+                                      line_number=line_number))
 
     return result
 
@@ -304,11 +355,11 @@ def _assign(datapoints: List, annotators: List,
     return per_anno_queue
 
 
-def _shuffle_together_examples(list_of_examples: List[List[Pred]],
+def _shuffle_together_examples(list_of_examples: List[List[Example]],
                                proportions: List[float]):
     '''
-    Randomly shuffle together lists of Pred, such that at any length, the proportion of elements
-    from each list is approximately `proportions`.
+    Randomly shuffle together lists of Example, such that at any length,
+    the proportion of elements from each list is approximately `proportions`.
     '''
 
     # Sort each list from top to bottom
