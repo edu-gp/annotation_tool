@@ -16,6 +16,22 @@ from db.config import DevelopmentConfig
 from db.model import Database, get_or_create, User, ClassificationAnnotation, \
     EntityTypeEnum
 
+from google.cloud import secretmanager
+
+
+PROJECT_ID = "nlp-flywheel"
+
+
+def create_gcp_client():
+    client = secretmanager.SecretManagerServiceClient()
+    return client
+
+
+def get_secret(client, project_id, secret_id, version_id='latest'):
+    name = client.secret_version_path(project_id, secret_id, version_id)
+    response = client.access_secret_version(name)
+    return response.payload.data.decode('UTF-8')
+
 
 def make_from_credentials(env: str) -> Salesforce:
     """Factory function for API instance using salesforce credentials
@@ -35,16 +51,29 @@ def make_from_credentials(env: str) -> Salesforce:
     # ENV = 'prod'
     IS_SANDBOX = env != 'prod'
 
-    consumer_key = "To be added"
-    KEY_FILE = 'To be added'
+    gclient = create_gcp_client()
+
+    consumer_key = get_secret(
+        client=gclient,
+        project_id=PROJECT_ID,
+        secret_id="alchemy_salesforce_consumer_id")
+
+    private_key = get_secret(
+        client=gclient,
+        project_id=PROJECT_ID,
+        secret_id="alchemy_salesforce_private_key"
+    )
+
+    account_name = get_secret(
+        client=gclient,
+        project_id=PROJECT_ID,
+        secret_id="alchemy_salesforce_email_account"
+    )
+
     ISSUER = consumer_key
-    SUBJECT = 'To be added' + ENV_SUFFIX_MAP[env]
+    SUBJECT = account_name + ENV_SUFFIX_MAP[env]
 
     DOMAIN = 'test' if IS_SANDBOX else 'login'
-
-    print('Loading private key...')
-    with open(KEY_FILE) as fd:
-        private_key = fd.read()
 
     print('Generating signed JWT assertion...')
     claim = {

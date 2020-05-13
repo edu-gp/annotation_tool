@@ -4,8 +4,11 @@ RUN apt-get update
 RUN apt-get install -y redis-server vim
 
 RUN pip install redis pytest Flask supervisor Celery seaborn simpletransformers python-dotenv Flask-HTTPAuth
-RUN pip install mockito simple-salesforce PyJWT cryptography requests
-RUN pip install flask-sqlalchemy alembic Flask-Testing psycopg2-binary tldextract
+RUN pip install mockito flask-sqlalchemy alembic Flask-Testing psycopg2-binary
+
+# Salesforce feedback loop related packages.
+RUN pip install google-cloud-secret-manager simple-salesforce PyJWT cryptography requests tldextract
+
 # Some error with latest pillow verison... downgrade pillow
 RUN conda install pillow=6.1
 
@@ -29,9 +32,3 @@ RUN wget -nv \
 
 # Path configuration
 ENV PATH $PATH:/root/tools/google-cloud-sdk/bin
-
-#RUN apt-get install cron
-#
-#COPY crontab.txt /var/crontab.txt
-#RUN crontab /var/crontab.txt
-#RUN chmod 744 /etc/crontab
