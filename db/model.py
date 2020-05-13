@@ -662,6 +662,9 @@ class LabelPatterns(Base):
     data = Column(JSON)
 
     def set_positive_patterns(self, patterns):
+        # Dedupe and sort the patterns
+        patterns = sorted(list(set(patterns)))
+
         data = self.data or {}
         data.update({
             'positive_patterns': patterns
