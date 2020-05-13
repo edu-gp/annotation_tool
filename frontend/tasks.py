@@ -85,7 +85,7 @@ def annotate(task_id, ar_id):
     if guide:
         anno['annotation_guides'] = {
             label: {
-                'text': guide.get_html()
+                'html': guide.get_html()
             },
         }
 
@@ -226,13 +226,13 @@ def kitchen_sink():
         'testing': True,
         'annotation_guides': {
             'B2C': {
-                'text': 'Consumer Company, excluding marketplace.'
+                'html': 'Consumer Company, excluding marketplace.'
             },
             'Healthcare': {
-                'text': '<b>Anything</b> related to health.<br/>Does not include any related to fitness.'
+                'html': '<b>Anything</b> related to health.<br/>Does not include any related to fitness.'
             },
             'Fintech': {
-                'text': '<i>Next generation</i> finance.'
+                'html': '<i>Next generation</i> finance.'
             }
         }
     }
@@ -247,13 +247,13 @@ def kitchen_sink():
         'testing': True,
         'annotation_guides': {
             'B2C': {
-                'text': 'Consumer Company, excluding marketplace.'
+                'html': 'Consumer Company, excluding marketplace.'
             },
             'Healthcare': {
-                'text': '<b>Anything</b> related to health.<br/>Does not include any related to fitness.'
+                'html': '<b>Anything</b> related to health.<br/>Does not include any related to fitness.'
             },
             'Fintech': {
-                'text': '<i>Next generation</i> finance.'
+                'html': '<i>Next generation</i> finance.'
             }
         }
     }
