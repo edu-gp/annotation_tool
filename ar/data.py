@@ -237,7 +237,8 @@ def get_next_ar_id_from_db(dbsession, task_id, user_id, current_ar_id):
     ).order_by(AnnotationRequest.id.asc()).first()
     if res is not None:
         return res[0]
-    return None
+    else:
+        return res
 
 
 def get_next_ar(task_id, user_id, ar_id):
