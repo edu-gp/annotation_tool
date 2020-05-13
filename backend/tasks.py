@@ -31,7 +31,6 @@ bp = Blueprint('tasks', __name__, url_prefix='/tasks')
 
 @auth.login_required
 def _before_request():
-    print("Before Request")
     """ Auth required for all routes in this module """
     pass
 
