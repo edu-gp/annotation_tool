@@ -59,22 +59,27 @@ def update():
         flash(error)
         return render_template('labels/edit.html')
     else:
-        guide = get_or_create(db.session, AnnotationGuide, label=label)
-        guide.set_text(annotation_guide_text)
-        db.session.add(guide)
+        try:
+            guide = get_or_create(db.session, AnnotationGuide, label=label)
+            guide.set_text(annotation_guide_text)
+            db.session.add(guide)
 
-        label_patterns = get_or_create(
-            db.session, LabelPatterns, label=label)
-        label_patterns.set_positive_patterns(patterns)
-        db.session.add(label_patterns)
+            label_patterns = get_or_create(
+                db.session, LabelPatterns, label=label)
+            label_patterns.set_positive_patterns(patterns)
+            db.session.add(label_patterns)
 
-        db.session.commit()
-
-        redirect_url = request.form.get('redirect_to')
-        if redirect_url:
-            return redirect(redirect_url)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            flash(str(e))
+            return render_template('labels/edit.html')
         else:
-            return redirect('/')
+            redirect_url = request.form.get('redirect_to')
+            if redirect_url:
+                return redirect(redirect_url)
+            else:
+                return redirect('/')
 
 
 def parse_patterns(form):
