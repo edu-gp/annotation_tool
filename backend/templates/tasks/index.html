@@ -1,16 +1,6 @@
 {% extends 'base.html' %}
 
 {% block header %}
-<!-- <nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-      <li class="breadcrumb-item active" aria-current="page">
-        Home
-      </li>
-    </ol>
-  </nav> -->
-{% endblock %}
-
-{% block content %}
 <div class="row">
   <div class="col">
     <h1>Tasks</h1>
@@ -19,15 +9,30 @@
     <a class="btn btn-secondary float-right" href="{{ url_for('tasks.new') }}">New Classification Task</a>
   </div>
 </div>
+{% endblock %}
 
-{% for task in tasks %}
-<a href="{{ url_for('tasks.show', id=task.id) }}"">
-    <div class=" card my-2">
-  <div class="card-body">
-    <h5 class="card-title">{{task}}</h5>
-  </div>
-  </div>
-</a>
-{% endfor %}
+{% block content %}
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th scope="col" class="text-center" style="width: 5%">#</th>
+      <th scope="col">Task Name</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for task in tasks %}
+    <tr>
+      <td class="text-center">
+        {{loop.index}}
+      </td>
+      <td>
+        <a href="{{ url_for('tasks.show', id=task.id) }}"">
+            {{task}}
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 
 {% endblock %}

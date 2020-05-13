@@ -36,32 +36,29 @@
 {% endblock %}
 
 {% block content %}
-<h2>
-  {{task.name}}
-</h2>
+<div class="text-center">
+  <h6>
+    Task "{{task.name}}" AR #{{anno['req']['ar_id']}}
+  </h6>
+</div>
 
 <div class="row">
   <div class="col">
-    <!-- <a class="btn btn-light float-right" href="#">Next</a> -->
   </div>
   <div class="col">
     {% if next_ar_id %}
-    <a style="display:block" class="btn btn-light m-auto"
-      href={{url_for('tasks.annotate', task_id=task.id, ar_id=next_ar_id)
+    <a style="display:block" class="btn btn-secondary m-auto" href={{url_for('tasks.annotate', task_id=task.id, ar_id=next_ar_id)
             }}>Skip</a>
     {% endif %}
   </div>
   <div class="col">
-    <!-- <a class="btn btn-light float-right" href="#">Next</a> -->
   </div>
 </div>
 
 <div class="row my-4">
   <div class="col">
 
-    <h6 style="text-align: center;">
-      ar_id={{anno['req']['ar_id']}}
-    </h6>
+
 
     <div id="react_container"></div>
 
