@@ -12,8 +12,10 @@ from ar.data import compute_annotation_statistics, \
 
 from ar.ar_celery import generate_annotation_requests
 
-from train.train_celery import train_model as local_train_model
-from train.gcp_celery import poll_status as gcp_poll_status
+from train.train_celery import (
+    train_model as local_train_model,
+    submit_gcp_training
+)
 from train.no_deps.utils import get_env_bool
 
 from shared.celery_job_status import (
@@ -205,21 +207,7 @@ def assign(id):
 @bp.route('/<string:id>/train', methods=['POST'])
 def train(id):
     if get_env_bool('GOOGLE_AI_PLATFORM_ENABLED', False):
-        # TODO use celery to set this up - last I tried there were some issues
-        from train.prep import prepare_task_for_training
-        from train.gcp_job import GCPJob
-
-        task = db.session.query(Task).filter_by(id=id).one_or_none()
-
-        model = prepare_task_for_training(db.session, task.id)
-
-        files_for_inference = task.get_data_filenames(abs=True)
-
-        job = GCPJob(model.uuid, model.version)
-        # TODO: A duplicate job would error out.
-        job.submit(files_for_inference)
-
-        async_result = gcp_poll_status.delay(model.id)
+        async_result = submit_gcp_training.delay(id)
     else:
         async_result = local_train_model.delay(id)
     # TODO

@@ -19,27 +19,30 @@ app = Celery(
 @app.task
 def poll_status(model_id):
     db = Database.from_config(DevelopmentConfig)
-    model = db.session.query(Model).filter_by(id=model_id).one_or_none()
+    try:
+        model = db.session.query(Model).filter_by(id=model_id).one_or_none()
 
-    assert model, f"Model not found model_id={model_id}"
+        assert model, f"Model not found model_id={model_id}"
 
-    job = GCPJob(model.uuid, model.version)
+        job = GCPJob(model.uuid, model.version)
 
-    while True:
-        status = job.get_status()
+        while True:
+            status = job.get_status()
 
-        if status is None:
-            print("Unknown job status")
-            break
-            # TODO: Print the actual error.
-        else:
-            print(status)
-
-            if status.get('state') == 'SUCCEEDED':
-                job.download()
+            if status is None:
+                print("Unknown job status")
                 break
+                # TODO: Print the actual error.
+            else:
+                print(status)
 
-        time.sleep(60)
+                if status.get('state') == 'SUCCEEDED':
+                    job.download()
+                    break
+
+            time.sleep(60)
+    finally:
+        db.session.close()
 
 
 app.conf.task_routes = {'*.gcp_celery.*': {'queue': 'gcp_celery'}}

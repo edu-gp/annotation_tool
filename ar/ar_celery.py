@@ -64,6 +64,8 @@ def generate_annotation_requests(task_id, max_per_annotator,
 
     set_status(celery_id, JobStatus.DONE, progress=1.0)
 
+    db.session.close()
+
 
 app.conf.task_routes = {'*.ar_celery.*': {'queue': 'ar_celery'}}
 
