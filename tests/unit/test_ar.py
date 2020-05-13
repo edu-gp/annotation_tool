@@ -1,7 +1,8 @@
-import ar
-from ar import Pred
-from db.model import ClassificationAnnotation, get_or_create, User
 from tests.sqlalchemy_conftest import *
+import ar
+from ar import Example
+from db.model import ClassificationAnnotation, get_or_create, User
+
 
 def test_assign_round_robin():
     datapoints = ['a', 'b', 'c']
@@ -115,10 +116,10 @@ def test_build_blacklist_lookup_dict(dbsession):
 
 def test_blacklisting_requests(dbsession):
     user1, user2, annotations, entity1, entity2 = populate_db(dbsession)
-    dp1 = Pred(score=1, entity="new_entity", fname="fname", line_number=1)
-    dp2 = Pred(score=1, entity=entity1, fname="fname", line_number=1)
-    dp3 = Pred(score=1, entity=entity2, fname="fname", line_number=1)
-    dp4 = Pred(score=1, entity="entity_new", fname="fname", line_number=1)
+    dp1 = Example(score=1, entity="new_entity", fname="fname", line_number=1)
+    dp2 = Example(score=1, entity=entity1, fname="fname", line_number=1)
+    dp3 = Example(score=1, entity=entity2, fname="fname", line_number=1)
+    dp4 = Example(score=1, entity="entity_new", fname="fname", line_number=1)
     datapoints = [dp1, dp2, dp3, dp4]
     annotators = [user1.username, user2.username]
     lookup_dict = ar._build_blacklisting_lookup_dict(dbsession=dbsession)
@@ -166,17 +167,19 @@ def _do_test_shuffle(random_pred_class_a, random_pred_class_b, is_pred_class_a):
 def test_shuffle():
     import random
 
-    def random_pred_class_a(linenum): return ar.Pred(
-        score=0.1 + random.random()/100,
-        entity=str(linenum) + ".com",
-        fname='data.jsonl',
-        line_number=linenum)
+    def random_pred_class_a(linenum):
+        return Example(
+            score=0.1 + random.random()/100,
+            entity=str(linenum) + ".com",
+            fname='data.jsonl',
+            line_number=linenum)
 
-    def random_pred_class_b(linenum): return ar.Pred(
-        score=0.9 + random.random()/100,
-        entity=str(linenum) + ".com",
-        fname='data.jsonl',
-        line_number=linenum)
+    def random_pred_class_b(linenum):
+        return Example(
+            score=0.9 + random.random()/100,
+            entity=str(linenum) + ".com",
+            fname='data.jsonl',
+            line_number=linenum)
 
     def is_pred_class_a(pred): return pred.score < 0.5
 
@@ -184,17 +187,51 @@ def test_shuffle():
 
 
 def test_shuffle_2():
-    def random_pred_class_a(linenum): return ar.Pred(
-        score=0.1,
-        entity=str(linenum) + ".com",
-        fname='data.jsonl', line_number=linenum)
+    def random_pred_class_a(linenum):
+        return Example(
+            score=0.1,
+            entity=str(linenum) + ".com",
+            fname='data.jsonl', line_number=linenum)
 
-    def random_pred_class_b(linenum): return ar.Pred(
-        score=0.9,
-        entity=str(linenum) + ".com",
-        fname='data.jsonl',
-        line_number=linenum)
+    def random_pred_class_b(linenum):
+        return Example(
+            score=0.9,
+            entity=str(linenum) + ".com",
+            fname='data.jsonl',
+            line_number=linenum)
 
     def is_pred_class_a(pred): return pred.score < 0.5
 
     _do_test_shuffle(random_pred_class_a, random_pred_class_b, is_pred_class_a)
+
+
+def test__consolidate_ranked_examples_per_label__simple():
+    def ex(entity):
+        return Example(score=0, entity=entity, fname='x', line_number=1)
+
+    # All labels assigned highest scores to 'c', then 'b', then 'a'.
+    ranked_examples_per_label = [
+        [ex('a'), ex('b'), ex('c')],
+        [ex('a'), ex('b'), ex('c')],
+    ]
+
+    res = ar.consolidate_ranked_examples_per_label(ranked_examples_per_label)
+    res = [x.entity for x in res]
+    assert res == ['a', 'b', 'c']
+
+
+def test__consolidate_ranked_examples_per_label__round_robin():
+    def ex(entity):
+        return Example(score=0, entity=entity, fname='x', line_number=1)
+
+    # Round robin algo looks at the 1st column (a, a, c),
+    # then 2nd col (b, c, a), and so on.
+    ranked_examples_per_label = [
+        [ex('a'), ex('b'), ex('c')],
+        [ex('a'), ex('c'), ex('b')],
+        [ex('c'), ex('a'), ex('b')],
+    ]
+
+    res = ar.consolidate_ranked_examples_per_label(ranked_examples_per_label)
+    res = [x.entity for x in res]
+    assert res == ['a', 'c', 'b']
