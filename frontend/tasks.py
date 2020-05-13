@@ -10,7 +10,7 @@ from flask import (
 
 from db.model import (
     db, AnnotationRequest, Task, get_or_create, ClassificationAnnotation,
-    AnnotationValue, AnnotationRequestStatus)
+    AnnotationValue, AnnotationRequestStatus, AnnotationGuide)
 
 from .auth import login_required
 
@@ -80,6 +80,14 @@ def annotate(task_id, ar_id):
 
     anno['suggested_labels'] = [label]
     anno['task_id'] = task.id
+
+    guide = db.session.query(AnnotationGuide).filter_by(label=label).first()
+    if guide:
+        anno['annotation_guides'] = {
+            label: {
+                'text': guide.get_html()
+            },
+        }
 
     # et = time.time()
     # print("Load time", et-st)
