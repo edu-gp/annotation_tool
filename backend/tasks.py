@@ -5,8 +5,8 @@ from flask import (
     Blueprint, flash, redirect, render_template, request, url_for
 )
 
-from db.model import db, Task, Model, AnnotationGuide
-from db.utils import get_all_data_files, get_all_pattern_files
+from db.model import db, Task, Model, AnnotationGuide, LabelPatterns
+from db.utils import get_all_data_files
 from ar.data import compute_annotation_statistics, \
     compute_annotation_statistics_db, compute_annotation_request_statistics
 
@@ -48,17 +48,12 @@ def index():
 
 @bp.route('/new', methods=['GET'])
 def new():
-    data_fnames = get_all_data_files()
-    pattern_fnames = get_all_pattern_files()
-    return render_template('tasks/new.html',
-                           data_fnames=data_fnames,
-                           pattern_fnames=pattern_fnames)
+    return render_template('tasks/new.html', data_fnames=get_all_data_files())
 
 
 @bp.route('/', methods=['POST'])
 def create():
     data_fnames = get_all_data_files()
-    pattern_fnames = get_all_pattern_files()
 
     error = None
     try:
@@ -67,23 +62,17 @@ def create():
         name = parse_name(form)
         labels = parse_labels(form)
         annotators = parse_annotators(form)
-        patterns_file = parse_patterns_file(form, pattern_fnames)
-        patterns = parse_patterns(form)
         data_files = parse_data(form, data_fnames)
     except Exception as e:
         error = str(e)
 
     if error is not None:
         flash(error)
-        return render_template('tasks/new.html',
-                               data_fnames=data_fnames,
-                               pattern_fnames=pattern_fnames)
+        return render_template('tasks/new.html', data_fnames=data_fnames)
     else:
         task = Task(name=name)
         task.set_labels(labels)
         task.set_annotators(annotators)
-        task.set_patterns_file(patterns_file)
-        task.set_patterns(patterns)
         task.set_data_filenames(data_files)
         db.session.add(task)
         db.session.commit()
@@ -100,11 +89,16 @@ def show(id):
     _labels = task.get_labels()
     _guides = db.session.query(AnnotationGuide).filter(
         AnnotationGuide.label.in_(_labels)).all()
-    # Not all labels have an AnnotationGuide, so we use this _lookup to only
-    # keep the ones with a guide.
-    _lookup = dict([(g.label, g) for g in _guides])
-    labels_and_guides = [(label, _lookup.get(label)) for label in _labels]
-    labels_and_guides = sorted(labels_and_guides)
+    _label_patterns = db.session.query(LabelPatterns).filter(
+        LabelPatterns.label.in_(_labels)).all()
+    # Not all labels have an AnnotationGuide or LabelPatterns, so we use this
+    # _lookup to only keep the ones with a guide.
+    _lookup_g = dict([(x.label, x) for x in _guides])
+    _lookup_p = dict([(x.label, x) for x in _label_patterns])
+
+    labels_and_attributes = [(label, _lookup_g.get(label), _lookup_p.get(label))
+                             for label in _labels]
+    labels_and_attributes = sorted(labels_and_attributes, key=lambda x: x[0])
 
     # -------------------------------------------------------------------------
     # Annotations
@@ -150,7 +144,7 @@ def show(id):
         models=models,
         active_model=active_model,
         annotator_login_links=annotator_login_links,
-        labels_and_guides=labels_and_guides,
+        labels_and_attributes=labels_and_attributes,
     )
 
 
@@ -172,7 +166,6 @@ def update(id):
         name = parse_name(form)
         labels = parse_labels(form)
         annotators = parse_annotators(form)
-        patterns = parse_patterns(form)
     except Exception as e:
         error = str(e)
 
@@ -184,7 +177,6 @@ def update(id):
         task.name = name
         task.set_labels(labels)
         task.set_annotators(annotators)
-        task.set_patterns(patterns)
         db.session.add(task)
         db.session.commit()
         return redirect(url_for('tasks.show', id=task.id))
@@ -288,30 +280,3 @@ def parse_data(form, all_files):
     for fname in data:
         assert fname in all_files, f"Data file '{fname}' does not exist"
     return data
-
-
-def parse_patterns_file(form, all_files):
-    selections = form.getlist('patterns_file')
-    assert isinstance(
-        selections, list), "Pattern file selections is not a list"
-
-    if len(selections) > 0:
-        assert len(selections) == 1, "Only 1 pattern file should be selected"
-        patterns_file = selections[0]
-        assert patterns_file in all_files, "Pattern file does not exist"
-        return patterns_file
-    else:
-        # Note a patterns file is optional
-        return None
-
-
-def parse_patterns(form):
-    patterns = form['patterns']
-
-    try:
-        patterns = textarea_to_list(patterns)
-    except Exception as e:
-        raise Exception(f'Unable to load Patterns: {e}')
-
-    assert isinstance(patterns, list), 'Patterns must be a list'
-    return patterns

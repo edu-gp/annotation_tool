@@ -78,8 +78,8 @@ def create_app(test_config=None):
     from . import models
     app.register_blueprint(models.bp)
 
-    from . import annotation_guide
-    app.register_blueprint(annotation_guide.bp)
+    from . import labels
+    app.register_blueprint(labels.bp)
 
     from . import data
     app.register_blueprint(data.bp)
