@@ -4,11 +4,13 @@ import logging
 from datetime import datetime
 from typing import List, NoReturn
 
+import typing
 from simple_salesforce import Salesforce
 
 import jwt
 import time
 import requests
+import tldextract
 
 from db.config import DevelopmentConfig
 from db.model import Database, get_or_create, User, ClassificationAnnotation, \
@@ -18,10 +20,8 @@ from db.model import Database, get_or_create, User, ClassificationAnnotation, \
 def make_from_credentials(env: str) -> Salesforce:
     """Factory function for API instance using salesforce credentials
     Args:
-        username: salesforce login (email)
-        password: salesforce password
-        security_token: salesforce security token
-        is_sandbox: are we connecting to a sandbox instance?
+        env: which environment is the script running on? Ideally we should
+        have a beta stage and a prod stage.
 
     Returns:
         Instance of simple-salesforce object
@@ -35,10 +35,10 @@ def make_from_credentials(env: str) -> Salesforce:
     # ENV = 'prod'
     IS_SANDBOX = env != 'prod'
 
-    consumer_key = "Please ask on how to get it."
-    KEY_FILE = 'Please ask on how to get it.'
+    consumer_key = "To be added"
+    KEY_FILE = 'To be added'
     ISSUER = consumer_key
-    SUBJECT = 'Please ask on how to get it' + ENV_SUFFIX_MAP[env]
+    SUBJECT = 'To be added' + ENV_SUFFIX_MAP[env]
 
     DOMAIN = 'test' if IS_SANDBOX else 'login'
 
@@ -73,122 +73,124 @@ def make_from_credentials(env: str) -> Salesforce:
     )
 
 
-def fetch_last_dropoff_reason(api: Salesforce,
-                              start_time: datetime,
-                              end_time_exclusive: datetime) -> List:
-    start_time_str = start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
-    end_time_str = end_time_exclusive.strftime('%Y-%m-%dT%H:%M:%SZ')
-    # TODO confirm what are all the fields we need?
-    # TODO add another query based on Diego's note.
-    last_dropoff_reason = api.query_all(
-        """
-        SELECT cbit__ClearbitDomain__c, CreatedDate, Last_Dropoff_Date__c,
-        Last_Dropoff_Reason__c, Name, Website 
-        FROM Account 
-        WHERE CreatedDate >= {} 
-        AND CreatedDate < {}
-        """.format(start_time_str, end_time_str)
-    )
-    return last_dropoff_reason["records"]
-
-
-# TODO do we need the time range for the lead?
-def fetch_lead_status(api: Salesforce,
-                      start_time: datetime,
-                      end_time_exclusive: datetime) -> List:
+def fetch_lead_status_and_dropoff_reason(api: Salesforce,
+                                         start_time: datetime,
+                                         end_time_exclusive: datetime) -> List:
     start_time_str = start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
     end_time_str = end_time_exclusive.strftime('%Y-%m-%dT%H:%M:%SZ')
 
-    companies_with_bd_accepted = api.query_all(
+    records = api.query_all(
         """
-        SELECT Lead.Company FROM Lead WHERE 
-        Lead.Status = 'BD Accepted' Limit 10
-        """
-    )["records"]
-
-    selected_companies = [
-        company['Company'] for company in companies_with_bd_accepted
-    ]
-
-    selected_companies_sql_condition = ','.join([
-        "'{}'".format(company) for company in selected_companies
-    ])
-
-    result = api.query_all(
-        """
-        SELECT Company_Name__c, cbit__ClearbitDomain__c FROM Account WHERE
-        Account.Company_Name__c IN ({}) 
+        SELECT Company, Company_Description__c, Website, Domain_Ext__c, 
+        Dropoff_Reason__c, Id, Status 
+        FROM Lead WHERE IsConverted = true 
+        AND Domain_Ext__c <> Null
         AND CreatedDate >= {} 
         AND CreatedDate < {}
-        """.format(selected_companies_sql_condition,
-                   start_time_str,
-                   end_time_str)
-    )
-    return result['records']
+        """.format(start_time_str, end_time_str)
+    )['records']
+    return records
 
 
-# TODO are we ever going to unmark an entity from B2C to non-B2C by
-#  salesforce? If no, then there is no point of update existing entries.
-def insert_salesforce_b2c_annotations(
+def _extract_domain(website_link: str) -> str:
+    extraction_result = tldextract.extract(website_link)
+    return extraction_result.domain + "." + extraction_result.suffix
+
+
+def _is_b2c_related(record):
+    return record["Dropoff_Reason__c"] == "Business Model - B2C" or \
+           record["Status"] == "BD Accepted"
+
+
+def _determine_value_for_b2c(record):
+    if record["Status"] == "BD Accepted":
+        value = -1
+    elif record["Dropoff_Reason__c"] == "Business Model - B2C":
+        value = 1
+    else:
+        value = 0  # This should never happen in theory.
+    return value
+
+
+def upsert_salesforce_b2c_annotations(
         dbsession,
         salesforce_user: User,
         last_dropoff_reasons: List,
-        filter_by: str = "Business Model - B2C") -> NoReturn:
-    entities_dropped_due_to_b2c = [
-        record["cbit__ClearbitDomain__c"]
-        for record in last_dropoff_reasons if record[
-            "Last_Dropoff_Reason__c"] == filter_by
-    ]
+        is_filtered_by: typing.Callable = _is_b2c_related) -> NoReturn:
 
-    logging.info(entities_dropped_due_to_b2c)
+    entities_selected = {}
+    for record in last_dropoff_reasons:
+        if is_filtered_by(record):
+            if record["Domain_Ext__c"]:
+                entities_selected[record["Domain_Ext__c"]] = record
+            elif record["Website"]:
+                entities_selected[_extract_domain(record["Website"])] = record
+            else:
+                logging.warning("Company {} had neither domain nor website "
+                                "in Salesforce".format(record["Company"]))
 
-    """
-    Format of a context:
-    {"text": "Developer of a smart sleep mask intended to take control of sleep schedule. The company's mask uses light flash technology to treat circadian rhythm disruptions, such as jet lag, delayed phase sleep disorder (DPSD) and seasonal affective disorder (SAD), enabling users to get a good sleep.", "meta": {"name": "LumosTech", "domain": "lumos.tech"}}
-    """
     try:
         res = \
-            dbsession.query(ClassificationAnnotation.entity).filter(
-                ClassificationAnnotation.entity.in_(entities_dropped_due_to_b2c),
+            dbsession.query(ClassificationAnnotation).filter(
+                ClassificationAnnotation.entity.in_(entities_selected),
                 ClassificationAnnotation.entity_type == EntityTypeEnum.COMPANY,
                 ClassificationAnnotation.label == "B2C",
                 ClassificationAnnotation.user_id == salesforce_bot.id
             ).all()
-        exisiting_entity = set([
-            item[0] for item in res
-        ])
-        annotations_to_add = [
-            ClassificationAnnotation(
-                value=1,
-                entity=entity,
-                entity_type=EntityTypeEnum.COMPANY,
-                label="B2C",
-                user_id=salesforce_user.id,
-                context="Extracted from Salesforce"
-            )
-            for entity in entities_dropped_due_to_b2c
-            if entity not in exisiting_entity
-        ]
-        print("Inserting the following new entities:")
-        new_entities = [annotation.entity for annotation in annotations_to_add]
+        existing_entity_annotations = {
+            annotation.entity: annotation
+            for annotation in res
+        }
+
+        new_entities = []
+        updated_entities = []
+        for entity in entities_selected:
+            value = _determine_value_for_b2c(entities_selected[entity])
+            if entity not in existing_entity_annotations:
+                new_annotation = ClassificationAnnotation(
+                    value=value,
+                    entity=entity,
+                    entity_type=EntityTypeEnum.COMPANY,
+                    label="B2C",
+                    user_id=salesforce_user.id,
+                    context={
+                        "text": entities_selected[entity][
+                            "Company_Description__c"],
+                        "meta": {
+                            "name": entities_selected[entity]["Company"],
+                            "domain": entity
+                        },
+                        "source": "salesforce_bot"
+                    }
+                )
+                new_entities.append(entity)
+                dbsession.add(new_annotation)
+            else:
+                updated_entities.append(entity)
+                existing_entity_annotations[entity].value = value
+
+        logging.info("Inserting the following new entities:")
         logging.info(",".join(new_entities))
-        dbsession.add_all(annotations_to_add)
+        logging.info("Updated the following existing entities:")
+        logging.info(",".join(updated_entities))
+
         dbsession.commit()
     except Exception:
         dbsession.rollback()
         raise
+    finally:
+        dbsession.close()
 
 
 if __name__ == "__main__":
     logging.root.setLevel(logging.INFO)
 
     sf = make_from_credentials(env='prod')
-    records = fetch_last_dropoff_reason(
+    salesforce_records = fetch_lead_status_and_dropoff_reason(
         api=sf,
         start_time=datetime(year=2018, month=1, day=1),
-        end_time_exclusive=datetime(year=2021, month=1, day=1)
+        end_time_exclusive=datetime.now()
     )
-    print(records)
 
     db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
     salesforce_bot = get_or_create(
@@ -196,10 +198,10 @@ if __name__ == "__main__":
         model=User,
         username="salesforce_bot"
     )
-    insert_salesforce_b2c_annotations(
+    upsert_salesforce_b2c_annotations(
         dbsession=db.session,
         salesforce_user=salesforce_bot,
-        last_dropoff_reasons=records
+        last_dropoff_reasons=salesforce_records
     )
 
 

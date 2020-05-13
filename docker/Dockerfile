@@ -5,7 +5,7 @@ RUN apt-get install -y redis-server vim
 
 RUN pip install redis pytest Flask supervisor Celery seaborn simpletransformers python-dotenv Flask-HTTPAuth
 RUN pip install mockito simple-salesforce PyJWT cryptography requests
-RUN pip install flask-sqlalchemy alembic Flask-Testing psycopg2-binary
+RUN pip install flask-sqlalchemy alembic Flask-Testing psycopg2-binary tldextract
 # Some error with latest pillow verison... downgrade pillow
 RUN conda install pillow=6.1
 
