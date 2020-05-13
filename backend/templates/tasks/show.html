@@ -67,19 +67,21 @@
             <tr>
               <th scope="col">Label</th>
               <th scope="col">Annotation Guide</th>
+              <th scope="col">Patterns</th>
+              <th scope="col"></th>
             </tr>
           </thead>
           <tbody>
-            {% for label, guide in labels_and_guides %}
+            {% for label, guide, label_patterns in labels_and_attributes %}
             <tr>
               <td class="align-middle">{{label}}</td>
               <td>
                 {% set html = guide.get_html() -%}
-                {% set editLink = url_for('annotation_guide.show', label=label, redirect_to=url_for(request.endpoint, id=task.id)) -%}
-                {% if html %}
 
+                {% if html %}
                 <!-- Button trigger modal -->
-                <button type="button" class="btn btn-info" data-toggle="modal" data-target="#anno-guide-{{loop.index}}">
+                <button type="button" class="btn btn-sm btn-info" data-toggle="modal"
+                  data-target="#anno-guide-{{loop.index}}">
                   View
                 </button>
 
@@ -103,11 +105,49 @@
                     </div>
                   </div>
                 </div>
-
-                <a class="ml-2" href="{{ editLink }}">Edit</a>
                 {% else %}
-                <a href="{{ editLink }}">Add</a>
+                N/A
                 {% endif %}
+              </td>
+              <td>
+                {% if label_patterns and label_patterns.count() > 0 %}
+                <!-- Button trigger modal -->
+                <button type="button" class="btn btn-sm btn-info" data-toggle="modal"
+                  data-target="#label_patterns-{{loop.index}}">
+                  {{label_patterns.count()}}
+                </button>
+
+                <!-- Modal -->
+                <div class="modal fade" id="label_patterns-{{loop.index}}" tabindex="-1" role="dialog"
+                  aria-labelledby="exampleModalLabel" aria-hidden="true">
+                  <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title" id="exampleModalLabel">Patterns for "{{label}}"</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                          <span aria-hidden="true">&times;</span>
+                        </button>
+                      </div>
+
+                      <form class="form-export-new-raw-data">
+                        <div class="modal-body">
+                          {% for pattern in label_patterns.get_positive_patterns() %}
+                          <div>
+                            <code>{{pattern}}</code>
+                          </div>
+                          {% endfor %}
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+                {% else %}
+                N/A
+                {% endif %}
+              </td>
+              <td>
+                {% set editLink = url_for('labels.edit', label=label, redirect_to=url_for(request.endpoint, id=task.id)) -%}
+                <a href="{{ editLink }}">Edit</a>
               </td>
             </tr>
             {% endfor %}

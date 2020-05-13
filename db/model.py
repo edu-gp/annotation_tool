@@ -625,7 +625,7 @@ class AnnotationGuide(Base):
 
     id = Column(Integer, primary_key=True)
 
-    label = Column(String, index=True, nullable=False)
+    label = Column(String, index=True, unique=True, nullable=False)
 
     data = Column(JSON)
 
@@ -652,8 +652,36 @@ class AnnotationGuide(Base):
             return ''
 
 
+class LabelPatterns(Base):
+    __tablename__ = 'label_patterns'
+
+    id = Column(Integer, primary_key=True)
+
+    label = Column(String, index=True, unique=True, nullable=False)
+
+    data = Column(JSON)
+
+    def set_positive_patterns(self, patterns):
+        data = self.data or {}
+        data.update({
+            'positive_patterns': patterns
+        })
+        self.data = data
+        flag_modified(self, 'data')
+
+    def get_positive_patterns(self):
+        return self.data and self.data.get('positive_patterns')
+
+    def count(self):
+        if self.data:
+            return len(self.data.get('positive_patterns', []))
+        else:
+            return 0
+
 # =============================================================================
 # Convenience Functions
+
+
 def update_instance(dbsession, model, filter_by_dict, update_dict):
     dbsession.query(model).filter_by(**filter_by_dict).update(update_dict)
     dbsession.commit()

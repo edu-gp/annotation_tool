@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block header %}
+<h2>Edit Label Attributes</h2>
+{% endblock %}
+
+{% block content %}
+<form action="{{ url_for('labels.update') }}" method="POST">
+
+    <input type="hidden" name="redirect_to" value="{{ redirect_to }}">
+
+    <div class="form-group">
+        <label for="name">Label</label>
+        <input type="text" class="form-control" name="label" id="label"
+            value="{{ label | default(request.form['label']) }}" readonly required>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            <div class="form-group">
+                <label for="name">Annotation Guide</label>
+                <textarea type="text" class="form-control" name="annotation_guide_text" id="text"
+                    rows=15>{{ annotation_guide_text| default(request.form['annotation_guide_text']) }}</textarea>
+            </div>
+        </div>
+        <div class="col">
+            <div class="form-group">
+                <label for="name">Patterns (one phrase per line)</label>
+                <textarea type="text" class="form-control" name="patterns" id="text"
+                    rows=15>{{ patterns | default(request.form['patterns'])}}</textarea>
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save</button>
+</form>
+{% endblock %}
