@@ -28,10 +28,9 @@
 
       <div class="form-group">
         <label for="data">What data will we annotate?</label>
-        <small class="form-text text-muted mt-0 mb-2">You can select multiple files.</small>
         {% for fname in data_fnames %}
         <div class="form-check">
-          <input class="form-check-input" type="checkbox" name="data" value="{{fname}}" id="data_{{fname}}"
+          <input class="form-check-input" type="radio" name="data" value="{{fname}}" id="data_{{fname}}"
             {{'checked' if fname in request.form.getlist('data') else ''}}>
           <label class="form-check-label" for="data_{{fname}}">
             {{fname}}
