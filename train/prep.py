@@ -73,8 +73,6 @@ def prepare_next_model_for_label(
     # Save config
     save_json(_get_config_fname(model_dir), config)
     # Copy over data
-    print(data.path(abs=True))
-    print(_get_exported_data_fname(model_dir))
     shutil.copyfile(data.path(abs=True), _get_exported_data_fname(model_dir))
 
     return model
