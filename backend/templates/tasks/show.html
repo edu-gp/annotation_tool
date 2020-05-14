@@ -62,7 +62,7 @@
         </ul>
 
         <h4>Labels</h4>
-        <table class="table">
+        <table class="table table-bordered">
           <thead>
             <tr>
               <th scope="col">Label</th>
@@ -76,9 +76,7 @@
             <tr>
               <td class="align-middle">{{label}}</td>
               <td>
-                {% set html = guide.get_html() -%}
-
-                {% if html %}
+                {% if guide and guide.get_html() %}
                 <!-- Button trigger modal -->
                 <button type="button" class="btn btn-sm btn-info" data-toggle="modal"
                   data-target="#anno-guide-{{loop.index}}">
@@ -99,7 +97,7 @@
 
                       <form class="form-export-new-raw-data">
                         <div class="modal-body">
-                          {{html | safe}}
+                          {{guide.get_html() | safe}}
                         </div>
                       </form>
                     </div>

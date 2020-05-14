@@ -11,27 +11,41 @@
     </li>
   </ol>
 </nav>
-{% endblock %}
-
-{% block content %}
 <h2>
   {{task.name}}
 </h2>
+{% endblock %}
 
-<ul class="list-group list-group-flush">
-  {% for ar_id in ars %}
-  <li class="list-group-item">
-    {% if has_annotation[loop.index0] %}
-    <span class='badge badge-info'>Done</span>
-    {% else %}
-    <span class='badge badge-danger'>TODO</span>
-    {% endif %}
-    <a class="mx-2" href={{url_for('tasks.annotate', task_id=task.id,
-    ar_id=ar_id)}}>
-      Example {{loop.index}} - {{ar_id}}
-    </a>
-  </li>
-  {% endfor %}
-</ul>
+{% block content %}
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th scope="col" class="text-center" style="width: 5%">#</th>
+      <th scope="col" class="text-center" style="width: 5%">Status</th>
+      <th scope="col" style="width: 90%">Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ar_id in ars %}
+    <tr>
+      <td class="text-center">
+        {{loop.index}}
+      </td>
+      <td class="text-center">
+        {% if has_annotation[loop.index0] %}
+        <span class='badge badge-info'>Done</span>
+        {% else %}
+        <span class='badge badge-danger'>TODO</span>
+        {% endif %}
+      </td>
+      <td>
+        <a class="mx-2" href={{url_for('tasks.annotate', task_id=task.id, ar_id=ar_id)}}>
+          Example #{{ar_id}}
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 
 {% endblock %}

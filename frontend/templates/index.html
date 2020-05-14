@@ -7,14 +7,29 @@
 <p>
   {% if tasks|length > 0 %}
   You're requested to annotate:
-  <ol class="list-group list-group-flush">
-    {% for task in tasks %}
-    <li class="list-group-item"><a href="{{ url_for('tasks.show', id=task
-    .task_id) }}"">{{task.name}}</a></li>
-          {% endfor %}
-        </ol>
-      {% else %}
-        Nothing to annotate yet.
-      {% endif %}
-  </p>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th scope="col" class="text-center" style="width: 5%">#</th>
+        <th scope="col">Task Name</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for task in tasks %}
+      <tr>
+        <td class="text-center">
+          {{loop.index}}
+        </td>
+        <td>
+          <a href="{{ url_for('tasks.show', id=task.task_id) }}"">
+              {{task.name}}
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  There's nothing to annotate. Have a good day!
+  {% endif %}
 {% endblock %}
