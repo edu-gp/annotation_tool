@@ -676,7 +676,10 @@ class LabelPatterns(Base):
         flag_modified(self, 'data')
 
     def get_positive_patterns(self):
-        return self.data and self.data.get('positive_patterns')
+        if self.data:
+            return self.data.get('positive_patterns', [])
+        else:
+            return []
 
     def count(self):
         if self.data:
