@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import logging
+import os
 from datetime import datetime
 from typing import List, NoReturn
 
@@ -19,7 +20,7 @@ from db.model import Database, get_or_create, User, ClassificationAnnotation, \
 from google.cloud import secretmanager
 
 
-PROJECT_ID = "nlp-flywheel"
+PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
 
 
 def create_gcp_client():
