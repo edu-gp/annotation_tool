@@ -10,11 +10,12 @@ from sqlalchemy import func
 from db.fs import filestore_base_dir, RAW_DATA_DIR
 from db.model import get_or_create, Task, \
     AnnotationRequest, User, AnnotationRequestStatus, ClassificationAnnotation, \
-    AnnotationValue
+    AnnotationValue, LabelPatterns
 from shared.utils import load_jsonl
 from inference.base import ITextCatModel
 from inference import get_predicted
 from inference.random_model import RandomModel
+from inference.pattern_model import PatternModel
 
 from .data import fetch_all_ar_ids
 from .utils import get_ar_id, timeit
@@ -23,7 +24,24 @@ Example = namedtuple('Example', ['score', 'entity', 'fname', 'line_number'])
 EntityUserTuple = namedtuple('EntityUserTuple', ['entity', 'user'])
 
 
-def get_ranked_examples_for_label(task, label, data_filenames) -> List[Example]:
+def get_pattern_model_for_label(dbsession, label):
+    from db._task import _convert_to_spacy_patterns
+
+    label_patterns = dbsession.query(
+        LabelPatterns).filter_by(label=label).first()
+    if label_patterns:
+        patterns = label_patterns.get_positive_patterns()
+        if len(patterns) > 0:
+            patterns = _convert_to_spacy_patterns(patterns)
+            model = PatternModel(patterns)
+            return model
+        else:
+            return None
+    else:
+        return None
+
+
+def get_ranked_examples_for_label(dbession, task, label, data_filenames) -> List[Example]:
     """Get the ranking for each datapoint in data_filenames for this label.
     (We're also passing in the task, but in the future I hope to remove this
     dependency)
@@ -40,7 +58,7 @@ def get_ranked_examples_for_label(task, label, data_filenames) -> List[Example]:
     logging.info("Prediction from random model finished...")
 
     # Pattern-driven Examples
-    _patterns_model = task.get_pattern_model()
+    _patterns_model = get_pattern_model_for_label(dbession, label)
     if _patterns_model is not None:
         examples.append(_get_predictions(data_filenames, [_patterns_model]))
         proportions.append(3)  # [1,3] -> [0.25, 0.75]
@@ -112,7 +130,8 @@ def generate_annotation_requests(dbsession, task_id: int,
 
     ranked_examples_per_label = []
     for label in task.get_labels():
-        _res = get_ranked_examples_for_label(task, label, data_filenames)
+        _res = get_ranked_examples_for_label(
+            dbsession, task, label, data_filenames)
         ranked_examples_per_label.append(_res)
 
     ranked_examples = consolidate_ranked_examples_per_label(

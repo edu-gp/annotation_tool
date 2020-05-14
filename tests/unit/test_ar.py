@@ -1,7 +1,9 @@
 from tests.sqlalchemy_conftest import *
 import ar
 from ar import Example
-from db.model import ClassificationAnnotation, get_or_create, User
+from db.model import (
+    ClassificationAnnotation, get_or_create, User, LabelPatterns
+)
 
 
 def test_assign_round_robin():
@@ -235,3 +237,33 @@ def test__consolidate_ranked_examples_per_label__round_robin():
     res = ar.consolidate_ranked_examples_per_label(ranked_examples_per_label)
     res = [x.entity for x in res]
     assert res == ['a', 'c', 'b']
+
+
+def test__get_pattern_model_for_label__bad_label(dbsession):
+    pat_model = ar.get_pattern_model_for_label(dbsession, 'bad_label')
+    assert pat_model is None
+
+
+def test__get_pattern_model_for_label__no_pat(dbsession):
+    pat = LabelPatterns(label='test')
+    pat.set_positive_patterns([])
+    dbsession.add(pat)
+    dbsession.commit()
+
+    pat_model = ar.get_pattern_model_for_label(dbsession, 'test')
+    assert pat_model is None
+
+
+def test__get_pattern_model_for_label__normal(dbsession):
+    pat = LabelPatterns(label='test')
+    pat.set_positive_patterns(['hello world', 'abc'])
+    dbsession.add(pat)
+    dbsession.commit()
+
+    pat_model = ar.get_pattern_model_for_label(dbsession, 'test')
+    assert pat_model is not None
+
+    # The first sentence matches a pattern, the second doesn't.
+    res = pat_model.predict(['blah blah hello world', 'xyz'])
+    assert res[0]['score'] > 0
+    assert res[1]['score'] == 0
