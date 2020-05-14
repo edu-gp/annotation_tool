@@ -1,6 +1,7 @@
 import time
 import os
 import shutil
+import hashlib
 
 from .no_deps.paths import (
     _get_config_fname, _get_exported_data_fname
@@ -8,7 +9,7 @@ from .no_deps.paths import (
 from .no_deps.utils import get_env_int, get_env_bool
 
 from db.model import (
-    Task, TextClassificationModel,  ClassificationTrainingData,
+    TextClassificationModel, ClassificationTrainingData,
     EntityTypeEnum
 )
 from train.text_lookup import get_entity_text_lookup_function
@@ -37,37 +38,30 @@ def generate_config():
     }
 
 
-def prepare_task_for_training(dbsession, task_id) -> TextClassificationModel:
-    # TODO rename this to something like `prepare_next_model_for_task`
+def prepare_next_model_for_label(
+        dbsession, label, raw_file_path,
+        entity_type=EntityTypeEnum.COMPANY) -> TextClassificationModel:
     """Exports the model and save config when the model is training it does
     not need access to the Task object.
 
     Returns the directory in which all the prepared info are stored.
     """
-    task = dbsession.query(Task).filter_by(id=task_id).one_or_none()
+    model_id = f"{os.environ.get('ALCHEMY_ENV', 'dev')}:{label}"
+    model_id = hashlib.sha224(model_id.encode()).hexdigest()
 
-    # Model uuid by default is the task's uuid; One model per task.
-    uuid = task.get_uuid()
-    version = TextClassificationModel.get_next_version(dbsession, uuid)
+    version = TextClassificationModel.get_next_version(dbsession, model_id)
 
-    # By default use the first label the task has.
-    label = task.get_labels()[0]
-    # By default use the Company entity type
-    # TODO this should be part of Task
-    ENTITY_TYPE = EntityTypeEnum.COMPANY
-
-    # TODO these defaults should be stored in Task
-    jsonl_file_path = task.get_data_filenames(abs=True)[0]
     entity_text_lookup_fn = get_entity_text_lookup_function(
-        jsonl_file_path, 'meta.domain', 'text', ENTITY_TYPE
+        raw_file_path, 'meta.domain', 'text', entity_type
     )
 
     data = ClassificationTrainingData.create_for_label(
-        dbsession, ENTITY_TYPE, label, entity_text_lookup_fn)
+        dbsession, entity_type, label, entity_text_lookup_fn)
 
     config = generate_config()
 
-    model = TextClassificationModel(uuid=uuid, version=version, task=task,
+    model = TextClassificationModel(uuid=model_id, version=version,
+                                    label=label,
                                     classification_training_data=data,
                                     config=config)
     dbsession.add(model)

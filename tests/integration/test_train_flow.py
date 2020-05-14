@@ -22,7 +22,7 @@ from train.no_deps.paths import (
 from train.no_deps.inference_results import InferenceResults
 from train.no_deps.utils import BINARY_CLASSIFICATION
 
-from train.prep import prepare_task_for_training
+from train.prep import prepare_next_model_for_label
 
 from shared.utils import save_jsonl, load_jsonl, load_json
 
@@ -129,7 +129,9 @@ def test_train_flow(dbsession, monkeypatch, tmp_path):
     task = dbsession.query(Task).first()
 
     # Part 1. Prepare.
-    model = prepare_task_for_training(dbsession, task.id)
+    label = task.get_labels()[0]
+    raw_file_path = task.get_data_filenames(abs=True)[0]
+    model = prepare_next_model_for_label(dbsession, label, raw_file_path)
     model_dir = model.dir(abs=True)
 
     # These are all the files we need to train a model.

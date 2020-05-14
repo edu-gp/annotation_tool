@@ -327,6 +327,9 @@ class Model(Base):
     task_id = Column(Integer, ForeignKey('task.id'))
     task = relationship("Task", back_populates="models")
 
+    # Optionally associated with a Label
+    label = Column(String, index=True, nullable=True)
+
     __mapper_args__ = {
         'polymorphic_on': type,
         'polymorphic_identity': 'model'
