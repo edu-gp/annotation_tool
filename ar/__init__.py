@@ -35,10 +35,8 @@ def get_pattern_model_for_label(dbsession, label):
             patterns = _convert_to_spacy_patterns(patterns)
             model = PatternModel(patterns)
             return model
-        else:
-            return None
-    else:
-        return None
+
+    return None
 
 
 def get_ranked_examples_for_label(dbession, task, label, data_filenames) -> List[Example]:
