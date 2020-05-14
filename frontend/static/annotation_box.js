@@ -9,8 +9,8 @@ class AnnotationBox extends React.Component {
 
     getAnnotationGuide(label) {
         let annotation_guides = this.props['annotation_guides'] || {};
-        let guide = annotation_guides[label] || { 'text': 'N/A' };
-        return guide['text'];
+        let guide = annotation_guides[label] || { 'html': 'N/A' };
+        return guide['html'];
     }
 
     isBinaryClassification() {

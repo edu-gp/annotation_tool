@@ -10,7 +10,7 @@ from flask import (
 
 from db.model import (
     db, AnnotationRequest, Task, get_or_create, ClassificationAnnotation,
-    AnnotationValue, AnnotationRequestStatus)
+    AnnotationValue, AnnotationRequestStatus, AnnotationGuide)
 
 from .auth import login_required
 
@@ -80,6 +80,14 @@ def annotate(task_id, ar_id):
 
     anno['suggested_labels'] = [label]
     anno['task_id'] = task.id
+
+    guide = db.session.query(AnnotationGuide).filter_by(label=label).first()
+    if guide:
+        anno['annotation_guides'] = {
+            label: {
+                'html': guide.get_html()
+            },
+        }
 
     # et = time.time()
     # print("Load time", et-st)
@@ -218,13 +226,13 @@ def kitchen_sink():
         'testing': True,
         'annotation_guides': {
             'B2C': {
-                'text': 'Consumer Company, excluding marketplace.'
+                'html': 'Consumer Company, excluding marketplace.'
             },
             'Healthcare': {
-                'text': '<b>Anything</b> related to health.<br/>Does not include any related to fitness.'
+                'html': '<b>Anything</b> related to health.<br/>Does not include any related to fitness.'
             },
             'Fintech': {
-                'text': '<i>Next generation</i> finance.'
+                'html': '<i>Next generation</i> finance.'
             }
         }
     }
@@ -239,13 +247,13 @@ def kitchen_sink():
         'testing': True,
         'annotation_guides': {
             'B2C': {
-                'text': 'Consumer Company, excluding marketplace.'
+                'html': 'Consumer Company, excluding marketplace.'
             },
             'Healthcare': {
-                'text': '<b>Anything</b> related to health.<br/>Does not include any related to fitness.'
+                'html': '<b>Anything</b> related to health.<br/>Does not include any related to fitness.'
             },
             'Fintech': {
-                'text': '<i>Next generation</i> finance.'
+                'html': '<i>Next generation</i> finance.'
             }
         }
     }
