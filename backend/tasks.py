@@ -197,10 +197,16 @@ def assign(id):
 
 @bp.route('/<string:id>/train', methods=['POST'])
 def train(id):
+    task = db.session.query(Task).filter_by(id=id).one_or_none()
+
+    # TODO: This is temporary. We will sub this out to train per label soon.
+    label = task.get_labels()[0]
+    raw_file_path = task.get_data_filenames(abs=True)[0]
+
     if get_env_bool('GOOGLE_AI_PLATFORM_ENABLED', False):
-        async_result = submit_gcp_training.delay(id)
+        async_result = submit_gcp_training.delay(label, raw_file_path)
     else:
-        async_result = local_train_model.delay(id)
+        async_result = local_train_model.delay(label, raw_file_path)
     # TODO
     # celery_id = str(async_result)
     # CeleryJobStatus(celery_id, f'assign:{id}').save()

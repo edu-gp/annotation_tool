@@ -44,7 +44,7 @@ def _model_exists(version_dir):
 
 def train_model(version_dir, train_fn=None, force_retrain=False):
     """Train model and store model assets and evaluation metrics.
-    See: prep.py:prepare_task_for_training to see what is in version_dir.
+    See: prep.py:prepare_next_model_for_label to see what is in version_dir.
     """
 
     if not force_retrain and _model_exists(version_dir):

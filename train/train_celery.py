@@ -1,7 +1,7 @@
 from celery import Celery
-from db.model import Database, Task
+from db.model import Database
 from db.config import DevelopmentConfig
-from train.prep import prepare_task_for_training
+from train.prep import prepare_next_model_for_label
 from train.no_deps.run import (
     train_model as _train_model,
     inference as _inference
@@ -26,10 +26,14 @@ app = Celery(
 
 
 @app.task
-def train_model(task_id):
+def train_model(label, raw_file_path):
     db = Database.from_config(DevelopmentConfig)
     try:
-        model = prepare_task_for_training(db.session, task_id)
+        model = prepare_next_model_for_label(
+            db.session,
+            label=label,
+            raw_file_path=raw_file_path
+        )
         model_dir = model.dir(abs=True)
 
         _train_model(model_dir)
@@ -37,38 +41,31 @@ def train_model(task_id):
         # Note: It appears inference can be faster if it's allowed to use all the GPU memory,
         # however the only way to clear all GPU memory is to end this task. So we call inference
         # asynchronously so this task can end.
-        inference.delay(task_id, model_dir)
+        inference.delay(model_dir, raw_file_path)
     finally:
         db.session.close()
 
 
 @app.task
-def inference(task_id, model_dir):
-    db = Database.from_config(DevelopmentConfig)
-    try:
-        task = db.session.query(Task).filter_by(id=task_id).one_or_none()
-        fnames = task.get_data_filenames(abs=True)
-
-        _inference(model_dir, fnames)
-    finally:
-        db.session.close()
+def inference(model_dir, raw_file_path):
+    _inference(model_dir, [raw_file_path])
 
 
 @app.task
-def submit_gcp_training(task_id):
+def submit_gcp_training(label, raw_file_path):
     db = Database.from_config(DevelopmentConfig)
     try:
-        task = db.session.query(Task).filter_by(id=task_id).one_or_none()
-
-        model = prepare_task_for_training(db.session, task.id)
-
-        files_for_inference = task.get_data_filenames(abs=True)
+        model = prepare_next_model_for_label(
+            db.session,
+            label=label,
+            raw_file_path=raw_file_path
+        )
 
         job = GCPJob(model.uuid, model.version)
 
         # TODO: A duplicate job would error out. Currently errors for
         # background jobs are silent...
-        job.submit(files_for_inference)
+        job.submit(files_for_inference=[raw_file_path])
 
         gcp_poll_status.delay(model.id)
     finally:
