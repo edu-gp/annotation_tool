@@ -29,7 +29,7 @@
           <li>
             Data:
             {% for fname in task.get_data_filenames() %}
-            <span class="badge badge-light">{{fname}}</span>
+            <code>{{fname}}</code>
             {% endfor %}
           </li>
           <li>
@@ -304,9 +304,13 @@
           <div class="col-9">
 
             {% for mv in models_per_label.get(label, []) %}
-            <div class="mt-4">
-              <div>
-                <h5>Version {{mv.version}}</h5>
+            <div class="card mt-4">
+              <div class="card-body">
+                <h5>
+                  Version {{mv.version}}
+                  <small class='text-muted ml-3'>{{mv.uuid}}</small>
+                </h5>
+
 
                 {% set metrics = mv.get_metrics() %}
 
@@ -429,9 +433,6 @@
                   Not ready yet.
                 </p>
                 {% endif %}
-
-                <!-- Debugging -->
-                <small class='text-muted'>{{mv.uuid}}</small>
               </div>
             </div>
 
