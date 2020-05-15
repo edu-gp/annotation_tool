@@ -132,8 +132,13 @@ def show(id):
 
     # -------------------------------------------------------------------------
     # Models
-    models = task.text_classification_models.all()
-    active_model: Model = task.get_latest_model()
+
+    # TODO optimize query
+    models_per_label = {}
+    for label in task.get_labels():
+        models = db.session.query(Model).filter_by(
+            label=label).order_by(Model.version.desc()).limit(10).all()
+        models_per_label[label] = models
 
     return render_template(
         'tasks/show.html',
@@ -141,8 +146,7 @@ def show(id):
         annotation_statistics_per_label=annotation_statistics_per_label,
         annotation_request_statistics=annotation_request_statistics,
         status_assign_jobs=status_assign_jobs_active,
-        models=models,
-        active_model=active_model,
+        models_per_label=models_per_label,
         annotator_login_links=annotator_login_links,
         labels_and_attributes=labels_and_attributes,
     )
@@ -199,8 +203,10 @@ def assign(id):
 def train(id):
     task = db.session.query(Task).filter_by(id=id).one_or_none()
 
-    # TODO: This is temporary. We will sub this out to train per label soon.
-    label = task.get_labels()[0]
+    label = request.form['label']
+    assert label in task.get_labels(), \
+        f'Label "{label}" does not belong to task {task.id}'
+
     raw_file_path = task.get_data_filenames(abs=True)[0]
 
     if get_env_bool('GOOGLE_AI_PLATFORM_ENABLED', False):
