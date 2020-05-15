@@ -311,10 +311,7 @@
                   <small class='text-muted ml-3'>{{mv.uuid}}</small>
                 </h5>
 
-
-                {% set metrics = mv.get_metrics() %}
-
-                {% if metrics %}
+                {% if mv.is_ready() %}
 
                 {% for fname in mv.get_inference_fnames() %}
                 <div class="row">
@@ -393,6 +390,8 @@
                     {% endfor %}
                   </div>
                 </div>
+
+                {% set metrics = mv.get_metrics() %}
 
                 <div class="row" style="font-size: 0.8em">
                   <div class="col-lg-3 col-md-6 col-sm-6">
