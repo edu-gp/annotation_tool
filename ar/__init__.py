@@ -10,12 +10,13 @@ from sqlalchemy import func
 from db.fs import filestore_base_dir, RAW_DATA_DIR
 from db.model import get_or_create, Task, \
     AnnotationRequest, User, AnnotationRequestStatus, ClassificationAnnotation, \
-    AnnotationValue, LabelPatterns
+    AnnotationValue, LabelPatterns, TextClassificationModel
 from shared.utils import load_jsonl
 from inference.base import ITextCatModel
 from inference import get_predicted
 from inference.random_model import RandomModel
 from inference.pattern_model import PatternModel
+from inference.nlp_model import NLPModel
 
 from .data import fetch_all_ar_ids
 from .utils import get_ar_id, timeit
@@ -36,6 +37,24 @@ def get_pattern_model_for_label(dbsession, label):
             model = PatternModel(patterns)
             return model
 
+    return None
+
+
+def get_nlp_model_for_label(dbsession, label, version: int = None):
+    """
+    Inputs:
+        dbsession: -
+        label: -
+        version: If version is None, then return the latest version.
+    """
+    all_models = dbsession.query(TextClassificationModel) \
+        .filter_by(label=label) \
+        .order_by(TextClassificationModel.version.desc()) \
+        .all()
+
+    for model in all_models:
+        if model.is_ready():
+            return NLPModel(dbsession, model.id)
     return None
 
 
@@ -63,7 +82,7 @@ def get_ranked_examples_for_label(dbession, task, label, data_filenames) -> List
         logging.info("Prediction from pattern model finished...")
 
     # NLP-driven Examples
-    _nlp_model = task.get_active_nlp_model()
+    _nlp_model = task.get_nlp_model_for_label(dbession, label)
     if _nlp_model is not None:
         examples.append(_get_predictions(data_filenames, [_nlp_model]))
         proportions.append(12)  # [1,3,12] -> [0.0625, 0.1875, 0.75]
