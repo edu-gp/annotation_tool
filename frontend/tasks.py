@@ -61,7 +61,6 @@ def annotate(task_id, ar_id):
     next_req = db.session.query(AnnotationRequest) \
         .filter_by(id=next_ar_id).one_or_none()
     # next_req could be None.
-    label = ar_dict['label']
 
     # Fetch all existing annotations on this particular entity done by this
     # user regardless of the label.
@@ -72,22 +71,27 @@ def annotate(task_id, ar_id):
     # Building the annotation request data for the suggested label
     anno = build_empty_annotation(ar_dict)
     for existing_annotation in annotations_on_entity_done_by_user:
-        # TODO label.name add an extra query to db.
         anno['anno']['labels'][existing_annotation.label] = existing_annotation.value
 
-    if label not in anno['anno']['labels']:
-        anno['anno']['labels'][label] = AnnotationValue.NOT_ANNOTATED
-
-    anno['suggested_labels'] = [label]
     anno['task_id'] = task.id
+    anno['annotation_guides'] = {}
+    anno['suggested_labels'] = task.get_labels()
 
-    guide = db.session.query(AnnotationGuide).filter_by(label=label).first()
-    if guide:
-        anno['annotation_guides'] = {
-            label: {
+    # Make sure the requested label is in the list.
+    if ar_dict['label'] not in anno['suggested_labels']:
+        anno['suggested_labels'].insert(0, ar_dict['label'])
+
+    for label in anno['suggested_labels']:
+        if label not in anno['anno']['labels']:
+            anno['anno']['labels'][label] = AnnotationValue.NOT_ANNOTATED
+
+        # TODO optimize query
+        guide = db.session.query(
+            AnnotationGuide).filter_by(label=label).first()
+        if guide:
+            anno['annotation_guides'][label] = {
                 'html': guide.get_html()
-            },
-        }
+            }
 
     # et = time.time()
     # print("Load time", et-st)
