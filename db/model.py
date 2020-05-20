@@ -763,3 +763,16 @@ def fetch_ar_ids_by_task_and_user(dbsession, task_id, username):
 def _raw_data_file_path(fname):
     """Absolute path to a data file in the default raw data directory"""
     return os.path.join(filestore_base_dir(), RAW_DATA_DIR, fname)
+
+
+def fetch_annotation_entity_and_ids_done_by_user_under_task(dbsession, username,
+                                                            labels):
+    res = dbsession.query(
+            ClassificationAnnotation.entity,
+            ClassificationAnnotation.id).join(User). \
+            filter(
+                User.username == username,
+                ClassificationAnnotation.label.in_(labels),
+                ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED). \
+            all()
+    return res

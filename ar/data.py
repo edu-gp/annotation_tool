@@ -182,6 +182,42 @@ def fetch_all_ar(task_id, username):
     return _get_all_ar_ids_in_dir(_dir, sort_by_ctime=True)
 
 
+# TODO refactor this piece since it's a duplicate of the ar_request function.
+def construct_annotation_dict(dbsession, annotation_id) -> Dict:
+    request_id, entity, entity_type, label, context = dbsession.query(
+        ClassificationAnnotation.id,
+        ClassificationAnnotation.entity,
+        ClassificationAnnotation.entity_type,
+        ClassificationAnnotation.label,
+        ClassificationAnnotation.context). \
+        filter(ClassificationAnnotation.id == annotation_id).one_or_none()
+
+    result = {
+        # Essential fields
+        'ar_id': request_id,
+        'entity': entity,
+        'entity_type': entity_type,
+        'label': label,
+        # Optional fields
+        'fname': None,
+        'line_number': None,
+        'score': None,
+        'data': None,
+        'pattern_info': None,
+    }
+
+    if context is not None:
+        result.update({
+            'fname': context.get('fname'),
+            'line_number': context.get('line_number'),
+            'score': context.get('score'),
+            'data': context.get('data'),
+            'pattern_info': context.get('pattern_info'),
+        })
+
+    return result
+
+
 def construct_ar_request_dict(dbsession, ar_id) -> Dict:
     request_id, entity, entity_type, label, context = dbsession.query(
         AnnotationRequest.id,
@@ -235,6 +271,18 @@ def get_next_ar_id_from_db(dbsession, task_id, user_id, current_ar_id):
         AnnotationRequest.user_id == user_id,
         AnnotationRequest.id > current_ar_id
     ).order_by(AnnotationRequest.id.asc()).first()
+    if res is not None:
+        return res[0]
+    else:
+        return res
+
+
+def get_next_annotation_id_from_db(dbsession, user_id,
+                                   current_annotation_id):
+    res = dbsession.query(ClassificationAnnotation.id).filter(
+        ClassificationAnnotation.user_id == user_id,
+        ClassificationAnnotation.id > current_annotation_id
+    ).order_by(ClassificationAnnotation.id.asc()).first()
     if res is not None:
         return res[0]
     else:

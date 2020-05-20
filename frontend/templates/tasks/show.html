@@ -17,6 +17,9 @@
 {% endblock %}
 
 {% block content %}
+<h3>
+  Annotation Requests
+</h3>
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -41,6 +44,33 @@
       <td>
         <a class="mx-2" href={{url_for('tasks.annotate', task_id=task.id, ar_id=ar_id)}}>
           Example #{{ar_id}}
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h3>
+  Existing Annotations
+</h3>
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th scope="col" class="text-center" style="width: 5%">#</th>
+      <th scope="col" style="width: 90%">Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for annotation_entity_and_id in annotated %}
+    <tr>
+      <td class="text-center">
+        {{loop.index}}
+      </td>
+      <td>
+        <a class="mx-2" href={{url_for('tasks.reannotate', task_id=task.id,
+                annotation_id=annotation_entity_and_id[1])}}>
+          Example #{{annotation_entity_and_id[0]}}
         </a>
       </td>
     </tr>
