@@ -241,7 +241,7 @@
         <tr>
           <td class="align-middle">{{label}}</td>
           <td class="align-middle">{{annotation_statistics_per_label[label]['total_annotations']}}</td>
-          <td class="align-middle">{{annotation_statistics_per_label[label]['total_distinct_annotations']}}</td>
+          <td class="align-middle">{{annotation_statistics_per_label[label]['total_distinct_annotated_entities']}}</td>
           <td class="align-middle">
             {% for resp in annotation_statistics_per_label[label]['n_annotations_per_value'] %}
             {% set n = annotation_statistics_per_label[label]['n_annotations_per_value'][resp] %}

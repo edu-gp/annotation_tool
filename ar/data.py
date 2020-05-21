@@ -465,8 +465,8 @@ def compute_annotation_request_statistics(dbsession, task_id):
 
 
 def compute_annotation_statistics_db(dbsession, label):
-    total_distinct_annotations = \
-        _compute_total_distinct_number_of_annotations_for_label(
+    total_distinct_annotated_entities = \
+        _compute_total_distinct_number_of_annotated_entities_for_label(
             dbsession=dbsession,
             label=label
         )
@@ -503,7 +503,7 @@ def compute_annotation_statistics_db(dbsession, label):
 
     return {
         'total_annotations': total_num_of_annotations_done_by_users,
-        'total_distinct_annotations': total_distinct_annotations,
+        'total_distinct_annotated_entities': total_distinct_annotated_entities,
         'n_annotations_per_value': num_of_annotations_per_value,
         'n_annotations_per_user': n_annotations_done_per_user_dict,
         'kappa_table': kappa_table_per_label,
@@ -523,9 +523,19 @@ def _compute_num_of_annotations_per_value(dbsession, label):
     return data
 
 
-def _compute_total_distinct_number_of_annotations_for_label(dbsession, label):
-    return dbsession.query(ClassificationAnnotation) \
-        .filter_by(label=label).count()
+def _compute_total_distinct_number_of_annotated_entities_for_label(dbsession, label):
+    """Note: An "unknown" annotation (of value 0) doesn't count.
+    """
+    query = dbsession.query(
+        ClassificationAnnotation.entity_type,
+        ClassificationAnnotation.entity,
+    ) \
+        .filter_by(label=label) \
+        .filter(ClassificationAnnotation.value != 0) \
+        .group_by(ClassificationAnnotation.entity_type,
+                  ClassificationAnnotation.entity)
+
+    return query.count()
 
 
 def _compute_number_of_annotations_done_per_user(dbsession, label):
