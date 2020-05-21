@@ -15,8 +15,9 @@
 <script src="/static/babel.min.js"></script>
 
 <!-- <script src="/static/like_button.js"></script> -->
-<script src="/static/annotation_box.js" type="text/babel"></script>
-<script src="/static/annotation_box_container.js" type="text/babel"></script>
+<script src="/static/annotation_update_box.js" type="text/babel"></script>
+<script src="/static/annotation_update_box_container.js"
+        type="text/babel"></script>
 {% endblock %}
 
 {% block header %}
@@ -38,7 +39,7 @@
 {% block content %}
 <div class="text-center">
   <h6>
-    Task "{{task.name}}" AR #{{anno['req']['ar_id']}}
+    Task "{{task.name}}" Annotation #{{anno['req']['annotation_id']}}
   </h6>
 </div>
 
@@ -76,7 +77,7 @@
   const e = React.createElement;
 
   const domContainer = document.querySelector('#react_container');
-  ReactDOM.render(e(AnnotationBoxContainer, window.data), domContainer);
+  ReactDOM.render(e(AnnotationUpdateBoxContainer, window.data), domContainer);
 
 </script>
 {% endblock %}
