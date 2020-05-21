@@ -1,6 +1,6 @@
 const e = React.createElement;
 
-class AnnotationBox extends React.Component {
+class AnnotationUpdateBox extends React.Component {
     constructor(props) {
         super(props);
 
@@ -44,7 +44,7 @@ class AnnotationBox extends React.Component {
         }
 
         var xhr = new XMLHttpRequest();
-        xhr.open('POST', '/tasks/receive_annotation');
+        xhr.open('POST', '/tasks/update_annotation');
         xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
         xhr.addEventListener('load', () => {
             if (_testing) {

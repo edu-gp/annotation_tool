@@ -184,7 +184,7 @@ def fetch_all_ar(task_id, username):
 
 # TODO refactor this piece since it's a duplicate of the ar_request function.
 def construct_annotation_dict(dbsession, annotation_id) -> Dict:
-    request_id, entity, entity_type, label, context = dbsession.query(
+    annotation_id, entity, entity_type, label, context = dbsession.query(
         ClassificationAnnotation.id,
         ClassificationAnnotation.entity,
         ClassificationAnnotation.entity_type,
@@ -194,7 +194,7 @@ def construct_annotation_dict(dbsession, annotation_id) -> Dict:
 
     result = {
         # Essential fields
-        'ar_id': request_id,
+        'annotation_id': annotation_id,
         'entity': entity,
         'entity_type': entity_type,
         'label': label,
@@ -211,7 +211,7 @@ def construct_annotation_dict(dbsession, annotation_id) -> Dict:
             'fname': context.get('fname'),
             'line_number': context.get('line_number'),
             'score': context.get('score'),
-            'data': context.get('data'),
+            'data': context.get('data') if 'data' in context else context,
             'pattern_info': context.get('pattern_info'),
         })
 

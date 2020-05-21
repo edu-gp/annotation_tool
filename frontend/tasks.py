@@ -69,11 +69,16 @@ def reannotate(task_id, annotation_id):
     task = db.session.query(Task).filter(
         Task.id == task_id).first()
     annotation_dict = construct_annotation_dict(db.session, annotation_id)
+
+    logging.error(annotation_dict)
+
     next_annotation_id = get_next_annotation_id_from_db(
         dbsession=db.session,
         user_id=user_id,
         current_annotation_id=annotation_dict['annotation_id']
     )
+
+    logging.error(next_annotation_id)
 
     annotations_on_entity_done_by_user = db.session.query(
         ClassificationAnnotation).filter(
@@ -105,6 +110,8 @@ def reannotate(task_id, annotation_id):
                 'html': guide.get_html()
             }
 
+    logging.error(anno)
+
     # et = time.time()
     # print("Load time", et-st)
 
@@ -132,6 +139,9 @@ def annotate(task_id, ar_id):
     task = db.session.query(Task).filter(
         Task.id == task_id).first()
     ar_dict = construct_ar_request_dict(db.session, ar_id)
+
+    logging.error(ar_dict)
+
     next_ar_id = get_next_ar_id_from_db(
         dbsession=db.session,
         task_id=task_id,
@@ -175,6 +185,8 @@ def annotate(task_id, ar_id):
                 'html': guide.get_html()
             }
 
+    logging.error(anno)
+
     # et = time.time()
     # print("Load time", et-st)
 
@@ -204,7 +216,13 @@ def receive_annotation():
     ar_id = data['req']['ar_id']
     entity_type = data['req']['entity_type']
     entity = data['req']['entity']
-    context = data['req']['data']['text']
+
+    context = {
+        'data': data['req']['data'],
+        'pattern_info': data['req']['pattern_info']
+    }
+    logging.error(context)
+    logging.error("===============================")
 
     # For all the labels received, we need to create/update annotations in
     # the db.
@@ -233,6 +251,9 @@ def receive_annotation():
     db.session.add(annotatation_request)
     db.session.commit()
 
+    logging.error(annotation.id)
+    logging.error("===============================")
+
     next_ar_id = get_next_ar_id_from_db(
         dbsession=db.session,
         task_id=task_id,
@@ -243,6 +264,44 @@ def receive_annotation():
     if next_ar_id:
         return {'redirect': url_for('tasks.annotate', task_id=task_id,
                                     ar_id=next_ar_id)}
+    else:
+        return {'redirect': url_for('tasks.show', id=task_id)}
+
+
+@bp.route('/update_annotation', methods=['POST'])
+@login_required
+def update_annotation():
+    '''API meant for Javascript to consume'''
+    username = g.user['username']
+    user_id = fetch_user_id_by_username(db.session, username=username)
+
+    data = json.loads(request.data)
+    logging.error(data)
+    task_id = data['task_id']
+    annotation_id = data['req']['annotation_id']
+
+    # For all the labels received, we need to create/update annotations in
+    # the db.
+    annotation_result = data['anno']['labels']
+    for label in annotation_result:
+        value = annotation_result[label]
+        annotation = get_or_create(dbsession=db.session,
+                                   model=ClassificationAnnotation,
+                                   id=annotation_id)
+        annotation.value = value
+        db.session.add(annotation)
+
+    db.session.commit()
+
+    next_annotation_id = get_next_annotation_id_from_db(
+        dbsession=db.session,
+        user_id=user_id,
+        current_annotation_id=annotation_id
+    )
+
+    if next_annotation_id:
+        return {'redirect': url_for('tasks.reannotate', task_id=task_id,
+                                    annotation_id=next_annotation_id)}
     else:
         return {'redirect': url_for('tasks.show', id=task_id)}
 
