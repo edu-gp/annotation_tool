@@ -82,7 +82,7 @@ def get_ranked_examples_for_label(dbession, task, label, data_filenames) -> List
         logging.info("Prediction from pattern model finished...")
 
     # NLP-driven Examples
-    _nlp_model = task.get_nlp_model_for_label(dbession, label)
+    _nlp_model = get_nlp_model_for_label(dbession, label)
     if _nlp_model is not None:
         examples.append(_get_predictions(data_filenames, [_nlp_model]))
         proportions.append(12)  # [1,3,12] -> [0.0625, 0.1875, 0.75]
