@@ -96,7 +96,7 @@ def reannotate(task_id, annotation_id):
     # TODO more UI changes if we need to change the UI workflow for
     #  multi-labeling.
 
-    return render_template('tasks/reannotate.html',
+    return render_template('tasks/annotate.html',
                            task=task,
                            anno=anno,
                            # You can pass more than one to render multiple examples
@@ -104,7 +104,7 @@ def reannotate(task_id, annotation_id):
                            # 0. Create a test kitchen sink page.
                            # 1. Make sure the buttons remember state.
                            data=json.dumps([anno]),
-                           next_ar_id=next_example_id)
+                           next_annotation_id=next_example_id)
 
 
 @bp.route('/receive_annotation', methods=['POST'])

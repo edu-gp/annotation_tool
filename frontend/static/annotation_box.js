@@ -87,25 +87,27 @@ class AnnotationBox extends React.Component {
         var content = [];
 
         // Special Meta Key "domain"
-        if (req.data.meta.domain !== undefined) {
-            content.push(
-                <div key='rendered_domain' style={{ textAlign: "center", padding: '5px' }}>
-                    <a href={'http://' + req.data.meta.domain} target="_blank">
-                        {req.data.meta.domain}
-                    </a>
-                </div >
-            )
-        }
+        if (req.data.meta !==undefined){
+            if (req.data.meta.domain !== undefined) {
+                content.push(
+                    <div key='rendered_domain' style={{ textAlign: "center", padding: '5px' }}>
+                        <a href={'http://' + req.data.meta.domain} target="_blank">
+                            {req.data.meta.domain}
+                        </a>
+                    </div >
+                )
+            }
 
-        // Special Meta Key "image_url"
-        if (req.data.meta.image_url !== undefined) {
-            content.push(
-                <div key='rendered_image' style={{ textAlign: "center", padding: '5px' }}>
-                    <a href={req.data.meta.image_url} target="_blank">
-                        <img src={req.data.meta.image_url} style={{ maxHeight: "300px", maxWidth: "300px" }} />
-                    </a>
-                </div>
-            )
+            // Special Meta Key "image_url"
+            if (req.data.meta.image_url !== undefined) {
+                content.push(
+                    <div key='rendered_image' style={{ textAlign: "center", padding: '5px' }}>
+                        <a href={req.data.meta.image_url} target="_blank">
+                            <img src={req.data.meta.image_url} style={{ maxHeight: "300px", maxWidth: "300px" }} />
+                        </a>
+                    </div>
+                )
+            }
         }
 
         var textStyle = { padding: '5px' };
@@ -155,16 +157,19 @@ class AnnotationBox extends React.Component {
 
         var meta = []
 
-        let _meta = req.data.meta;
-        for (var k in _meta) {
-            if (_meta.hasOwnProperty(k)) {
-                meta.push(
-                    <div key={k}>
-                        <span>{k}</span>: <span>{_meta[k]}</span>
-                    </div>
-                );
+        if (req.data.meta !== undefined){
+            let _meta = req.data.meta;
+            for (var k in _meta) {
+                if (_meta.hasOwnProperty(k)) {
+                    meta.push(
+                        <div key={k}>
+                            <span>{k}</span>: <span>{_meta[k]}</span>
+                        </div>
+                    );
+                }
             }
         }
+
 
 
 
