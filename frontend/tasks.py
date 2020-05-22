@@ -1,4 +1,5 @@
 import logging
+from typing import Dict, Tuple
 
 from ar.data import (
     build_empty_annotation, construct_ar_request_dict,
@@ -60,60 +61,37 @@ def show(id):
                                            for item in ar_id_and_status_pairs])
 
 
+
+@bp.route('/<string:task_id>/annotate/<string:ar_id>')
+@login_required
+def annotate(task_id, ar_id):
+    task, anno, next_example_id = _prepare_annotation_common(
+        task_id=task_id,
+        example_id=ar_id,
+        is_request=True
+    )
+    # TODO more UI changes if we need to change the UI workflow for
+    #  multi-labeling.
+
+    return render_template('tasks/annotate.html',
+                           task=task,
+                           anno=anno,
+                           # You can pass more than one to render multiple examples
+                           # TODO XXX left off here - make this work in the frontend
+                           # 0. Create a test kitchen sink page.
+                           # 1. Make sure the buttons remember state.
+                           data=json.dumps([anno]),
+                           next_ar_id=next_example_id)
+
+
 @bp.route('/<string:task_id>/reannotate/<string:annotation_id>')
 @login_required
 def reannotate(task_id, annotation_id):
-    username = g.user['username']
-    user_id = fetch_user_id_by_username(db.session, username=username)
-
-    task = db.session.query(Task).filter(
-        Task.id == task_id).first()
-    annotation_dict = construct_annotation_dict(db.session, annotation_id)
-
-    logging.error(annotation_dict)
-
-    next_annotation_id = get_next_annotation_id_from_db(
-        dbsession=db.session,
-        user_id=user_id,
-        current_annotation_id=annotation_dict['annotation_id']
+    task, anno, next_example_id = _prepare_annotation_common(
+        task_id=task_id,
+        example_id=annotation_id,
+        is_request=False
     )
-
-    logging.error(next_annotation_id)
-
-    annotations_on_entity_done_by_user = db.session.query(
-        ClassificationAnnotation).filter(
-        ClassificationAnnotation.entity == annotation_dict['entity'],
-        ClassificationAnnotation.user_id == user_id).all()
-
-    anno = build_empty_annotation(annotation_dict)
-    for existing_annotation in annotations_on_entity_done_by_user:
-        anno['anno']['labels'][
-            existing_annotation.label] = existing_annotation.value
-
-    anno['task_id'] = task.id
-    anno['annotation_guides'] = {}
-    anno['suggested_labels'] = task.get_labels()
-
-    # Make sure the requested label is in the list.
-    if annotation_dict['label'] not in anno['suggested_labels']:
-        anno['suggested_labels'].insert(0, annotation_dict['label'])
-
-    for label in anno['suggested_labels']:
-        if label not in anno['anno']['labels']:
-            anno['anno']['labels'][label] = AnnotationValue.NOT_ANNOTATED
-
-        # TODO optimize query
-        guide = db.session.query(
-            AnnotationGuide).filter_by(label=label).first()
-        if guide:
-            anno['annotation_guides'][label] = {
-                'html': guide.get_html()
-            }
-    # we use this to differentiate between doing new annotations and
-    # updating existing annotations
-    anno['is_new_annotation'] = False
-    # et = time.time()
-    # print("Load time", et-st)
 
     # TODO more UI changes if we need to change the UI workflow for
     #  multi-labeling.
@@ -126,84 +104,7 @@ def reannotate(task_id, annotation_id):
                            # 0. Create a test kitchen sink page.
                            # 1. Make sure the buttons remember state.
                            data=json.dumps([anno]),
-                           next_ar_id=next_annotation_id)
-
-
-
-@bp.route('/<string:task_id>/annotate/<string:ar_id>')
-@login_required
-def annotate(task_id, ar_id):
-    username = g.user['username']
-    user_id = fetch_user_id_by_username(db.session, username=username)
-
-    task = db.session.query(Task).filter(
-        Task.id == task_id).first()
-    ar_dict = construct_ar_request_dict(db.session, ar_id)
-
-    logging.error(ar_dict)
-
-    next_ar_id = get_next_ar_id_from_db(
-        dbsession=db.session,
-        task_id=task_id,
-        user_id=user_id,
-        current_ar_id=ar_dict['ar_id']
-    )
-
-    # TODO get_next_ar_id_from_db should just return the AnnotationRequest
-    next_req = db.session.query(AnnotationRequest) \
-        .filter_by(id=next_ar_id).one_or_none()
-    # next_req could be None.
-
-    # Fetch all existing annotations on this particular entity done by this
-    # user regardless of the label.
-    annotations_on_entity_done_by_user = db.session.query(ClassificationAnnotation).filter(
-        ClassificationAnnotation.entity == ar_dict['entity'],
-        ClassificationAnnotation.user_id == user_id).all()
-
-    # Building the annotation request data for the suggested label
-    anno = build_empty_annotation(ar_dict)
-    for existing_annotation in annotations_on_entity_done_by_user:
-        anno['anno']['labels'][existing_annotation.label] = existing_annotation.value
-
-    anno['task_id'] = task.id
-    anno['annotation_guides'] = {}
-    anno['suggested_labels'] = task.get_labels()
-
-    # Make sure the requested label is in the list.
-    if ar_dict['label'] not in anno['suggested_labels']:
-        anno['suggested_labels'].insert(0, ar_dict['label'])
-
-    for label in anno['suggested_labels']:
-        if label not in anno['anno']['labels']:
-            anno['anno']['labels'][label] = AnnotationValue.NOT_ANNOTATED
-
-        # TODO optimize query
-        guide = db.session.query(
-            AnnotationGuide).filter_by(label=label).first()
-        if guide:
-            anno['annotation_guides'][label] = {
-                'html': guide.get_html()
-            }
-
-    # we use this to differentiate between doing new annotations and
-    # updating existing annotations
-    anno['is_new_annotation'] = True
-
-    # et = time.time()
-    # print("Load time", et-st)
-
-    # TODO more UI changes if we need to change the UI workflow for
-    #  multi-labeling.
-
-    return render_template('tasks/annotate.html',
-                           task=task,
-                           anno=anno,
-                           # You can pass more than one to render multiple examples
-                           # TODO XXX left off here - make this work in the frontend
-                           # 0. Create a test kitchen sink page.
-                           # 1. Make sure the buttons remember state.
-                           data=json.dumps([anno]),
-                           next_ar_id=next_ar_id)
+                           next_ar_id=next_example_id)
 
 
 @bp.route('/receive_annotation', methods=['POST'])
@@ -223,8 +124,6 @@ def receive_annotation():
         'data': data['req']['data'],
         'pattern_info': data['req']['pattern_info']
     }
-    logging.error(context)
-    logging.error("===============================")
 
     # For all the labels received, we need to create/update annotations in
     # the db.
@@ -253,9 +152,6 @@ def receive_annotation():
     db.session.add(annotatation_request)
     db.session.commit()
 
-    logging.error(annotation.id)
-    logging.error("===============================")
-
     next_ar_id = get_next_ar_id_from_db(
         dbsession=db.session,
         task_id=task_id,
@@ -278,7 +174,6 @@ def update_annotation():
     user_id = fetch_user_id_by_username(db.session, username=username)
 
     data = json.loads(request.data)
-    logging.error(data)
     task_id = data['task_id']
     annotation_id = data['req']['annotation_id']
 
@@ -306,6 +201,70 @@ def update_annotation():
                                     annotation_id=next_annotation_id)}
     else:
         return {'redirect': url_for('tasks.show', id=task_id)}
+
+
+def _prepare_annotation_common(task_id: int,
+                               example_id: int,
+                               is_request: bool = True) -> \
+        Tuple[Task, Dict, int]:
+    username = g.user['username']
+    user_id = fetch_user_id_by_username(db.session, username=username)
+    task = db.session.query(Task).filter(
+        Task.id == task_id).first()
+
+    if is_request:
+        example_dict = construct_ar_request_dict(db.session,
+                                                 example_id)
+        next_example_id = get_next_ar_id_from_db(
+            dbsession=db.session,
+            task_id=task_id,
+            user_id=user_id,
+            current_ar_id=example_dict['ar_id']
+        )
+    else:
+        example_dict = construct_annotation_dict(db.session, example_id)
+        next_example_id = get_next_annotation_id_from_db(
+            dbsession=db.session,
+            user_id=user_id,
+            current_annotation_id=example_dict['annotation_id']
+        )
+
+    annotations_on_entity_done_by_user = db.session.query(
+        ClassificationAnnotation).filter(
+        ClassificationAnnotation.entity == example_dict['entity'],
+        ClassificationAnnotation.user_id == user_id).all()
+
+    anno = build_empty_annotation(example_dict)
+    for existing_annotation in annotations_on_entity_done_by_user:
+        anno['anno']['labels'][
+            existing_annotation.label] = existing_annotation.value
+
+    anno['task_id'] = task.id
+    anno['annotation_guides'] = {}
+    anno['suggested_labels'] = task.get_labels()
+
+    # Make sure the requested label is in the list.
+    if example_dict['label'] not in anno['suggested_labels']:
+        anno['suggested_labels'].insert(0, example_dict['label'])
+
+    for label in anno['suggested_labels']:
+        if label not in anno['anno']['labels']:
+            anno['anno']['labels'][label] = AnnotationValue.NOT_ANNOTATED
+
+        # TODO optimize query
+        guide = db.session.query(
+            AnnotationGuide).filter_by(label=label).first()
+        if guide:
+            anno['annotation_guides'][label] = {
+                'html': guide.get_html()
+            }
+
+    if is_request:
+        anno['is_new_annotation'] = True
+    else:
+        anno['is_new_annotation'] = False
+
+    return task, anno, next_example_id
 
 
 @bp.route('/kitchen_sink')
