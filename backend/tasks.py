@@ -219,16 +219,15 @@ def train(id):
     return redirect(url_for('tasks.show', id=id))
 
 
-@bp.route('/<string:id>/download_prediction', methods=['POST'])
-def download_prediction(id):
-    task = db.session.query(Task).filter_by(id=id).one_or_none()
-
+@bp.route('/download_prediction', methods=['POST'])
+def download_prediction():
     model_id = int(request.form['model_id'])
     fname = request.form['fname']
 
     model = db.session.query(Model).filter_by(id=model_id).one_or_none()
 
-    if task is not None and model is not None:
+    if model is not None:
+        label = model.label or "UNK_LABEL"
         df = model.export_inference(fname)
 
         # Write it to a temp file and send it.
@@ -238,13 +237,13 @@ def download_prediction(id):
         from flask import send_file
 
         with tempfile.TemporaryDirectory() as tmpdirname:
-            name = f"{secure_filename(task.name)}__{stem(fname)}.csv"
+            name = f"{secure_filename(label)}__{stem(fname)}.csv"
             final_fname = os.path.join(tmpdirname, name)
             df.to_csv(final_fname, index=False)
             return send_file(final_fname, mimetype='text/csv', cache_timeout=0,
                              as_attachment=True)
     else:
-        return "Task or Inference file not found", 404
+        return "Inference file not found", 404
 
 
 # ----- FORM PARSING -----

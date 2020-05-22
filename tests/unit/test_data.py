@@ -11,7 +11,7 @@ from ar.data import _compute_kappa_matrix, \
     _construct_kappa_stats_raw_data, \
     _retrieve_entity_ids_and_annotation_values_by_user, \
     EntityAndAnnotationValuePair, compute_annotation_request_statistics, \
-    _compute_total_distinct_number_of_annotations_for_label, \
+    _compute_total_distinct_number_of_annotated_entities_for_label, \
     _compute_num_of_annotations_per_value, PrettyDefaultDict, \
     fetch_annotated_ar_ids_from_db, fetch_ar_ids, construct_ar_request_dict
 from db.model import User, ClassificationAnnotation, \
@@ -165,12 +165,13 @@ def test__compute_total_annotations(dbsession):
     user1, user2, user3, _, _, _, label, annotations = \
         _populate_annotation_data(dbsession)
 
-    total_distinct_annotations = \
-        _compute_total_distinct_number_of_annotations_for_label(
+    total_distinct_annotated_entities = \
+        _compute_total_distinct_number_of_annotated_entities_for_label(
             dbsession=dbsession, label=label
         )
 
-    assert total_distinct_annotations == len(annotations)
+    # There are 3 distinct annotations, one for each entity.
+    assert total_distinct_annotated_entities == 3
 
     expected = PrettyDefaultDict(lambda: 0)
     UserNameIdPair = namedtuple('UserNameIdPair', ['name', 'id'])

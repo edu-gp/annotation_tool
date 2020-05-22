@@ -241,7 +241,7 @@
         <tr>
           <td class="align-middle">{{label}}</td>
           <td class="align-middle">{{annotation_statistics_per_label[label]['total_annotations']}}</td>
-          <td class="align-middle">{{annotation_statistics_per_label[label]['total_distinct_annotations']}}</td>
+          <td class="align-middle">{{annotation_statistics_per_label[label]['total_distinct_annotated_entities']}}</td>
           <td class="align-middle">
             {% for resp in annotation_statistics_per_label[label]['n_annotations_per_value'] %}
             {% set n = annotation_statistics_per_label[label]['n_annotations_per_value'][resp] %}
@@ -320,7 +320,7 @@
                       <tr>
                         <td>Data File:<br /><code>{{fname}}</code></td>
                         <td>
-                          <form action="{{ url_for('tasks.download_prediction', id=mv.task_id) }}" method="POST">
+                          <form action="{{ url_for('tasks.download_prediction') }}" method="POST">
                             <input type="hidden" name="model_id" value="{{mv.id}}">
                             <input type="hidden" name="fname" value="{{fname}}">
                             <button type="submit" class="btn btn-secondary">Download Prediction</button>
