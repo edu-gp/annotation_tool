@@ -15,8 +15,8 @@
 <script src="/static/babel.min.js"></script>
 
 <!-- <script src="/static/like_button.js"></script> -->
-<script src="/static/annotation_update_box.js" type="text/babel"></script>
-<script src="/static/annotation_update_box_container.js"
+<script src="/static/annotation_box.js" type="text/babel"></script>
+<script src="/static/annotation_box_container.js"
         type="text/babel"></script>
 {% endblock %}
 
@@ -77,7 +77,7 @@
   const e = React.createElement;
 
   const domContainer = document.querySelector('#react_container');
-  ReactDOM.render(e(AnnotationUpdateBoxContainer, window.data), domContainer);
+  ReactDOM.render(e(AnnotationBoxContainer, window.data), domContainer);
 
 </script>
 {% endblock %}
