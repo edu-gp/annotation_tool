@@ -44,7 +44,12 @@ class AnnotationBox extends React.Component {
         }
 
         var xhr = new XMLHttpRequest();
-        xhr.open('POST', '/tasks/receive_annotation');
+        if(this.props["is_new_annotation"] === true) {
+            xhr.open('POST', '/tasks/receive_annotation');
+        }else{
+            xhr.open('POST', '/tasks/update_annotation');
+        }
+
         xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
         xhr.addEventListener('load', () => {
             if (_testing) {

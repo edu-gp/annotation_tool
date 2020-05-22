@@ -109,9 +109,9 @@ def reannotate(task_id, annotation_id):
             anno['annotation_guides'][label] = {
                 'html': guide.get_html()
             }
-
-    logging.error(anno)
-
+    # we use this to differentiate between doing new annotations and
+    # updating existing annotations
+    anno['is_new_annotation'] = False
     # et = time.time()
     # print("Load time", et-st)
 
@@ -185,7 +185,9 @@ def annotate(task_id, ar_id):
                 'html': guide.get_html()
             }
 
-    logging.error(anno)
+    # we use this to differentiate between doing new annotations and
+    # updating existing annotations
+    anno['is_new_annotation'] = True
 
     # et = time.time()
     # print("Load time", et-st)
