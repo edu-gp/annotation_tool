@@ -82,7 +82,7 @@ def get_ranked_examples_for_label(dbession, task, label, data_filenames) -> List
         logging.info("Prediction from pattern model finished...")
 
     # NLP-driven Examples
-    _nlp_model = get_nlp_model_for_label(dbession, label)
+    _nlp_model = task.get_nlp_model_for_label(dbession, label)
     if _nlp_model is not None:
         examples.append(_get_predictions(data_filenames, [_nlp_model]))
         proportions.append(12)  # [1,3,12] -> [0.0625, 0.1875, 0.75]
@@ -197,25 +197,9 @@ def generate_annotation_requests(dbsession, task_id: int,
         __text_list.append(row['text'])
 
     # Pattern decorations
-    __pattern_decor_for_all_labels = []
     if task.get_pattern_model():
-        labels = task.get_labels()  # ["hotdog", "fake"]
-        logging.error(labels)
-        for label in labels:
-            pattern_model_for_label = get_pattern_model_for_label(
-                dbsession=dbsession, label=label)
-            logging.error(pattern_model_for_label)
-            if pattern_model_for_label:
-                __pattern_decor_for_label = pattern_model_for_label.predict(
-                    __text_list, fancy=True
-                )
-                __pattern_decor_for_all_labels.append(__pattern_decor_for_label)
-
-        __pattern_decor = _merge_pattern_decor_for_all_labels_recursive(
-            pattern_decor_for_all_labels=__pattern_decor_for_all_labels,
-            low=0,
-            high=len(__pattern_decor_for_all_labels) - 1
-        )
+        __pattern_decor = task.get_pattern_model().predict(__text_list,
+                                                           fancy=True)
     else:
         __pattern_decor = None
 
@@ -237,49 +221,6 @@ def generate_annotation_requests(dbsession, task_id: int,
 
     logging.info("Finished generating annotation requests.")
     return annotation_requests
-
-
-def _merge_pattern_decor_for_all_labels_recursive(
-        pattern_decor_for_all_labels: List[List], low: int, high: int):
-    if len(pattern_decor_for_all_labels) == 0:
-        return None
-    if low == high:
-        return pattern_decor_for_all_labels[low]
-    if low > high:
-        return None
-
-    mid = low + (high - low) // 2
-    left_merged = _merge_pattern_decor_for_all_labels_recursive(
-        pattern_decor_for_all_labels, low, mid
-    )
-    right_merged = _merge_pattern_decor_for_all_labels_recursive(
-        pattern_decor_for_all_labels, mid + 1, high
-    )
-
-    return _merge_two_pattern_decors(left_merged, right_merged)
-
-
-def _merge_two_pattern_decors(pattern_decor1: List, pattern_decor2: List):
-    res = pattern_decor1.copy()
-    for i, item in enumerate(pattern_decor2):
-        # Tokens for the same entity are the same so need to merge them.
-
-        res[i]['matches'].extend(item['matches'])
-
-        # In case we need the scores later on, they are merged into a list
-        if not isinstance(res[i]['score'], list):
-            res[i]['score'] = [res[i]['score']]
-
-        if isinstance(item['score'], list):
-            res[i]['score'].extend(item['score'])
-        else:
-            res[i]['score'].append(item['score'])
-
-    # Dedup the merged matching positions.
-    for item in res:
-        item['matches'] = sorted(list(set(item['matches'])))
-
-    return res
 
 
 def _build_blacklisting_lookup_dict(dbsession):
