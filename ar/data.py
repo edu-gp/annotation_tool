@@ -226,51 +226,6 @@ def construct_annotation_dict(dbsession, annotation_id) -> Dict:
     return result
 
 
-# TODO refactor this piece since it's a duplicate of the ar_request function.
-def construct_annotation_dict(dbsession, annotation_id) -> Dict:
-    annotation_id, entity, entity_type, label, context = dbsession.query(
-        ClassificationAnnotation.id,
-        ClassificationAnnotation.entity,
-        ClassificationAnnotation.entity_type,
-        ClassificationAnnotation.label,
-        ClassificationAnnotation.context). \
-        filter(ClassificationAnnotation.id == annotation_id).one_or_none()
-
-    result = {
-        # Essential fields
-        'annotation_id': annotation_id,
-        'entity': entity,
-        'entity_type': entity_type,
-        'label': label,
-        # Optional fields
-        'fname': None,
-        'line_number': None,
-        'score': None,
-        'data': None,
-        'pattern_info': None,
-    }
-
-    if context is not None and isinstance(context, dict):
-        result.update({
-            'fname': context.get('fname'),
-            'line_number': context.get('line_number'),
-            'score': context.get('score'),
-            'data': context.get('data') if 'data' in context else context,
-            'pattern_info': context.get('pattern_info'),
-        })
-    else:
-        # TODO this is a temporarily workaround since some entities only
-        #  have annotations but not annotation requests in my local db and
-        #  they are not from Salesforce. Weird...
-        #  I can't run backfill on the context column so I have to hardcode
-        #  a text field to show the description on the frontend.
-        result.update({
-            'data': {"text": context}
-        })
-
-    return result
-
-
 def construct_ar_request_dict(dbsession, ar_id) -> Dict:
     request_id, entity, entity_type, label, context = dbsession.query(
         AnnotationRequest.id,
