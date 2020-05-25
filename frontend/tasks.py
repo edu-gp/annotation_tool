@@ -41,14 +41,6 @@ def show(id):
             labels=task.get_labels()
         )
 
-    # TODO This may cause some duplication among the annotations and the
-    #  requests. The first time this page loads, it will show the requests
-    #  to be done and existing annotations. If the user annotates a request
-    #  and refresh the page, one request will have the status of `Done` and
-    #  annotations for that finished request will also pop up in the
-    #  annotation section. Is this OK or do we want to guard against
-    #  duplications based on the entity?
-
     et = time.time()
     print("Load time", et-st)
 
@@ -68,7 +60,8 @@ def annotate(task_id, ar_id):
     task, anno, next_example_id = _prepare_annotation_common(
         task_id=task_id,
         example_id=ar_id,
-        is_request=True
+        is_request=True,
+        username=g.user['username']
     )
     # TODO more UI changes if we need to change the UI workflow for
     #  multi-labeling.
@@ -76,10 +69,6 @@ def annotate(task_id, ar_id):
     return render_template('tasks/annotate.html',
                            task=task,
                            anno=anno,
-                           # You can pass more than one to render multiple examples
-                           # TODO XXX left off here - make this work in the frontend
-                           # 0. Create a test kitchen sink page.
-                           # 1. Make sure the buttons remember state.
                            data=json.dumps([anno]),
                            next_ar_id=next_example_id)
 
@@ -90,7 +79,8 @@ def reannotate(task_id, annotation_id):
     task, anno, next_example_id = _prepare_annotation_common(
         task_id=task_id,
         example_id=annotation_id,
-        is_request=False
+        is_request=False,
+        username=g.user['username']
     )
 
     # TODO more UI changes if we need to change the UI workflow for
@@ -99,10 +89,6 @@ def reannotate(task_id, annotation_id):
     return render_template('tasks/annotate.html',
                            task=task,
                            anno=anno,
-                           # You can pass more than one to render multiple examples
-                           # TODO XXX left off here - make this work in the frontend
-                           # 0. Create a test kitchen sink page.
-                           # 1. Make sure the buttons remember state.
                            data=json.dumps([anno]),
                            next_annotation_id=next_example_id)
 
@@ -190,11 +176,7 @@ def update_annotation():
 
     db.session.commit()
 
-    next_annotation_id = get_next_annotation_id_from_db(
-        dbsession=db.session,
-        user_id=user_id,
-        current_annotation_id=annotation_id
-    )
+    next_annotation_id = None
 
     if next_annotation_id:
         return {'redirect': url_for('tasks.reannotate', task_id=task_id,
@@ -205,9 +187,9 @@ def update_annotation():
 
 def _prepare_annotation_common(task_id: int,
                                example_id: int,
+                               username: str,
                                is_request: bool = True) -> \
         Tuple[Task, Dict, int]:
-    username = g.user['username']
     user_id = fetch_user_id_by_username(db.session, username=username)
     task = db.session.query(Task).filter(
         Task.id == task_id).first()
@@ -223,11 +205,7 @@ def _prepare_annotation_common(task_id: int,
         )
     else:
         example_dict = construct_annotation_dict(db.session, example_id)
-        next_example_id = get_next_annotation_id_from_db(
-            dbsession=db.session,
-            user_id=user_id,
-            current_annotation_id=example_dict['annotation_id']
-        )
+        next_example_id = None
 
     annotations_on_entity_done_by_user = db.session.query(
         ClassificationAnnotation).filter(
@@ -236,8 +214,9 @@ def _prepare_annotation_common(task_id: int,
 
     anno = build_empty_annotation(example_dict)
     for existing_annotation in annotations_on_entity_done_by_user:
-        anno['anno']['labels'][
-            existing_annotation.label] = existing_annotation.value
+        if existing_annotation.label in task.get_labels():
+            anno['anno']['labels'][
+                existing_annotation.label] = existing_annotation.value
 
     anno['task_id'] = task.id
     anno['annotation_guides'] = {}
@@ -259,10 +238,7 @@ def _prepare_annotation_common(task_id: int,
                 'html': guide.get_html()
             }
 
-    if is_request:
-        anno['is_new_annotation'] = True
-    else:
-        anno['is_new_annotation'] = False
+    anno['is_new_annotation'] = bool(is_request)
 
     return task, anno, next_example_id
 

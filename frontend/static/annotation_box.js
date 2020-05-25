@@ -56,7 +56,6 @@ class AnnotationBox extends React.Component {
                 console.log('received', xhr.responseText);
             }
 
-            console.log(xhr.responseText)
             var resp = JSON.parse(xhr.responseText);
             if (resp.redirect !== undefined) {
                 if (_testing) {
