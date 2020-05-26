@@ -37,7 +37,7 @@
         <a class="mx-2" href={{url_for('tasks.reannotate', task_id=task.id,
                 annotation_id=annotation_entity_and_id[1],
                 username=user_under_exam,
-                under_exam=under_exam)}}>
+                is_admin_correction=True)}}>
           Example {{annotation_entity_and_id[0]}}
         </a>
       </td>

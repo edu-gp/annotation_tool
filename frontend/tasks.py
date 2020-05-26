@@ -70,7 +70,7 @@ def examine(task_id, user_under_exam):
                            task=task,
                            annotated=annotation_entity_and_ids_done_by_user_for_task,
                            user_under_exam=user_under_exam,
-                           under_exam=True)
+                           is_admin_correction=True)
 
 
 @bp.route('/<string:task_id>/annotate/<string:ar_id>')
@@ -95,17 +95,16 @@ def annotate(task_id, ar_id):
 def reannotate(task_id, annotation_id):
     username = request.args.get('username', default=g.user['username'],
                                 type=str)
-    under_exam = request.args.get('under_exam', default=False, type=bool)
+    is_admin_correction = request.args.get('is_admin_correction', default=False, type=bool)
     task, anno, next_example_id = _prepare_annotation_common(
         task_id=task_id,
         example_id=annotation_id,
         is_request=False,
         username=username
     )
-    anno["is_admin_correction"] = under_exam
-    if under_exam:
+    anno["is_admin_correction"] = is_admin_correction
+    if is_admin_correction:
         anno["username_under_exam"] = username
-    logging.error(anno)
 
     return render_template('tasks/annotate.html',
                            task=task,
@@ -213,7 +212,7 @@ def update_annotation():
                                         task_id=task_id,
                                         annotation_id=next_annotation_id,
                                         username=username_under_exam,
-                                        under_exam=True)}
+                                        is_admin_correction=True)}
         else:
             return {'redirect': url_for('tasks.reannotate', task_id=task_id,
                                         annotation_id=next_annotation_id)}
@@ -222,7 +221,6 @@ def update_annotation():
             return {'redirect': url_for('tasks.examine', task_id=task_id,
                                         user_under_exam=username_under_exam)}
         else:
-
             return {'redirect': url_for('tasks.show', id=task_id)}
 
 
