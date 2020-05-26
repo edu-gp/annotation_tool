@@ -17,7 +17,7 @@ from db import _task_dir
 from db.model import (
     db, User, ClassificationAnnotation, Task as NewTask,
     AnnotationRequest, AnnotationRequestStatus,
-    update_instance, AnnotationType, get_or_create)
+    update_instance, AnnotationType, get_or_create, AnnotationValue)
 from db._task import _Task, DIR_ANNO, DIR_AREQ
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd, \
     PrettyDefaultDict
@@ -287,10 +287,12 @@ def get_next_ar_id_from_db(dbsession, task_id, user_id, current_ar_id):
 
 
 def get_next_annotation_id_from_db(dbsession, user_id,
-                                   current_annotation_id):
+                                   current_annotation_id, labels):
     res = dbsession.query(ClassificationAnnotation.id).filter(
         ClassificationAnnotation.user_id == user_id,
-        ClassificationAnnotation.id > current_annotation_id
+        ClassificationAnnotation.id > current_annotation_id,
+        ClassificationAnnotation.label.in_(labels),
+        ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED
     ).order_by(ClassificationAnnotation.id.asc()).first()
     if res is not None:
         return res[0]

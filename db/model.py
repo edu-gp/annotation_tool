@@ -765,8 +765,11 @@ def _raw_data_file_path(fname):
     return os.path.join(filestore_base_dir(), RAW_DATA_DIR, fname)
 
 
-def fetch_annotation_entity_and_ids_done_by_user_under_task(dbsession, username,
-                                                            labels):
+# TODO this does not guarantee to fetch annotations under a task. It only
+#  fetch annotations with the labels under a task. If we are looking for
+#  annotations created inside Alchemy website, we'd better add a source column.
+def fetch_annotation_entity_and_ids_done_by_user_under_labels(
+        dbsession, username, labels):
     res = dbsession.query(
             ClassificationAnnotation.entity,
             ClassificationAnnotation.id).join(User). \
