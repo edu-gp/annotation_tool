@@ -53,6 +53,22 @@ def show(id):
                                            for item in ar_id_and_status_pairs])
 
 
+@bp.route('/<string:task_id>/examine/<string:user_under_exam>')
+@login_required
+def examine(task_id, user_under_exam):
+    task = db.session.query(Task).filter(Task.id == task_id).first()
+    annotation_entity_and_ids_done_by_user_for_task = \
+        fetch_annotation_entity_and_ids_done_by_user_under_task(
+            dbsession=db.session,
+            username=user_under_exam,
+            labels=task.get_labels()
+        )
+
+    return render_template('tasks/examine.html',
+                           task=task,
+                           annotated=annotation_entity_and_ids_done_by_user_for_task,
+                           user_under_exam=user_under_exam)
+
 
 @bp.route('/<string:task_id>/annotate/<string:ar_id>')
 @login_required
@@ -78,7 +94,9 @@ def reannotate(task_id, annotation_id):
         task_id=task_id,
         example_id=annotation_id,
         is_request=False,
-        username=g.user['username']
+        username=g.user['username']  # TODO need to figure out how to pass
+        # the user without using this global function for admin examine
+        # usecase.
     )
 
     return render_template('tasks/annotate.html',
@@ -209,9 +227,15 @@ def _prepare_annotation_common(task_id: int,
 
     anno = build_empty_annotation(example_dict)
     for existing_annotation in annotations_on_entity_done_by_user:
+        logging.error(existing_annotation)
+        logging.error(task.get_labels())
         if existing_annotation.label in task.get_labels():
             anno['anno']['labels'][
                 existing_annotation.label] = existing_annotation.value
+            if existing_annotation.value == -2:
+                logging.error(existing_annotation.id)
+
+    logging.error(anno)
 
     anno['task_id'] = task.id
     anno['annotation_guides'] = {}
