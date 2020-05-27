@@ -38,7 +38,11 @@
 {% block content %}
 <div class="text-center">
   <h6>
-    Task "{{task.name}}" AR #{{anno['req']['ar_id']}}
+      {% if anno['is_new_annotation'] == True %}
+          Task "{{task.name}}" AR #{{anno['req']['ar_id']}}
+      {%  else %}
+          Task "{{task.name}}" Annotation #{{anno['req']['annotation_id']}}
+      {% endif %}
   </h6>
 </div>
 
@@ -47,8 +51,11 @@
   </div>
   <div class="col">
     {% if next_ar_id %}
-    <a style="display:block" class="btn btn-secondary m-auto" href={{url_for('tasks.annotate', task_id=task.id, ar_id=next_ar_id)
-            }}>Skip</a>
+        <a style="display:block" class="btn btn-secondary m-auto" href={{url_for('tasks.annotate', task_id=task.id, ar_id=next_ar_id)
+                }}>Skip</a>
+    {% elif next_annotation_id %}
+         <a style="display:block" class="btn btn-secondary m-auto" href={{url_for('tasks.reannotate', task_id=task.id, annotation_id=next_annotation_id)
+                }}>Skip</a>
     {% endif %}
   </div>
   <div class="col">

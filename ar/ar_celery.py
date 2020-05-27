@@ -29,12 +29,10 @@ def hello():
 @app.task
 def generate_annotation_requests(task_id, max_per_annotator,
                                  max_per_dp):
-    logging.error("Here here")
-    print("Here here")
     celery_id = str(generate_annotation_requests.request.id)
     set_status(celery_id, JobStatus.STARTED, progress=0.0)
 
-    logging.error(
+    logging.info(
         f"Generate max={max_per_annotator} annotations per user with max_per_dp={max_per_dp}, task_id={task_id}")
 
     db = Database.from_config(DevelopmentConfig)
