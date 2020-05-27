@@ -182,7 +182,6 @@ def fetch_all_ar(task_id, username):
     return _get_all_ar_ids_in_dir(_dir, sort_by_ctime=True)
 
 
-# TODO refactor this piece since it's a duplicate of the ar_request function.
 def construct_annotation_dict(dbsession, annotation_id) -> Dict:
     annotation_id, entity, entity_type, label, context = dbsession.query(
         ClassificationAnnotation.id,

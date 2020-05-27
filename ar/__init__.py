@@ -197,11 +197,23 @@ def generate_annotation_requests(dbsession, task_id: int,
         __text_list.append(row['text'])
 
     # Pattern decorations
-    if task.get_pattern_model():
-        __pattern_decor = task.get_pattern_model().predict(__text_list,
-                                                           fancy=True)
-    else:
-        __pattern_decor = None
+    __pattern_decor_for_all_labels = []
+    labels = task.get_labels()
+    for label in labels:
+        pattern_model_for_label = get_pattern_model_for_label(
+            dbsession=dbsession, label=label)
+        print(pattern_model_for_label)
+        if pattern_model_for_label:
+            __pattern_decor_for_label = pattern_model_for_label.predict(
+                __text_list, fancy=True
+            )
+            __pattern_decor_for_all_labels.append(__pattern_decor_for_label)
+
+    __pattern_decor = _merge_pattern_decor_for_all_labels_recursive(
+        pattern_decor_for_all_labels=__pattern_decor_for_all_labels,
+        low=0,
+        high=len(__pattern_decor_for_all_labels) - 1
+    )
 
     # Build up a dict for random access
     __example_idx_lookup = dict(zip(__examples, range(len(__examples))))
@@ -221,6 +233,66 @@ def generate_annotation_requests(dbsession, task_id: int,
 
     logging.info("Finished generating annotation requests.")
     return annotation_requests
+
+
+def _merge_pattern_decor_for_all_labels_recursive(
+        pattern_decor_for_all_labels: List[List], low: int, high: int):
+    """Merge pattern decors from different labels into one pattern decor
+    using a recursive merge like the logic in merge sort.
+
+    As discussed, we decided to show all the pattern matches from different
+    labels together on the frontend with the same color for now. This may
+    cause some confusion as there may be overlap of matching positions from
+    different labels. For example, one match could be (5, 7) from label A
+    and the other could be (6, 9) from label B. In this case, (5, 9) will be
+    highlighted since the frontend will highlight both (5, 7) and (6,
+    9) separately. Since we use the same color, it appears as we are
+    highlighting (5, 9) as one match.
+
+    :param pattern_decor_for_all_labels: A list of pattern decor lists
+    :param low: low index of the merge range
+    :param high: high index of the merge range
+    :return: A merged pattern decor list
+    """
+    if len(pattern_decor_for_all_labels) == 0:
+        return None
+    if low == high:
+        return pattern_decor_for_all_labels[low]
+    if low > high:
+        return None
+
+    mid = low + (high - low) // 2
+    left_merged = _merge_pattern_decor_for_all_labels_recursive(
+        pattern_decor_for_all_labels, low, mid
+    )
+    right_merged = _merge_pattern_decor_for_all_labels_recursive(
+        pattern_decor_for_all_labels, mid + 1, high
+    )
+
+    return _merge_two_pattern_decors(left_merged, right_merged)
+
+
+def _merge_two_pattern_decors(pattern_decor1: List, pattern_decor2: List):
+    res = pattern_decor1.copy()
+    for i, item in enumerate(pattern_decor2):
+        # Tokens for the same entity are the same so need to merge them.
+
+        res[i]['matches'].extend(item['matches'])
+
+        # In case we need the scores later on, they are merged into a list
+        if not isinstance(res[i]['score'], list):
+            res[i]['score'] = [res[i]['score']]
+
+        if isinstance(item['score'], list):
+            res[i]['score'].extend(item['score'])
+        else:
+            res[i]['score'].append(item['score'])
+
+    # Dedup the merged matching positions.
+    for item in res:
+        item['matches'] = sorted(list(set(item['matches'])))
+
+    return res
 
 
 def _build_blacklisting_lookup_dict(dbsession):
