@@ -253,19 +253,14 @@ def _prepare_annotation_common(task_id: int,
 
     anno = build_empty_annotation(example_dict)
     for existing_annotation in annotations_on_entity_done_by_user:
-        logging.error(existing_annotation)
-        logging.error(task.get_labels())
         if existing_annotation.label in task.get_labels():
             anno['anno']['labels'][
                 existing_annotation.label] = existing_annotation.value
-            if existing_annotation.value == -2:
-                logging.error(existing_annotation.id)
-
-    logging.error(anno)
 
     anno['task_id'] = task.id
     anno['annotation_guides'] = {}
     anno['suggested_labels'] = task.get_labels()
+    anno['username'] = username
 
     # Make sure the requested label is in the list.
     if example_dict['label'] not in anno['suggested_labels']:
