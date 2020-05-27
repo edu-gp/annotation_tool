@@ -63,8 +63,6 @@ def annotate(task_id, ar_id):
         is_request=True,
         username=g.user['username']
     )
-    # TODO more UI changes if we need to change the UI workflow for
-    #  multi-labeling.
 
     return render_template('tasks/annotate.html',
                            task=task,
@@ -82,9 +80,6 @@ def reannotate(task_id, annotation_id):
         is_request=False,
         username=g.user['username']
     )
-
-    # TODO more UI changes if we need to change the UI workflow for
-    #  multi-labeling.
 
     return render_template('tasks/annotate.html',
                            task=task,
