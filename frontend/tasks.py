@@ -90,29 +90,6 @@ def annotate(task_id, ar_id):
                            next_ar_id=next_example_id)
 
 
-@bp.route('/<string:task_id>/reannotate/<string:annotation_id>')
-@login_required
-def reannotate(task_id, annotation_id):
-    username = request.args.get('username', default=g.user['username'],
-                                type=str)
-    is_admin_correction = request.args.get('is_admin_correction', default=False, type=bool)
-    task, anno, next_example_id = _prepare_annotation_common(
-        task_id=task_id,
-        example_id=annotation_id,
-        is_request=False,
-        username=username
-    )
-    anno["is_admin_correction"] = is_admin_correction
-    if is_admin_correction:
-        anno["username_under_exam"] = username
-
-    return render_template('tasks/annotate.html',
-                           task=task,
-                           anno=anno,
-                           data=json.dumps([anno]),
-                           next_annotation_id=next_example_id)
-
-
 @bp.route('/receive_annotation', methods=['POST'])
 @login_required
 def receive_annotation():
@@ -170,6 +147,33 @@ def receive_annotation():
         return {'redirect': url_for('tasks.show', id=task_id)}
 
 
+@bp.route('/<string:task_id>/reannotate/<string:annotation_id>')
+@login_required
+def reannotate(task_id, annotation_id):
+    username = request.args.get('username', default=g.user['username'],
+                                type=str)
+    is_admin_correction = request.args.get('is_admin_correction',
+                                           default=False, type=bool)
+    task, anno, next_example_id = _prepare_annotation_common(
+        task_id=task_id,
+        example_id=annotation_id,
+        is_request=False,
+        username=username
+    )
+    anno["is_admin_correction"] = is_admin_correction
+    if is_admin_correction:
+        anno["update_redirect_link"] = url_for('tasks.examine',
+                                               task_id=task_id, user_under_exam=username)
+    else:
+        anno["update_redirect_link"] = url_for('tasks.show', id=task_id)
+
+    return render_template('tasks/annotate.html',
+                           task=task,
+                           anno=anno,
+                           data=json.dumps([anno]),
+                           next_annotation_id=next_example_id)
+
+
 @bp.route('/update_annotation', methods=['POST'])
 @login_required
 def update_annotation():
@@ -178,22 +182,8 @@ def update_annotation():
     username = g.user['username']
 
     data = json.loads(request.data)
-    task_id = data['task_id']
-    task = get_or_create(dbsession=db.session, model=Task, id=task_id)
 
     annotation_id = data['req']['annotation_id']
-    is_admin_correction = data.get('is_admin_correction', False)
-    username_under_exam = data.get('username_under_exam', None)
-
-    next_annotation_id = None
-    if is_admin_correction and username_under_exam:
-        user_id_under_exam = fetch_user_id_by_username(db.session, username=username_under_exam)
-        next_annotation_id = get_next_annotation_id_from_db(
-            dbsession=db.session,
-            user_id=user_id_under_exam,
-            current_annotation_id=annotation_id,
-            labels=task.get_labels()
-        )
 
     annotation_result = data['anno']['labels']
     for label in annotation_result:
@@ -206,22 +196,7 @@ def update_annotation():
 
     db.session.commit()
 
-    if next_annotation_id:
-        if is_admin_correction:
-            return {'redirect': url_for('tasks.reannotate',
-                                        task_id=task_id,
-                                        annotation_id=next_annotation_id,
-                                        username=username_under_exam,
-                                        is_admin_correction=True)}
-        else:
-            return {'redirect': url_for('tasks.reannotate', task_id=task_id,
-                                        annotation_id=next_annotation_id)}
-    else:
-        if is_admin_correction:
-            return {'redirect': url_for('tasks.examine', task_id=task_id,
-                                        user_under_exam=username_under_exam)}
-        else:
-            return {'redirect': url_for('tasks.show', id=task_id)}
+    return {'redirect': data.get('update_redirect_link')}
 
 
 def _prepare_annotation_common(task_id: int,
