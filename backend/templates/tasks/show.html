@@ -184,6 +184,19 @@
           </div>
         </div>
 
+      <div class="row">
+          <div class="col">
+            <h6>Admin Examine Links</h6>
+            <ul>
+              {% for user, link in admin_examine_links %}
+              <li>
+                <a href="{{link}}" target="_blank">{{user}}</a>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+
 
       </div>
       <div class="col">

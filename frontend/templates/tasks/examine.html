@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block header %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item">
+      <a href="{{ url_for('index') }}">Home</a>
+    </li>
+    <li class="breadcrumb-item active" aria-current="page">
+      Task (Examine)
+    </li>
+  </ol>
+</nav>
+<h2>
+  {{task.name}}
+</h2>
+{% endblock %}
+
+{% block content %}
+<h3>
+  Existing Annotations from {{ user_under_exam }}
+</h3>
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th scope="col" class="text-center" style="width: 5%">Entity</th>
+      <th scope="col" style="width: 90%">Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for annotation_entity_and_id in annotated %}
+    <tr>
+      <td class="text-center">
+        {{loop.index}}
+      </td>
+      <td>
+        <a class="mx-2" href={{url_for('tasks.reannotate', task_id=task.id,
+                annotation_id=annotation_entity_and_id[1],
+                username=user_under_exam,
+                is_admin_correction=True)}}>
+          Example {{annotation_entity_and_id[0]}}
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

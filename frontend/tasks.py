@@ -13,7 +13,7 @@ from flask import (
 from db.model import (
     db, AnnotationRequest, Task, get_or_create, ClassificationAnnotation,
     AnnotationGuide, AnnotationValue, AnnotationRequestStatus,
-    fetch_annotation_entity_and_ids_done_by_user_under_task)
+    fetch_annotation_entity_and_ids_done_by_user_under_labels)
 
 from .auth import login_required
 
@@ -35,7 +35,7 @@ def show(id):
                                                     username=username)
 
     annotation_entity_and_ids_done_by_user_for_task = \
-        fetch_annotation_entity_and_ids_done_by_user_under_task(
+        fetch_annotation_entity_and_ids_done_by_user_under_labels(
             dbsession=db.session,
             username=username,
             labels=task.get_labels()
@@ -53,6 +53,25 @@ def show(id):
                                            for item in ar_id_and_status_pairs])
 
 
+@bp.route('/<string:task_id>/examine/<string:user_under_exam>')
+@login_required
+def examine(task_id, user_under_exam):
+    # TODO we should add UserRole control. Right now I'm just assuming only
+    #  the admin can see the backend control page.
+    task = db.session.query(Task).filter(Task.id == task_id).first()
+    annotation_entity_and_ids_done_by_user_for_task = \
+        fetch_annotation_entity_and_ids_done_by_user_under_labels(
+            dbsession=db.session,
+            username=user_under_exam,
+            labels=task.get_labels()
+        )
+
+    return render_template('tasks/examine.html',
+                           task=task,
+                           annotated=annotation_entity_and_ids_done_by_user_for_task,
+                           user_under_exam=user_under_exam,
+                           is_admin_correction=True)
+
 
 @bp.route('/<string:task_id>/annotate/<string:ar_id>')
 @login_required
@@ -69,23 +88,6 @@ def annotate(task_id, ar_id):
                            anno=anno,
                            data=json.dumps([anno]),
                            next_ar_id=next_example_id)
-
-
-@bp.route('/<string:task_id>/reannotate/<string:annotation_id>')
-@login_required
-def reannotate(task_id, annotation_id):
-    task, anno, next_example_id = _prepare_annotation_common(
-        task_id=task_id,
-        example_id=annotation_id,
-        is_request=False,
-        username=g.user['username']
-    )
-
-    return render_template('tasks/annotate.html',
-                           task=task,
-                           anno=anno,
-                           data=json.dumps([anno]),
-                           next_annotation_id=next_example_id)
 
 
 @bp.route('/receive_annotation', methods=['POST'])
@@ -106,8 +108,6 @@ def receive_annotation():
         'pattern_info': data['req']['pattern_info']
     }
 
-    # For all the labels received, we need to create/update annotations in
-    # the db.
     annotation_result = data['anno']['labels']
     for label in annotation_result:
         value = annotation_result[label]
@@ -147,19 +147,44 @@ def receive_annotation():
         return {'redirect': url_for('tasks.show', id=task_id)}
 
 
+@bp.route('/<string:task_id>/reannotate/<string:annotation_id>')
+@login_required
+def reannotate(task_id, annotation_id):
+    username = request.args.get('username', default=g.user['username'],
+                                type=str)
+    is_admin_correction = request.args.get('is_admin_correction',
+                                           default=False, type=bool)
+    task, anno, next_example_id = _prepare_annotation_common(
+        task_id=task_id,
+        example_id=annotation_id,
+        is_request=False,
+        username=username
+    )
+    anno["is_admin_correction"] = is_admin_correction
+    if is_admin_correction:
+        anno["update_redirect_link"] = url_for('tasks.examine',
+                                               task_id=task_id, user_under_exam=username)
+    else:
+        anno["update_redirect_link"] = url_for('tasks.show', id=task_id)
+
+    return render_template('tasks/annotate.html',
+                           task=task,
+                           anno=anno,
+                           data=json.dumps([anno]),
+                           next_annotation_id=next_example_id)
+
+
 @bp.route('/update_annotation', methods=['POST'])
 @login_required
 def update_annotation():
     '''API meant for Javascript to consume'''
+    # TODO need to check if this is for admin correction flow.
     username = g.user['username']
-    user_id = fetch_user_id_by_username(db.session, username=username)
 
     data = json.loads(request.data)
-    task_id = data['task_id']
+
     annotation_id = data['req']['annotation_id']
 
-    # For all the labels received, we need to create/update annotations in
-    # the db.
     annotation_result = data['anno']['labels']
     for label in annotation_result:
         value = annotation_result[label]
@@ -171,13 +196,7 @@ def update_annotation():
 
     db.session.commit()
 
-    next_annotation_id = None
-
-    if next_annotation_id:
-        return {'redirect': url_for('tasks.reannotate', task_id=task_id,
-                                    annotation_id=next_annotation_id)}
-    else:
-        return {'redirect': url_for('tasks.show', id=task_id)}
+    return {'redirect': data.get('update_redirect_link')}
 
 
 def _prepare_annotation_common(task_id: int,
@@ -216,6 +235,7 @@ def _prepare_annotation_common(task_id: int,
     anno['task_id'] = task.id
     anno['annotation_guides'] = {}
     anno['suggested_labels'] = task.get_labels()
+    anno['username'] = username
 
     # Make sure the requested label is in the list.
     if example_dict['label'] not in anno['suggested_labels']:
