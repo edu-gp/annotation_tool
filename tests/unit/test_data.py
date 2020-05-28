@@ -1,6 +1,8 @@
 import math
 from collections import namedtuple
 
+import pandas as pd
+import numpy as np
 from sqlalchemy import distinct, func
 
 from tests.sqlalchemy_conftest import *
@@ -13,10 +15,11 @@ from ar.data import _compute_kappa_matrix, \
     EntityAndAnnotationValuePair, compute_annotation_request_statistics, \
     _compute_total_distinct_number_of_annotated_entities_for_label, \
     _compute_num_of_annotations_per_value, PrettyDefaultDict, \
-    fetch_annotated_ar_ids_from_db, fetch_ar_ids, construct_ar_request_dict
+    fetch_annotated_ar_ids_from_db, fetch_ar_ids, construct_ar_request_dict, \
+    _construct_comparison_df
 from db.model import User, ClassificationAnnotation, \
     AnnotationRequest, AnnotationType, AnnotationRequestStatus, Task, \
-    update_instance
+    update_instance, AnnotationValue
 
 ENTITY_TYPE = 'blah'
 
@@ -433,3 +436,91 @@ def test_construct_ar_request_dict(dbsession):
         'entity_type': ENTITY_TYPE,
         'label': request2.label
     }
+
+
+def test__construct_comparison_df(dbsession):
+    user1 = User(username="user1")
+    user2 = User(username="user2")
+    user3 = User(username="user3")
+
+    dbsession.add_all([user1, user2, user3])
+    dbsession.commit()
+
+    label = "label1"
+    entity1 = "entity1"
+    entity2 = "entity2"
+    entity_type = "company"
+
+    # Annotations from user1
+    annotation1 = ClassificationAnnotation(
+        entity=entity1,
+        entity_type=entity_type,
+        label=label,
+        value=AnnotationValue.POSITIVE,
+        user_id=user1.id
+    )
+
+    annotation2 = ClassificationAnnotation(
+        entity=entity2,
+        entity_type=entity_type,
+        label=label,
+        value=AnnotationValue.POSITIVE,
+        user_id=user1.id
+    )
+
+    # Annotations from user2
+    annotation3 = ClassificationAnnotation(
+        entity=entity1,
+        entity_type=entity_type,
+        label=label,
+        value=AnnotationValue.POSITIVE,
+        user_id=user2.id
+    )
+
+    annotation4 = ClassificationAnnotation(
+        entity=entity2,
+        entity_type=entity_type,
+        label=label,
+        value=AnnotationValue.NEGTIVE,
+        user_id=user2.id
+    )
+
+    # Annotations from user3
+    annotation5 = ClassificationAnnotation(
+        entity=entity1,
+        entity_type=entity_type,
+        label=label,
+        value=AnnotationValue.UNSURE,
+        user_id=user3.id
+    )
+
+    dbsession.add_all([annotation1, annotation2, annotation3, annotation4,
+                       annotation5])
+    dbsession.commit()
+
+    comparison_df, id_df = _construct_comparison_df(
+        dbsession=dbsession,
+        label=label,
+        users_to_compare=[user1.username,
+                          user2.username,
+                          user3.username])
+    expected_comparison_df = pd.DataFrame({
+        user1.username: [str(annotation1.value), str(annotation2.value)],
+        user2.username: [str(annotation3.value), str(annotation4.value)],
+        user3.username: [str(annotation5.value), str(np.NaN)]
+    }, index=[entity1, entity2])
+
+    expected_id_df = pd.DataFrame({
+        user1.username: [str(annotation1.id), str(annotation2.id)],
+        user2.username: [str(annotation3.id), str(annotation4.id)],
+        user3.username: [str(annotation5.id), str(np.NaN)]
+    }, index=[entity1, entity2])
+
+    assert(comparison_df.equals(expected_comparison_df))
+    assert(id_df.equals(expected_id_df))
+
+
+
+
+
+

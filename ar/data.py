@@ -6,12 +6,13 @@ import re
 import shutil
 import time
 from collections import defaultdict, Counter, namedtuple
-from typing import Dict
+from typing import Dict, List
 
 import pandas as pd
+import numpy as np
 from pandas import DataFrame
 from sklearn.metrics import cohen_kappa_score
-from sqlalchemy import func
+from sqlalchemy import func, distinct
 
 from db import _task_dir
 from db.model import (
@@ -907,3 +908,41 @@ def export_labeled_examples(task_id, outfile=None):
         save_jsonl(outfile, final)
 
     return final
+
+
+def _construct_comparison_df(dbsession, label: str, users_to_compare: List):
+    res = dbsession.query(
+        distinct(ClassificationAnnotation.entity)).filter(
+        ClassificationAnnotation.label == label).order_by(
+        ClassificationAnnotation.entity.asc()).all()
+
+    distinct_entities_under_label = [
+        item[0] for item in res
+    ]
+
+    comparison_df = pd.DataFrame({
+        user: [str(np.NaN)] * len(distinct_entities_under_label)
+        for user in users_to_compare
+    }, index=list(distinct_entities_under_label))
+
+    annotation_id_per_user_df = comparison_df.copy(deep=True)
+
+    for user in users_to_compare:
+        entity_value_id_pairs = dbsession. \
+            query(ClassificationAnnotation.entity,
+                  ClassificationAnnotation.value,
+                  ClassificationAnnotation.id). \
+            filter(ClassificationAnnotation.label == label,
+                   User.username == user). \
+            join(User). \
+            order_by(ClassificationAnnotation.entity.asc()).all()
+        entities = [pair[0] for pair in entity_value_id_pairs]
+        values = [str(pair[1]) for pair in entity_value_id_pairs]
+        user_df = pd.DataFrame({user: values}, index=entities)
+        comparison_df.update(user_df)
+
+        ids = [str(pair[2]) for pair in entity_value_id_pairs]
+        id_df = pd.DataFrame({user: ids}, index=entities)
+        annotation_id_per_user_df.update(id_df)
+
+    return comparison_df, annotation_id_per_user_df
