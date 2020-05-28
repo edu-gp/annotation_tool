@@ -29,6 +29,9 @@
         {% if anno['is_admin_correction'] %}
             <a href="{{ url_for('tasks.examine', task_id=task.id,
             user_under_exam=anno['username'])}}">Task (Examine)</a>
+        {% elif anno['is_compare'] %}
+            <a href="{{ url_for('tasks.compare_annotations', task_id=task.id,
+            label=anno['targeted_label'])}}">Task (Compare)</a>
         {% else %}
             <a href="{{ url_for('tasks.show', id=task.id) }}">Task</a>
         {% endif %}
