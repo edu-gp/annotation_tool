@@ -115,6 +115,9 @@ def annotate(task_id, ar_id):
         username=g.user['username']
     )
 
+    anno["update_redirect_link"] = request.referrer
+    anno["task_page_name"] = "Task"
+
     return render_template('tasks/annotate.html',
                            task=task,
                            anno=anno,
@@ -191,8 +194,13 @@ def reannotate(task_id, annotation_id):
         username=annotation_owner
     )
 
+    anno["task_page_name"] = "Task"
     if request.referrer:
         anno["update_redirect_link"] = request.referrer
+        if "examine" in request.referrer:
+            anno["task_page_name"] = "Examine"
+        elif "compare" in request.referrer:
+            anno["task_page_name"] = "Compare"
     else:
         anno["update_redirect_link"] = "/"
 

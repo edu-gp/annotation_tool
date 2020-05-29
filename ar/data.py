@@ -20,6 +20,7 @@ from db.model import (
     AnnotationRequest, AnnotationRequestStatus,
     update_instance, AnnotationType, get_or_create, AnnotationValue)
 from db._task import _Task, DIR_ANNO, DIR_AREQ
+from shared.frontend_path_finder import generate_frontend_compare_link
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd, \
     PrettyDefaultDict
 
@@ -524,7 +525,7 @@ def compute_annotation_request_statistics(dbsession, task_id):
     }
 
 
-def compute_annotation_statistics_db(dbsession, label):
+def compute_annotation_statistics_db(dbsession, label, task_id):
     total_distinct_annotated_entities = \
         _compute_total_distinct_number_of_annotated_entities_for_label(
             dbsession=dbsession,
@@ -557,8 +558,11 @@ def compute_annotation_statistics_db(dbsession, label):
     kappa_stats_raw_data = _construct_kappa_stats_raw_data(
         db.session, distinct_users, label)
 
-    kappa_table_per_label = _convert_html_tables(
-        kappa_matrices=_compute_kappa_matrix(kappa_stats_raw_data)
+    kappa_matrices = _compute_kappa_matrix(kappa_stats_raw_data)
+
+    kappa_analysis_dict_per_label = _construct_kappa_analysis_link_dict(
+        kappa_matrices=kappa_matrices,
+        task_id=task_id
     )
 
     return {
@@ -566,7 +570,8 @@ def compute_annotation_statistics_db(dbsession, label):
         'total_distinct_annotated_entities': total_distinct_annotated_entities,
         'n_annotations_per_value': num_of_annotations_per_value,
         'n_annotations_per_user': n_annotations_done_per_user_dict,
-        'kappa_table': kappa_table_per_label,
+        'kappa_table': kappa_matrices,
+        'kappa_analysis_link_dict': kappa_analysis_dict_per_label
     }
 
 
@@ -776,13 +781,27 @@ def _exclude_unknowns_for_kappa_calculation(result_user1, result_user2):
     return labeling_results1, labeling_results2
 
 
-def _convert_html_tables(kappa_matrices):
-    float_formatter = "{:.2f}".format
-    kappa_html_tables = PrettyDefaultDict(str)
+def _construct_kappa_analysis_link_dict(kappa_matrices, task_id):
+    kappa_analysis_links_dict = PrettyDefaultDict(lambda: PrettyDefaultDict(
+        lambda: str))
     for label, df in kappa_matrices.items():
-        kappa_html_tables[label] = df.to_html(classes='kappa_table',
-                                              float_format=float_formatter)
-    return kappa_html_tables
+        columns = list(df.columns)
+        index = list(df.index.values)
+        for i in range(len(columns)):
+            user1 = columns[i]
+            user2 = index[i]
+            if user1 != user2:
+                kappa_analysis_links_dict[label][(user1, user2)] = \
+                    generate_frontend_compare_link(
+                        task_id=task_id,
+                        label=label,
+                        users_dict={
+                            'user1': user1,
+                            'user2': user2
+                        }
+                    )
+
+    return kappa_analysis_links_dict
 
 
 def _majority_label(labels):

@@ -108,7 +108,7 @@ def show(id):
     for label in task.get_labels():
         annotation_statistics_per_label[label] = \
             compute_annotation_statistics_db(dbsession=db.session,
-                                             label=label)
+                                             label=label, task_id=id)
 
     annotation_request_statistics = compute_annotation_request_statistics(
         dbsession=db.session, task_id=id)
