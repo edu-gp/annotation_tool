@@ -17,6 +17,7 @@ def export_new_raw_data(model: Model, data_fname: str, output_fname: str,
 
     if not output_fname.endswith('.jsonl'):
         output_fname += '.jsonl'
+    output_fname = output_fname.replace(' ', '_')
     output_path = _raw_data_file_path(output_fname)
 
     if os.path.isfile(output_path):

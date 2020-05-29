@@ -137,7 +137,7 @@ def show(id):
     models_per_label = {}
     for label in task.get_labels():
         models = db.session.query(Model).filter_by(
-            label=label).order_by(Model.version.desc()).limit(10).all()
+            label=label).order_by(Model.created_at.desc()).limit(10).all()
         models_per_label[label] = models
 
     return render_template(
@@ -168,6 +168,7 @@ def update(id):
         form = request.form
 
         name = parse_name(form)
+        data = parse_data_filename(form)
         labels = parse_labels(form)
         annotators = parse_annotators(form)
     except Exception as e:
@@ -179,6 +180,7 @@ def update(id):
                                list_to_textarea=list_to_textarea)
     else:
         task.name = name
+        task.set_data_filenames([data])
         task.set_labels(labels)
         task.set_annotators(annotators)
         db.session.add(task)
@@ -228,7 +230,7 @@ def download_prediction():
 
     if model is not None:
         label = model.label or "UNK_LABEL"
-        df = model.export_inference(fname)
+        df = model.export_inference(fname, include_text=True)
 
         # Write it to a temp file and send it.
         import tempfile
@@ -252,6 +254,13 @@ def parse_name(form):
     name = form['name']
     name = name.strip()
     assert name, 'Name is required'
+    return name
+
+
+def parse_data_filename(form):
+    name = form['data']
+    name = name.strip()
+    assert name, 'Data is required'
     return name
 
 
@@ -291,3 +300,4 @@ def parse_data(form, all_files):
     for fname in data:
         assert fname in all_files, f"Data file '{fname}' does not exist"
     return data
+

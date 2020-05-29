@@ -37,6 +37,8 @@ def export_new_raw_data():
         assert output_fname is not None, f"Missing output_fname"
         assert 0.0 <= cutoff < 1.0, f"Invalid cutoff={cutoff}"
 
+        output_fname = output_fname.replace(' ', '_')
+
         model = db.session.query(Model).filter_by(id=model_id).one_or_none()
         output_path = _export_new_raw_data(
             model, data_fname, output_fname, cutoff=cutoff)
