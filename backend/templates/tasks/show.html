@@ -247,6 +247,7 @@
           <th scope="col">By Value</th>
           <th scope="col">By Annotator</th>
           <th scope="col">Kappa Matrix</th>
+          <th scope="col">Analyze Annotation Results</th>
         </tr>
       </thead>
       <tbody>
@@ -283,10 +284,15 @@
             </div>
             {% endfor %}
           </td>
+          <td>
+              <a href="{{ kappa_analysis_for_all_users_links[label] }}"
+                 target="_blank">Compare All Annotations for "{{ label }}"</a>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+
 
   </div>
 </div>

@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block header %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item">
+      <a href="{{ url_for('index') }}">Home</a>
+    </li>
+    <li class="breadcrumb-item active" aria-current="page">
+      Compare
+    </li>
+  </ol>
+</nav>
+<h2>
+  Comparing Annotations for Label "{{ label }}"
+</h2>
+
+{% endblock %}
+
+{% block content %}
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th scope="col" class="text-center" style="width: 5%">Entity</th>
+      {% for user in users %}
+          <th scope="col" class="text-center">{{ user }}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for entity in entities %}
+    <tr>
+      <td class="text-center">{{ entity }}</td>
+      {% for user in users %}
+          <td class="text-center">
+           {% if comparison_df.loc[entity, user] != "nan" %}
+            <a class="mx-2" href={{url_for('tasks.reannotate',
+                    task_id=task_id, annotation_id=id_df.loc[entity, user],
+                    label=label, username=user)}}>
+                {{ comparison_df.loc[entity, user] }}
+            </a>
+          {% else %}
+               nan
+          {% endif %}
+          </td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}
