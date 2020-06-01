@@ -15,7 +15,7 @@ from flask import (
 from db.model import (
     db, AnnotationRequest, Task, get_or_create, ClassificationAnnotation,
     AnnotationGuide, AnnotationValue, AnnotationRequestStatus,
-    fetch_annotation_entity_and_ids_done_by_user_under_labels)
+    fetch_annotation_entity_and_ids_done_by_user_under_labels, User)
 
 from .auth import login_required
 
@@ -115,7 +115,7 @@ def annotate(task_id, ar_id):
         username=g.user['username']
     )
 
-    anno["update_redirect_link"] = request.referrer
+    anno["update_redirect_link"] = url_for('tasks.show', id=task_id)
     anno["task_page_name"] = "Task"
 
     return render_template('tasks/annotate.html',
@@ -219,15 +219,23 @@ def update_annotation():
     username = g.user['username']
 
     data = json.loads(request.data)
+    annotation_owner = get_or_create(dbsession=db.session,
+                                     model=User,
+                                     username=data['username'])
 
-    annotation_id = data['req']['annotation_id']
+    entity_type = data['req']['entity_type']
+    entity = data['req']['entity']
 
     annotation_result = data['anno']['labels']
+
     for label in annotation_result:
         value = annotation_result[label]
-        annotation = get_or_create(dbsession=db.session,
-                                   model=ClassificationAnnotation,
-                                   id=annotation_id)
+        annotation = db.session.query(ClassificationAnnotation).filter(
+            ClassificationAnnotation.label == label,
+            ClassificationAnnotation.entity == entity,
+            ClassificationAnnotation.entity_type == entity_type,
+            ClassificationAnnotation.user_id == annotation_owner.id
+        ).one_or_none()
         annotation.value = value
         db.session.add(annotation)
 
