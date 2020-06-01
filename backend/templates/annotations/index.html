@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+
+{% block header %}
+<h1>Annotation Utilities</h1>
+{% endblock %}
+
+{% block content %}
+<a class="btn btn-primary" href="{{ url_for('annotations.bulk') }}">Bulk Upload</a>
+{% endblock %}
