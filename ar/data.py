@@ -971,4 +971,33 @@ def _construct_comparison_df(dbsession, label: str, users_to_compare: List):
         id_df = pd.DataFrame({user: ids}, index=entities)
         annotation_id_per_user_df.update(id_df)
 
+    comparison_df["contentious_level"] = comparison_df.apply(
+        lambda row: _compute_contentious_level(row), axis=1)
+
+    comparison_df.sort_values(by="contentious_level", inplace=True,
+                              ascending=False)
+    sorted_index = comparison_df.index
+    annotation_id_per_user_df.set_index(sorted_index)
+    
+    comparison_df = comparison_df.drop(columns=["contentious_level"])
+
     return comparison_df, annotation_id_per_user_df
+
+
+def _compute_contentious_level(row):
+    """The maximum contentious level is one meaning we have an equal
+    split among the annotators while the minimum level is 1/(len(users) + 1)"""
+    values = row.values.tolist()
+    stats = PrettyDefaultDict(int)
+    for val in values:
+        stats[str(val)] += 1
+
+    # We are only considering positives and negatives.
+    positives = stats[str(AnnotationValue.POSITIVE)]
+    negatives = stats[str(AnnotationValue.NEGTIVE)]
+
+    ratio = len(values) + 1
+    if positives > 0 and negatives > 0:
+        ratio = positives / negatives if positives >= negatives \
+            else negatives / positives
+    return 1 / ratio
