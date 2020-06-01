@@ -184,6 +184,7 @@ def fetch_all_ar(task_id, username):
 
 # TODO refactor this piece since it's a duplicate of the ar_request function.
 def construct_annotation_dict(dbsession, annotation_id) -> Dict:
+    # TODO possible destructing of None
     annotation_id, entity, entity_type, label, context = dbsession.query(
         ClassificationAnnotation.id,
         ClassificationAnnotation.entity,

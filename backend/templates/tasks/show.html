@@ -184,20 +184,6 @@
           </div>
         </div>
 
-      <div class="row">
-          <div class="col">
-            <h6>Admin Examine Links</h6>
-            <ul>
-              {% for user, link in admin_examine_links %}
-              <li>
-                <a href="{{link}}" target="_blank">{{user}}</a>
-              </li>
-              {% endfor %}
-            </ul>
-          </div>
-        </div>
-
-
       </div>
       <div class="col">
         <div>
@@ -238,6 +224,16 @@
       Annotations
     </h4>
 
+    <h5>Annotations by Users</h5>
+    <ul>
+      {% for user, link in admin_examine_links %}
+      <li>
+        <a href="{{link}}" target="_blank">{{user}}</a>
+      </li>
+      {% endfor %}
+    </ul>
+
+    <h5>Annotations by Labels</h5>
     <table class="table table-bordered">
       <thead>
         <tr>

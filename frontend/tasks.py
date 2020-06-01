@@ -226,6 +226,15 @@ def _prepare_annotation_common(task_id: int,
         ClassificationAnnotation.entity == example_dict['entity'],
         ClassificationAnnotation.user_id == user_id).all()
 
+    # NOTE: hack!
+    # backfill the domain and name, in case they'remissing
+    meta_dict = {
+        'name': example_dict['entity'],
+        'domain': example_dict['entity']
+    }
+    if example_dict['data'].get('meta') is None:
+        example_dict['data']['meta'] = meta_dict
+
     anno = build_empty_annotation(example_dict)
     for existing_annotation in annotations_on_entity_done_by_user:
         if existing_annotation.label in task.get_labels():

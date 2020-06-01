@@ -772,10 +772,14 @@ def fetch_annotation_entity_and_ids_done_by_user_under_labels(
         dbsession, username, labels):
     res = dbsession.query(
             ClassificationAnnotation.entity,
-            ClassificationAnnotation.id).join(User). \
+            ClassificationAnnotation.id,
+            ClassificationAnnotation.created_at,
+            ClassificationAnnotation.label,
+            ClassificationAnnotation.value).join(User). \
             filter(
                 User.username == username,
                 ClassificationAnnotation.label.in_(labels),
                 ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED). \
+            order_by(ClassificationAnnotation.created_at.desc()). \
             all()
     return res
