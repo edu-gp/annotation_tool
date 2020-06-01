@@ -631,7 +631,6 @@ def _construct_kappa_stats_raw_data(dbsession, distinct_users, label):
             for user_pair in user_pairs
         }
     }
-    logging.error(kappa_stats_raw_data)
     return kappa_stats_raw_data
 
 
@@ -738,8 +737,6 @@ def _compute_kappa_matrix(kappa_stats_raw_data):
     for label, result_per_user_pair_per_label in \
             sorted(kappa_stats_raw_data.items()):
         for user_pair, result_per_user in result_per_user_pair_per_label.items():
-            logging.error(user_pair)
-            logging.error(result_per_user)
             if result_per_user is None:
                 kappa_matrix[label][user_pair[0]][user_pair[1]] = np.nan
                 kappa_matrix[label][user_pair[1]][user_pair[0]] = np.nan
@@ -811,7 +808,6 @@ def _construct_kappa_analysis_link_dict(kappa_matrices, task_id):
                                 'user2': user2
                             }
                         )
-    logging.error(kappa_analysis_links_dict)
     return kappa_analysis_links_dict
 
 
