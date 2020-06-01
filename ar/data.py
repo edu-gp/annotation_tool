@@ -6,12 +6,13 @@ import re
 import shutil
 import time
 from collections import defaultdict, Counter, namedtuple
-from typing import Dict
+from typing import Dict, List
 
 import pandas as pd
+import numpy as np
 from pandas import DataFrame
 from sklearn.metrics import cohen_kappa_score
-from sqlalchemy import func
+from sqlalchemy import func, distinct
 
 from db import _task_dir
 from db.model import (
@@ -19,6 +20,7 @@ from db.model import (
     AnnotationRequest, AnnotationRequestStatus,
     update_instance, AnnotationType, get_or_create, AnnotationValue)
 from db._task import _Task, DIR_ANNO, DIR_AREQ
+from shared.frontend_path_finder import generate_frontend_compare_link
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd, \
     PrettyDefaultDict
 
@@ -524,7 +526,7 @@ def compute_annotation_request_statistics(dbsession, task_id):
     }
 
 
-def compute_annotation_statistics_db(dbsession, label):
+def compute_annotation_statistics_db(dbsession, label, task_id):
     total_distinct_annotated_entities = \
         _compute_total_distinct_number_of_annotated_entities_for_label(
             dbsession=dbsession,
@@ -557,8 +559,11 @@ def compute_annotation_statistics_db(dbsession, label):
     kappa_stats_raw_data = _construct_kappa_stats_raw_data(
         db.session, distinct_users, label)
 
-    kappa_table_per_label = _convert_html_tables(
-        kappa_matrices=_compute_kappa_matrix(kappa_stats_raw_data)
+    kappa_matrices = _compute_kappa_matrix(kappa_stats_raw_data)
+
+    kappa_analysis_link_dict = _construct_kappa_analysis_link_dict(
+        kappa_matrices=kappa_matrices,
+        task_id=task_id
     )
 
     return {
@@ -566,7 +571,8 @@ def compute_annotation_statistics_db(dbsession, label):
         'total_distinct_annotated_entities': total_distinct_annotated_entities,
         'n_annotations_per_value': num_of_annotations_per_value,
         'n_annotations_per_user': n_annotations_done_per_user_dict,
-        'kappa_table': kappa_table_per_label,
+        'kappa_table': kappa_matrices,
+        'kappa_analysis_link_dict': kappa_analysis_link_dict
     }
 
 
@@ -614,7 +620,8 @@ def _compute_number_of_annotations_done_per_user(dbsession, label):
 def _construct_kappa_stats_raw_data(dbsession, distinct_users, label):
     entities_and_annotation_values_by_user = \
         _retrieve_entity_ids_and_annotation_values_by_user(dbsession,
-                                                           distinct_users)
+                                                           distinct_users,
+                                                           label)
     user_pairs = list(itertools.combinations(distinct_users, 2))
     kappa_stats_raw_data = {
         label: {
@@ -628,16 +635,17 @@ def _construct_kappa_stats_raw_data(dbsession, distinct_users, label):
     return kappa_stats_raw_data
 
 
-def _retrieve_entity_ids_and_annotation_values_by_user(dbsession, users):
+def _retrieve_entity_ids_and_annotation_values_by_user(dbsession, users,
+                                                       label):
     res = dbsession.query(
         ClassificationAnnotation.entity,
         ClassificationAnnotation.value,
         ClassificationAnnotation.user_id
     ). \
-        filter(ClassificationAnnotation.user_id.in_(
-            [user.id for user in users]
-        )
-    ).all()
+        filter(ClassificationAnnotation.label == label,
+               ClassificationAnnotation.user_id.in_(
+                    [user.id for user in users]
+               )).all()
 
     data = PrettyDefaultDict(lambda: [])
     for item in res:
@@ -727,27 +735,32 @@ def _compute_kappa_matrix(kappa_stats_raw_data):
     """
     kappa_matrix = PrettyDefaultDict(
         lambda: PrettyDefaultDict(lambda: PrettyDefaultDict(float)))
-    for label, result_per_user_pair_per_label in kappa_stats_raw_data.items():
-        for user_pair, result_per_user in \
-                result_per_user_pair_per_label.items():
+    for label, result_per_user_pair_per_label in \
+            sorted(kappa_stats_raw_data.items()):
+        for user_pair, result_per_user in result_per_user_pair_per_label.items():
             if result_per_user is None:
-                continue
-            result_user1 = result_per_user[user_pair[0]]
-            result_user2 = result_per_user[user_pair[1]]
-            logging.info("Calculating the kappa score for {} and {}".format(
-                user_pair[0], user_pair[1]))
-            result_user1, result_user2 = \
-                _exclude_unknowns_for_kappa_calculation(result_user1,
-                                                        result_user2)
-            kappa_score = cohen_kappa_score(result_user1, result_user2)
-            kappa_matrix[label][user_pair[0]][user_pair[1]] = kappa_score
-            kappa_matrix[label][user_pair[1]][user_pair[0]] = kappa_score
+                kappa_matrix[label][user_pair[0]][user_pair[1]] = np.nan
+                kappa_matrix[label][user_pair[1]][user_pair[0]] = np.nan
+            else:
+                result_user1 = result_per_user[user_pair[0]]
+                result_user2 = result_per_user[user_pair[1]]
+                logging.info("Calculating the kappa score for {} and {}".format(
+                    user_pair[0], user_pair[1]))
+                result_user1, result_user2 = \
+                    _exclude_unknowns_for_kappa_calculation(result_user1,
+                                                            result_user2)
+                kappa_score = cohen_kappa_score(result_user1, result_user2)
+                kappa_score = float("{:.2f}".format(kappa_score))
+                kappa_matrix[label][user_pair[0]][user_pair[1]] = kappa_score
+                kappa_matrix[label][user_pair[1]][user_pair[0]] = kappa_score
+
             kappa_matrix[label][user_pair[0]][user_pair[0]] = 1
             kappa_matrix[label][user_pair[1]][user_pair[1]] = 1
 
     kappa_dataframe = PrettyDefaultDict(DataFrame)
     for label, nested_dict in kappa_matrix.items():
-        kappa_dataframe[label] = pd.DataFrame.from_dict(nested_dict)
+        kappa_dataframe[label] = pd.DataFrame.from_dict(
+            nested_dict).sort_index(axis=0).sort_index(axis=1)
     return kappa_dataframe
 
 
@@ -776,13 +789,27 @@ def _exclude_unknowns_for_kappa_calculation(result_user1, result_user2):
     return labeling_results1, labeling_results2
 
 
-def _convert_html_tables(kappa_matrices):
-    float_formatter = "{:.2f}".format
-    kappa_html_tables = PrettyDefaultDict(str)
+def _construct_kappa_analysis_link_dict(kappa_matrices, task_id):
+    kappa_analysis_links_dict = PrettyDefaultDict(lambda: PrettyDefaultDict(
+        lambda: str))
     for label, df in kappa_matrices.items():
-        kappa_html_tables[label] = df.to_html(classes='kappa_table',
-                                              float_format=float_formatter)
-    return kappa_html_tables
+        columns = list(df.columns)
+        index = list(df.index.values)
+        for i in range(len(columns)):
+            user1 = columns[i]
+            for j in range(len(index)):
+                user2 = index[j]
+                if user1 != user2:
+                    kappa_analysis_links_dict[label][(user1, user2)] = \
+                        generate_frontend_compare_link(
+                            task_id=task_id,
+                            label=label,
+                            users_dict={
+                                'user1': user1,
+                                'user2': user2
+                            }
+                        )
+    return kappa_analysis_links_dict
 
 
 def _majority_label(labels):
@@ -908,3 +935,70 @@ def export_labeled_examples(task_id, outfile=None):
         save_jsonl(outfile, final)
 
     return final
+
+
+def _construct_comparison_df(dbsession, label: str, users_to_compare: List):
+    res = dbsession.query(
+        distinct(ClassificationAnnotation.entity)).filter(
+        ClassificationAnnotation.label == label).order_by(
+        ClassificationAnnotation.entity.asc()).all()
+
+    distinct_entities_under_label = [
+        item[0] for item in res
+    ]
+
+    comparison_df = pd.DataFrame({
+        user: [str(np.NaN)] * len(distinct_entities_under_label)
+        for user in users_to_compare
+    }, index=list(distinct_entities_under_label))
+
+    annotation_id_per_user_df = comparison_df.copy(deep=True)
+
+    for user in users_to_compare:
+        entity_value_id_tuple = dbsession. \
+            query(ClassificationAnnotation.entity,
+                  ClassificationAnnotation.value,
+                  ClassificationAnnotation.id). \
+            filter(ClassificationAnnotation.label == label,
+                   User.username == user). \
+            join(User). \
+            order_by(ClassificationAnnotation.entity.asc()).all()
+        entities = [pair[0] for pair in entity_value_id_tuple]
+        values = [str(pair[1]) for pair in entity_value_id_tuple]
+        user_df = pd.DataFrame({user: values}, index=entities)
+        comparison_df.update(user_df)
+
+        ids = [str(pair[2]) for pair in entity_value_id_tuple]
+        id_df = pd.DataFrame({user: ids}, index=entities)
+        annotation_id_per_user_df.update(id_df)
+
+    comparison_df["contentious_level"] = comparison_df.apply(
+        lambda row: _compute_contentious_level(row), axis=1)
+
+    comparison_df.sort_values(by="contentious_level", inplace=True,
+                              ascending=False)
+    sorted_index = comparison_df.index
+    annotation_id_per_user_df.set_index(sorted_index)
+    
+    comparison_df = comparison_df.drop(columns=["contentious_level"])
+
+    return comparison_df, annotation_id_per_user_df
+
+
+def _compute_contentious_level(row):
+    """The maximum contentious level is one meaning we have an equal
+    split among the annotators while the minimum level is 1/(len(users) + 1)"""
+    values = row.values.tolist()
+    stats = PrettyDefaultDict(int)
+    for val in values:
+        stats[str(val)] += 1
+
+    # We are only considering positives and negatives.
+    positives = stats[str(AnnotationValue.POSITIVE)]
+    negatives = stats[str(AnnotationValue.NEGTIVE)]
+
+    ratio = len(values) + 1
+    if positives > 0 and negatives > 0:
+        ratio = positives / negatives if positives >= negatives \
+            else negatives / positives
+    return 1 / ratio

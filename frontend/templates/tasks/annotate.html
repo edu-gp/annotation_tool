@@ -26,12 +26,7 @@
       <a href="{{ url_for('index') }}">Home</a>
     </li>
     <li class="breadcrumb-item">
-        {% if anno['is_admin_correction'] %}
-            <a href="{{ url_for('tasks.examine', task_id=task.id,
-            user_under_exam=anno['username'])}}">Task (Examine)</a>
-        {% else %}
-            <a href="{{ url_for('tasks.show', id=task.id) }}">Task</a>
-        {% endif %}
+        <a href="{{ anno["update_redirect_link"] }}">{{ anno["task_page_name"] }}</a>
     </li>
     <li class="breadcrumb-item active" aria-current="page">
       Example
@@ -47,6 +42,7 @@
           Task "{{task.name}}" AR #{{anno['req']['ar_id']}}
       {%  else %}
           Task "{{task.name}}" Annotation #{{anno['req']['annotation_id']}}
+          by {{ anno['username'] }}
       {% endif %}
   </h6>
 </div>

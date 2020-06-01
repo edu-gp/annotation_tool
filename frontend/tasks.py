@@ -1,11 +1,13 @@
 import logging
 from typing import Dict, Tuple
 
+from werkzeug.urls import url_decode
+
 from ar.data import (
     build_empty_annotation, construct_ar_request_dict,
     get_next_ar_id_from_db, fetch_user_id_by_username,
     fetch_ar_id_and_status, construct_annotation_dict,
-    get_next_annotation_id_from_db)
+    _construct_comparison_df)
 import json
 from flask import (
     Blueprint, g, render_template, request, url_for)
@@ -69,8 +71,38 @@ def examine(task_id, user_under_exam):
     return render_template('tasks/examine.html',
                            task=task,
                            annotated=annotation_entity_and_ids_done_by_user_for_task,
-                           user_under_exam=user_under_exam,
-                           is_admin_correction=True)
+                           user_under_exam=user_under_exam)
+
+@bp.route('/<string:task_id>/compare')
+@login_required
+def compare_annotations(task_id):
+    params = url_decode(request.query_string)
+    user1 = params.get('user1', None)
+    user2 = params.get('user2', None)
+    label = params.get('label', None)
+
+    if user1 and user2:
+        logging.info("Comparing annotations for {} and {}".format(user1,
+                                                                  user2))
+        users_to_compare = [user1, user2]
+    else:
+        logging.info("No complete user pair provided. Show annotations for "
+                     "all users.")
+        task = get_or_create(dbsession=db.session, model=Task, id=task_id)
+        users_to_compare = task.get_annotators()
+
+    comparison_df, id_df = _construct_comparison_df(
+        dbsession=db.session,
+        label=label,
+        users_to_compare=users_to_compare)
+
+    return render_template('tasks/compare.html',
+                           task_id=task_id,
+                           users=list(comparison_df.columns),
+                           entities=list(comparison_df.index.values),
+                           label=label,
+                           comparison_df=comparison_df,
+                           id_df=id_df)
 
 
 @bp.route('/<string:task_id>/annotate/<string:ar_id>')
@@ -82,6 +114,9 @@ def annotate(task_id, ar_id):
         is_request=True,
         username=g.user['username']
     )
+
+    anno["update_redirect_link"] = request.referrer
+    anno["task_page_name"] = "Task"
 
     return render_template('tasks/annotate.html',
                            task=task,
@@ -150,22 +185,24 @@ def receive_annotation():
 @bp.route('/<string:task_id>/reannotate/<string:annotation_id>')
 @login_required
 def reannotate(task_id, annotation_id):
-    username = request.args.get('username', default=g.user['username'],
-                                type=str)
-    is_admin_correction = request.args.get('is_admin_correction',
-                                           default=False, type=bool)
+    annotation_owner = request.args.get('username', default=g.user['username'],
+                                        type=str)
     task, anno, next_example_id = _prepare_annotation_common(
         task_id=task_id,
         example_id=annotation_id,
         is_request=False,
-        username=username
+        username=annotation_owner
     )
-    anno["is_admin_correction"] = is_admin_correction
-    if is_admin_correction:
-        anno["update_redirect_link"] = url_for('tasks.examine',
-                                               task_id=task_id, user_under_exam=username)
+
+    anno["task_page_name"] = "Task"
+    if request.referrer:
+        anno["update_redirect_link"] = request.referrer
+        if "examine" in request.referrer:
+            anno["task_page_name"] = "Examine"
+        elif "compare" in request.referrer:
+            anno["task_page_name"] = "Compare"
     else:
-        anno["update_redirect_link"] = url_for('tasks.show', id=task_id)
+        anno["update_redirect_link"] = "/"
 
     return render_template('tasks/annotate.html',
                            task=task,

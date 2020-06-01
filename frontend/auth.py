@@ -6,7 +6,7 @@ from flask import (
 #from werkzeug.security import check_password_hash, generate_password_hash
 #from main_server.db import get_db
 
-from shared.frontend_user_password import get_frontend_user_password
+from shared.frontend_path_finder import get_frontend_user_password
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 

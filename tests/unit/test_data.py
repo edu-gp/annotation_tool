@@ -1,6 +1,8 @@
 import math
 from collections import namedtuple
 
+import pandas as pd
+import numpy as np
 from sqlalchemy import distinct, func
 
 from tests.sqlalchemy_conftest import *
@@ -13,10 +15,11 @@ from ar.data import _compute_kappa_matrix, \
     EntityAndAnnotationValuePair, compute_annotation_request_statistics, \
     _compute_total_distinct_number_of_annotated_entities_for_label, \
     _compute_num_of_annotations_per_value, PrettyDefaultDict, \
-    fetch_annotated_ar_ids_from_db, fetch_ar_ids, construct_ar_request_dict
+    fetch_annotated_ar_ids_from_db, fetch_ar_ids, construct_ar_request_dict, \
+    _construct_comparison_df
 from db.model import User, ClassificationAnnotation, \
     AnnotationRequest, AnnotationType, AnnotationRequestStatus, Task, \
-    update_instance
+    update_instance, AnnotationValue
 
 ENTITY_TYPE = 'blah'
 
@@ -94,7 +97,8 @@ def _populate_annotation_data(dbsession):
     username1 = "ooo"
     username2 = "ppp"
     username3 = "qqq"
-    label = "whatever"
+    label1 = "whatever"
+    label2 = "Not Whatever"
 
     user1 = User(username=username1)
     user2 = User(username=username2)
@@ -111,86 +115,96 @@ def _populate_annotation_data(dbsession):
     # A1 and A2 from user1 has the same entity with A4 and A5 from user2.
     # A3 from user1 has the same entity with A6 from user3.
     annotation1 = ClassificationAnnotation(value=1, user_id=user1.id,
-                                           label=label,
+                                           label=label1,
                                            entity_type=ENTITY_TYPE,
                                            entity=entity1)
     annotation2 = ClassificationAnnotation(value=1, user_id=user1.id,
-                                           label=label,
+                                           label=label1,
                                            entity_type=ENTITY_TYPE,
                                            entity=entity2)
     annotation3 = ClassificationAnnotation(value=-1, user_id=user1.id,
-                                           label=label,
+                                           label=label1,
                                            entity_type=ENTITY_TYPE,
                                            entity=entity3)
 
     annotation4 = ClassificationAnnotation(value=1, user_id=user2.id,
-                                           label=label,
+                                           label=label1,
                                            entity_type=ENTITY_TYPE,
                                            entity=entity1)
     annotation5 = ClassificationAnnotation(value=-1, user_id=user2.id,
-                                           label=label,
+                                           label=label1,
                                            entity_type=ENTITY_TYPE,
                                            entity=entity2)
     annotation6 = ClassificationAnnotation(value=-1, user_id=user3.id,
-                                           label=label,
+                                           label=label1,
                                            entity_type=ENTITY_TYPE,
                                            entity=entity3)
+    annotation7 = ClassificationAnnotation(value=-1, user_id=user3.id,
+                                           label=label2,
+                                           entity_type=ENTITY_TYPE,
+                                           entity=entity3)
+
     annotations = [
         annotation1, annotation2, annotation3, annotation4, annotation5,
-        annotation6
+        annotation6, annotation7
     ]
-    dbsession.add_all([annotation1, annotation2, annotation3,
-                       annotation4, annotation5, annotation6])
+    dbsession.add_all(annotations)
     dbsession.commit()
 
-    return user1, user2, user3, entity1, entity2, entity3, label, \
+    return user1, user2, user3, entity1, entity2, entity3, label1, label2,\
         annotations
 
 
 def test__compute_num_of_annotations_per_value(dbsession):
-    user1, user2, user3, _, _, _, label, annotations = \
+    user1, user2, user3, _, _, _, label1, label2, annotations = \
         _populate_annotation_data(dbsession)
 
-    num_of_annotations_per_value = _compute_num_of_annotations_per_value(
-        dbsession=dbsession, label=label
-    )
-
-    expected = PrettyDefaultDict(lambda: 0)
-    for annotation in annotations:
-        expected[annotation.value] += 1
-    assert num_of_annotations_per_value == expected
-
-
-def test__compute_total_annotations(dbsession):
-    user1, user2, user3, _, _, _, label, annotations = \
-        _populate_annotation_data(dbsession)
-
-    total_distinct_annotated_entities = \
-        _compute_total_distinct_number_of_annotated_entities_for_label(
+    for label in [label1, label2]:
+        num_of_annotations_per_value = _compute_num_of_annotations_per_value(
             dbsession=dbsession, label=label
         )
 
-    # There are 3 distinct annotations, one for each entity.
-    assert total_distinct_annotated_entities == 3
+        expected = PrettyDefaultDict(lambda: 0)
+        for annotation in annotations:
+            if annotation.label == label:
+                expected[annotation.value] += 1
+        assert num_of_annotations_per_value == expected
 
-    expected = PrettyDefaultDict(lambda: 0)
-    UserNameIdPair = namedtuple('UserNameIdPair', ['name', 'id'])
-    for annotation in annotations:
-        expected[UserNameIdPair(annotation.user.username,
-                                annotation.user_id)] += 1
-    res = _compute_number_of_annotations_done_per_user(
-        dbsession=dbsession, label=label
-    )
-    for num, name, user_id in res:
-        assert expected[UserNameIdPair(name, user_id)] == num
+
+def test__compute_total_annotations(dbsession):
+    user1, user2, user3, _, _, _, label1, label2, annotations = \
+        _populate_annotation_data(dbsession)
+
+    for label in [label1, label2]:
+        total_distinct_annotated_entities = \
+            _compute_total_distinct_number_of_annotated_entities_for_label(
+                dbsession=dbsession, label=label
+            )
+
+        if label == label1:
+            assert total_distinct_annotated_entities == 3
+        elif label == label2:
+            assert total_distinct_annotated_entities == 1
+
+        expected = PrettyDefaultDict(lambda: 0)
+        UserNameIdPair = namedtuple('UserNameIdPair', ['name', 'id'])
+        for annotation in annotations:
+            if annotation.label == label:
+                expected[UserNameIdPair(annotation.user.username,
+                                        annotation.user_id)] += 1
+        res = _compute_number_of_annotations_done_per_user(
+            dbsession=dbsession, label=label
+        )
+        for num, name, user_id in res:
+            assert expected[UserNameIdPair(name, user_id)] == num
 
 
 def test__construct_kappa_stats_raw_data(dbsession):
-    user1, user2, user3, entity1, entity2, entity3, label, _ \
+    user1, user2, user3, entity1, entity2, entity3, label1, label2, _ \
         = _populate_annotation_data(dbsession)
 
     res = _retrieve_entity_ids_and_annotation_values_by_user(
-        dbsession=dbsession, users=[user1, user2, user3])
+        dbsession=dbsession, users=[user1, user2, user3], label=label1)
     assert res == {
         user1.id: [
             EntityAndAnnotationValuePair(entity1, 1),
@@ -224,10 +238,10 @@ def test__construct_kappa_stats_raw_data(dbsession):
 
     kappa_raw_data = _construct_kappa_stats_raw_data(
         dbsession=dbsession, distinct_users={user1, user2, user3},
-        label=label)
+        label=label1)
 
     assert kappa_raw_data == {
-        label: {
+        label1: {
             tuple(sorted([user1.username, user2.username])): res1,
             tuple(sorted([user1.username, user3.username])): res2,
             tuple(sorted([user2.username, user3.username])): res3
@@ -433,3 +447,91 @@ def test_construct_ar_request_dict(dbsession):
         'entity_type': ENTITY_TYPE,
         'label': request2.label
     }
+
+
+def test__construct_comparison_df(dbsession):
+    user1 = User(username="user1")
+    user2 = User(username="user2")
+    user3 = User(username="user3")
+
+    dbsession.add_all([user1, user2, user3])
+    dbsession.commit()
+
+    label = "label1"
+    entity1 = "entity1"
+    entity2 = "entity2"
+    entity_type = "company"
+
+    # Annotations from user1
+    annotation1 = ClassificationAnnotation(
+        entity=entity1,
+        entity_type=entity_type,
+        label=label,
+        value=AnnotationValue.POSITIVE,
+        user_id=user1.id
+    )
+
+    annotation2 = ClassificationAnnotation(
+        entity=entity2,
+        entity_type=entity_type,
+        label=label,
+        value=AnnotationValue.POSITIVE,
+        user_id=user1.id
+    )
+
+    # Annotations from user2
+    annotation3 = ClassificationAnnotation(
+        entity=entity1,
+        entity_type=entity_type,
+        label=label,
+        value=AnnotationValue.POSITIVE,
+        user_id=user2.id
+    )
+
+    annotation4 = ClassificationAnnotation(
+        entity=entity2,
+        entity_type=entity_type,
+        label=label,
+        value=AnnotationValue.NEGTIVE,
+        user_id=user2.id
+    )
+
+    # Annotations from user3
+    annotation5 = ClassificationAnnotation(
+        entity=entity1,
+        entity_type=entity_type,
+        label=label,
+        value=AnnotationValue.UNSURE,
+        user_id=user3.id
+    )
+
+    dbsession.add_all([annotation1, annotation2, annotation3, annotation4,
+                       annotation5])
+    dbsession.commit()
+
+    comparison_df, id_df = _construct_comparison_df(
+        dbsession=dbsession,
+        label=label,
+        users_to_compare=[user1.username,
+                          user2.username,
+                          user3.username])
+    expected_comparison_df = pd.DataFrame({
+        user1.username: [str(annotation1.value), str(annotation2.value)],
+        user2.username: [str(annotation3.value), str(annotation4.value)],
+        user3.username: [str(annotation5.value), str(np.NaN)]
+    }, index=[entity1, entity2])
+
+    expected_id_df = pd.DataFrame({
+        user1.username: [str(annotation1.id), str(annotation2.id)],
+        user2.username: [str(annotation3.id), str(annotation4.id)],
+        user3.username: [str(annotation5.id), str(np.NaN)]
+    }, index=[entity1, entity2])
+
+    assert(comparison_df.equals(expected_comparison_df))
+    assert(id_df.equals(expected_id_df))
+
+
+
+
+
+
