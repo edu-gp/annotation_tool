@@ -186,7 +186,6 @@ class AnnotationBox extends React.Component {
 
             var yes_btn_icon = String.fromCharCode(10003); // check
             var no_btn_icon = String.fromCharCode(10007); // cross
-            console.log(anno['labels'][label]);
             if (anno['labels'][label] !== undefined) {
                 if (anno['labels'][label] === POS_LABEL) {
                     yes_btn_class = 'btn btn-success';

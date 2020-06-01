@@ -27,6 +27,7 @@ def test_generate_frontend_compare_link(monkeypatch):
     task_id = 1
     label1 = "hotdog"
     label2 = "hot dog"
+    label3 = "hot/dog"
     users = {
         "user1": "aaa",
         "user2": "bbb"
@@ -52,3 +53,9 @@ def test_generate_frontend_compare_link(monkeypatch):
         label=label1
     )
     assert url3 == "http://localhost:5001/tasks/1/compare?label=hotdog"
+
+    url4 = generate_frontend_compare_link(
+        task_id=task_id,
+        label=label3
+    )
+    print(url4)

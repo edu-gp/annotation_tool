@@ -560,7 +560,7 @@ def compute_annotation_statistics_db(dbsession, label, task_id):
 
     kappa_matrices = _compute_kappa_matrix(kappa_stats_raw_data)
 
-    kappa_analysis_dict_per_label = _construct_kappa_analysis_link_dict(
+    kappa_analysis_link_dict = _construct_kappa_analysis_link_dict(
         kappa_matrices=kappa_matrices,
         task_id=task_id
     )
@@ -571,7 +571,7 @@ def compute_annotation_statistics_db(dbsession, label, task_id):
         'n_annotations_per_value': num_of_annotations_per_value,
         'n_annotations_per_user': n_annotations_done_per_user_dict,
         'kappa_table': kappa_matrices,
-        'kappa_analysis_link_dict': kappa_analysis_dict_per_label
+        'kappa_analysis_link_dict': kappa_analysis_link_dict
     }
 
 
@@ -619,7 +619,8 @@ def _compute_number_of_annotations_done_per_user(dbsession, label):
 def _construct_kappa_stats_raw_data(dbsession, distinct_users, label):
     entities_and_annotation_values_by_user = \
         _retrieve_entity_ids_and_annotation_values_by_user(dbsession,
-                                                           distinct_users)
+                                                           distinct_users,
+                                                           label)
     user_pairs = list(itertools.combinations(distinct_users, 2))
     kappa_stats_raw_data = {
         label: {
@@ -630,19 +631,21 @@ def _construct_kappa_stats_raw_data(dbsession, distinct_users, label):
             for user_pair in user_pairs
         }
     }
+    logging.error(kappa_stats_raw_data)
     return kappa_stats_raw_data
 
 
-def _retrieve_entity_ids_and_annotation_values_by_user(dbsession, users):
+def _retrieve_entity_ids_and_annotation_values_by_user(dbsession, users,
+                                                       label):
     res = dbsession.query(
         ClassificationAnnotation.entity,
         ClassificationAnnotation.value,
         ClassificationAnnotation.user_id
     ). \
-        filter(ClassificationAnnotation.user_id.in_(
-            [user.id for user in users]
-        )
-    ).all()
+        filter(ClassificationAnnotation.label == label,
+               ClassificationAnnotation.user_id.in_(
+                    [user.id for user in users]
+               )).all()
 
     data = PrettyDefaultDict(lambda: [])
     for item in res:
@@ -732,27 +735,34 @@ def _compute_kappa_matrix(kappa_stats_raw_data):
     """
     kappa_matrix = PrettyDefaultDict(
         lambda: PrettyDefaultDict(lambda: PrettyDefaultDict(float)))
-    for label, result_per_user_pair_per_label in kappa_stats_raw_data.items():
-        for user_pair, result_per_user in \
-                result_per_user_pair_per_label.items():
+    for label, result_per_user_pair_per_label in \
+            sorted(kappa_stats_raw_data.items()):
+        for user_pair, result_per_user in result_per_user_pair_per_label.items():
+            logging.error(user_pair)
+            logging.error(result_per_user)
             if result_per_user is None:
-                continue
-            result_user1 = result_per_user[user_pair[0]]
-            result_user2 = result_per_user[user_pair[1]]
-            logging.info("Calculating the kappa score for {} and {}".format(
-                user_pair[0], user_pair[1]))
-            result_user1, result_user2 = \
-                _exclude_unknowns_for_kappa_calculation(result_user1,
-                                                        result_user2)
-            kappa_score = cohen_kappa_score(result_user1, result_user2)
-            kappa_matrix[label][user_pair[0]][user_pair[1]] = kappa_score
-            kappa_matrix[label][user_pair[1]][user_pair[0]] = kappa_score
+                kappa_matrix[label][user_pair[0]][user_pair[1]] = np.nan
+                kappa_matrix[label][user_pair[1]][user_pair[0]] = np.nan
+            else:
+                result_user1 = result_per_user[user_pair[0]]
+                result_user2 = result_per_user[user_pair[1]]
+                logging.info("Calculating the kappa score for {} and {}".format(
+                    user_pair[0], user_pair[1]))
+                result_user1, result_user2 = \
+                    _exclude_unknowns_for_kappa_calculation(result_user1,
+                                                            result_user2)
+                kappa_score = cohen_kappa_score(result_user1, result_user2)
+                kappa_score = float("{:.2f}".format(kappa_score))
+                kappa_matrix[label][user_pair[0]][user_pair[1]] = kappa_score
+                kappa_matrix[label][user_pair[1]][user_pair[0]] = kappa_score
+
             kappa_matrix[label][user_pair[0]][user_pair[0]] = 1
             kappa_matrix[label][user_pair[1]][user_pair[1]] = 1
 
     kappa_dataframe = PrettyDefaultDict(DataFrame)
     for label, nested_dict in kappa_matrix.items():
-        kappa_dataframe[label] = pd.DataFrame.from_dict(nested_dict)
+        kappa_dataframe[label] = pd.DataFrame.from_dict(
+            nested_dict).sort_index(axis=0).sort_index(axis=1)
     return kappa_dataframe
 
 
@@ -789,18 +799,19 @@ def _construct_kappa_analysis_link_dict(kappa_matrices, task_id):
         index = list(df.index.values)
         for i in range(len(columns)):
             user1 = columns[i]
-            user2 = index[i]
-            if user1 != user2:
-                kappa_analysis_links_dict[label][(user1, user2)] = \
-                    generate_frontend_compare_link(
-                        task_id=task_id,
-                        label=label,
-                        users_dict={
-                            'user1': user1,
-                            'user2': user2
-                        }
-                    )
-
+            for j in range(len(index)):
+                user2 = index[j]
+                if user1 != user2:
+                    kappa_analysis_links_dict[label][(user1, user2)] = \
+                        generate_frontend_compare_link(
+                            task_id=task_id,
+                            label=label,
+                            users_dict={
+                                'user1': user1,
+                                'user2': user2
+                            }
+                        )
+    logging.error(kappa_analysis_links_dict)
     return kappa_analysis_links_dict
 
 
@@ -947,7 +958,7 @@ def _construct_comparison_df(dbsession, label: str, users_to_compare: List):
     annotation_id_per_user_df = comparison_df.copy(deep=True)
 
     for user in users_to_compare:
-        entity_value_id_pairs = dbsession. \
+        entity_value_id_tuple = dbsession. \
             query(ClassificationAnnotation.entity,
                   ClassificationAnnotation.value,
                   ClassificationAnnotation.id). \
@@ -955,12 +966,12 @@ def _construct_comparison_df(dbsession, label: str, users_to_compare: List):
                    User.username == user). \
             join(User). \
             order_by(ClassificationAnnotation.entity.asc()).all()
-        entities = [pair[0] for pair in entity_value_id_pairs]
-        values = [str(pair[1]) for pair in entity_value_id_pairs]
+        entities = [pair[0] for pair in entity_value_id_tuple]
+        values = [str(pair[1]) for pair in entity_value_id_tuple]
         user_df = pd.DataFrame({user: values}, index=entities)
         comparison_df.update(user_df)
 
-        ids = [str(pair[2]) for pair in entity_value_id_pairs]
+        ids = [str(pair[2]) for pair in entity_value_id_tuple]
         id_df = pd.DataFrame({user: ids}, index=entities)
         annotation_id_per_user_df.update(id_df)
 
