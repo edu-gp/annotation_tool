@@ -228,6 +228,11 @@ def update_annotation():
 
     annotation_result = data['anno']['labels']
 
+    context = {
+        'data': data['req']['data'],
+        'pattern_info': data['req']['pattern_info']
+    }
+
     for label in annotation_result:
         value = annotation_result[label]
         annotation = db.session.query(ClassificationAnnotation).filter(
@@ -236,7 +241,18 @@ def update_annotation():
             ClassificationAnnotation.entity_type == entity_type,
             ClassificationAnnotation.user_id == annotation_owner.id
         ).one_or_none()
-        annotation.value = value
+        if annotation:
+            annotation.value = value
+        else:
+            # In case the user forgot to annotate this label in the last pass.
+            annotation = ClassificationAnnotation(
+                label=label,
+                entity_type=entity_type,
+                entity=entity,
+                user_id=annotation_owner.id,
+                value=value,
+                context=context
+            )
         db.session.add(annotation)
 
     db.session.commit()
