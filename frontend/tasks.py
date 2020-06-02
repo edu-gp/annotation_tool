@@ -118,6 +118,9 @@ def annotate(task_id, ar_id):
     anno["update_redirect_link"] = url_for('tasks.show', id=task_id)
     anno["task_page_name"] = "Task"
 
+    anno["item_id"] = request.args.get("item_id", None)
+    anno["total_size"] = request.args.get("total_size", None)
+
     return render_template('tasks/annotate.html',
                            task=task,
                            anno=anno,
@@ -137,6 +140,9 @@ def receive_annotation():
     ar_id = data['req']['ar_id']
     entity_type = data['req']['entity_type']
     entity = data['req']['entity']
+
+    item_id = int(data['item_id']) + 1
+    total_size = data['total_size']
 
     context = {
         'data': data['req']['data'],
@@ -177,7 +183,8 @@ def receive_annotation():
 
     if next_ar_id:
         return {'redirect': url_for('tasks.annotate', task_id=task_id,
-                                    ar_id=next_ar_id)}
+                                    ar_id=next_ar_id, item_id=item_id,
+                                    total_size=total_size)}
     else:
         return {'redirect': url_for('tasks.show', id=task_id)}
 

@@ -29,7 +29,11 @@
         <a href="{{ anno["update_redirect_link"] }}">{{ anno["task_page_name"] }}</a>
     </li>
     <li class="breadcrumb-item active" aria-current="page">
-      Example
+        {% if anno["item_id"] and anno["total_size"] %}
+           Example ({{ anno["item_id"] }} / {{ anno["total_size"] }})
+        {% else %}
+           Example
+        {% endif %}
     </li>
   </ol>
 </nav>
