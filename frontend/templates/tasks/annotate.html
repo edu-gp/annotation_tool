@@ -29,11 +29,7 @@
         <a href="{{ anno["update_redirect_link"] }}">{{ anno["task_page_name"] }}</a>
     </li>
     <li class="breadcrumb-item active" aria-current="page">
-        {% if anno["item_id"] and anno["total_size"] %}
-           Example ({{ anno["item_id"] }} / {{ anno["total_size"] }})
-        {% else %}
-           Example
-        {% endif %}
+        Example
     </li>
   </ol>
 </nav>
@@ -41,6 +37,12 @@
 
 {% block content %}
 <div class="text-center">
+  <h6>
+      {% if anno["item_id"] and anno["total_size"] %}
+           Progress: Done {{ anno["item_id"] }} / Total {{
+                anno["total_size"] }}
+        {% endif %}
+  </h6>
   <h6>
       {% if anno['is_new_annotation'] == True %}
           Task "{{task.name}}" AR #{{anno['req']['ar_id']}}
@@ -58,7 +60,7 @@
     {% if next_ar_id or anno['is_admin_correction'] %}
         <a style="display:block" class="btn btn-secondary m-auto"
            href={{url_for('tasks.annotate', task_id=task.id,
-                ar_id=next_ar_id, item_id=((anno['item_id'] | int) + 1))
+                ar_id=next_ar_id)
                 }}>Skip</a>
     {% elif next_annotation_id %}
          <a style="display:block" class="btn btn-secondary m-auto" href={{url_for('tasks.reannotate', task_id=task.id, annotation_id=next_annotation_id)

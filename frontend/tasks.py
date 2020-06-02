@@ -119,10 +119,15 @@ def annotate(task_id, ar_id):
     anno["update_redirect_link"] = url_for('tasks.show', id=task_id)
     anno["task_page_name"] = "Task"
 
-    anno["item_id"] = request.args.get("item_id", None)
-    anno["total_size"] = count_ar_under_task_and_user(dbsession=db.session,
-                                                      task_id=task_id,
-                                                      username=annotator)
+    ar_id_and_status_pairs = fetch_ar_id_and_status(dbsession=db.session,
+                                                    task_id=task_id,
+                                                    username=annotator)
+
+    anno["total_size"] = len(ar_id_and_status_pairs)
+    anno["item_id"] = sum(
+        [1 if pair[1] == AnnotationRequestStatus.Complete else 0
+         for pair in ar_id_and_status_pairs]
+    )
 
     return render_template('tasks/annotate.html',
                            task=task,
