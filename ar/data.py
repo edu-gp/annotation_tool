@@ -175,14 +175,6 @@ def fetch_ar_id_and_status(dbsession, task_id, username):
     return query.all()
 
 
-def count_ar_under_task_and_user(dbsession, task_id, username):
-    res = dbsession.query(func.count(AnnotationRequest.id)) \
-        .join(User) \
-        .filter(User.username == username,
-                AnnotationRequest.task_id == task_id).all()
-    return res[0][0]
-
-
 # TODO delete after the migration to db is done.
 def fetch_all_ar(task_id, username):
     '''

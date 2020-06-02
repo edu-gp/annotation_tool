@@ -7,7 +7,7 @@ from ar.data import (
     build_empty_annotation, construct_ar_request_dict,
     get_next_ar_id_from_db, fetch_user_id_by_username,
     fetch_ar_id_and_status, construct_annotation_dict,
-    _construct_comparison_df, count_ar_under_task_and_user)
+    _construct_comparison_df)
 import json
 from flask import (
     Blueprint, g, render_template, request, url_for)
