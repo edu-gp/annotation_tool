@@ -1,12 +1,11 @@
-from typing import List
 from flask import (
     Blueprint, flash, redirect, render_template, request
 )
 from db.model import (
-    db,
-    EntityTypeEnum, AnnotationValue,
+    db, EntityTypeEnum,
     ClassificationAnnotation, User, get_or_create
 )
+from .annotations_utils import _parse_form
 
 from .auth import auth
 
@@ -51,35 +50,9 @@ def bulk_post():
     try:
         # Validate Form
 
-        redirect_to = request.form['redirect_to']
+        redirect_to = request.form['redirect_to'] or '/'
 
-        user = request.form['user']
-        label = request.form['label']
-        domains = parse_list(request.form, 'domains')
-        annotations = parse_list(request.form, 'annotations')
-
-        assert user, 'User is required'
-        assert label, 'Label is required'
-
-        assert len(domains) == len(annotations), \
-            f'Number of domains ({len(domains)}) does not match ' \
-            f'with number of annotations ({len(annotations)})'
-
-        # For now, we leave it up to the user to make sure no duplicates.
-        assert len(set(domains)) == len(domains), \
-            "There are duplicates in domains"
-
-        acceptable_annotations = set([
-            AnnotationValue.POSITIVE,
-            AnnotationValue.NEGTIVE,
-            AnnotationValue.UNSURE,
-        ])
-
-        for i in range(len(annotations)):
-            annotations[i] = int(annotations[i])
-            assert annotations[i] in acceptable_annotations, \
-                f"Annotation {annotations[i]} is not in the list of " \
-                f"acceptable annotations {acceptable_annotations}"
+        user, label, domains, annotations = _parse_form(request.form)
 
         # Insert into Database
 
@@ -129,13 +102,3 @@ def bulk_post():
         return render_template('annotations/bulk.html')
     else:
         return redirect(redirect_to)
-
-
-# TODO eddie: write test
-def parse_list(form: dict, key: str) -> List:
-    values = form.get(key)
-    result = []
-    if values:
-        result = values.splitlines()
-        result = [x for x in result if x]
-    return result
