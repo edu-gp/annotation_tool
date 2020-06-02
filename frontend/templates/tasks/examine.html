@@ -7,7 +7,7 @@
       <a href="{{ url_for('index') }}">Home</a>
     </li>
     <li class="breadcrumb-item active" aria-current="page">
-      Task (Examine)
+      Examine
     </li>
   </ol>
 </nav>
@@ -20,26 +20,40 @@
 <h3>
   Existing Annotations from {{ user_under_exam }}
 </h3>
-<table class="table table-bordered">
+<table class="table table-sm">
   <thead>
     <tr>
-      <th scope="col" class="text-center" style="width: 5%">Entity</th>
-      <th scope="col" style="width: 90%">Example</th>
+      <th scope="col" class="text-center" style="width: 5%">#</th>
+      <th scope="col">Example</th>
+      <th scope="col">Label</th>
+      <th scope="col">Value</th>
+      <th scope="col">Created At</th>
     </tr>
   </thead>
   <tbody>
-    {% for annotation_entity_and_id in annotated %}
+    {% for entity, id, created_at, label, value in annotated %}
     <tr>
       <td class="text-center">
         {{loop.index}}
       </td>
       <td>
         <a class="mx-2" href={{url_for('tasks.reannotate', task_id=task.id,
-                annotation_id=annotation_entity_and_id[1],
+                annotation_id=id,
                 username=user_under_exam,
                 is_admin_correction=True)}}>
-          Example {{annotation_entity_and_id[0]}}
+          {{entity}}
         </a>
+      </td>
+      <td>
+          {{label}}
+      </td>
+      <td>
+          {{value}}
+      </td>
+      <td>
+        <small>
+          {{created_at}}
+        </small>
       </td>
     </tr>
     {% endfor %}

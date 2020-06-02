@@ -184,20 +184,6 @@
           </div>
         </div>
 
-      <div class="row">
-          <div class="col">
-            <h6>Admin Examine Links</h6>
-            <ul>
-              {% for user, link in admin_examine_links %}
-              <li>
-                <a href="{{link}}" target="_blank">{{user}}</a>
-              </li>
-              {% endfor %}
-            </ul>
-          </div>
-        </div>
-
-
       </div>
       <div class="col">
         <div>
@@ -238,6 +224,16 @@
       Annotations
     </h4>
 
+    <h5>Annotations by Users</h5>
+    <ul>
+      {% for user, link in admin_examine_links %}
+      <li>
+        <a href="{{link}}" target="_blank">{{user}}</a>
+      </li>
+      {% endfor %}
+    </ul>
+
+    <h5>Annotations by Labels</h5>
     <table class="table table-bordered">
       <thead>
         <tr>
@@ -247,6 +243,7 @@
           <th scope="col">By Value</th>
           <th scope="col">By Annotator</th>
           <th scope="col">Kappa Matrix</th>
+          <th scope="col">Analyze Annotation Results</th>
         </tr>
       </thead>
       <tbody>
@@ -278,15 +275,54 @@
           </td>
           <td>
             {% for k in annotation_statistics_per_label[label]['kappa_table'] %}
+            {% set table = annotation_statistics_per_label[label]['kappa_table'][k] %}
+            {% set link_table = annotation_statistics_per_label[label]["kappa_analysis_link_dict"][k] %}
             <div>
-              {{annotation_statistics_per_label[label]['kappa_table'][k] | safe}}
+              {% set columns = table.columns %}
+              {% set index = table.index.values %}
+              <table class="table table-bordered">
+                  <thead>
+                    <tr>
+                        <th scope="col" class="text-center" style="width:
+                        5%">User</th>
+                        {% for user in columns %}
+                            <td class="text-center">{{ user }}</td>
+                        {% endfor %}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for user1 in index %}
+                        <tr>
+                            <td class="text-center">{{ user1 }}</td>
+                            {% for user2 in columns %}
+                                <td class="text-center">
+                                {% if user1 == user2 %}
+                                    {{ table.loc[user1, user2] }}
+                                {% else %}
+                                    <a class="mx-2" target="_blank" href="{{
+                                            link_table[(user1, user2)]
+                                            }}">{{ table
+                                    .loc[user1, user2] }}</a>
+                                {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                  </tbody>
+              </table>
+{#              {{annotation_statistics_per_label[label]['kappa_table'][k] | safe}}#}
             </div>
             {% endfor %}
+          </td>
+          <td>
+              <a href="{{ kappa_analysis_for_all_users_links[label] }}"
+                 target="_blank">Compare All Annotations for "{{ label }}"</a>
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+
 
   </div>
 </div>

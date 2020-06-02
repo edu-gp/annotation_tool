@@ -186,7 +186,6 @@ class AnnotationBox extends React.Component {
 
             var yes_btn_icon = String.fromCharCode(10003); // check
             var no_btn_icon = String.fromCharCode(10007); // cross
-
             if (anno['labels'][label] !== undefined) {
                 if (anno['labels'][label] === POS_LABEL) {
                     yes_btn_class = 'btn btn-success';
@@ -245,10 +244,14 @@ class AnnotationBox extends React.Component {
 
         if (!this.isBinaryClassification()) {
             // If it's not binary classiciation, add a "Save" button after all the choices were made.
+            var button_text = "Save & Next"
+            if(this.props["is_new_annotation"] === false){
+                button_text = "Save & Return"
+            }
             controls.push(
                 <div key='controls-last' style={{ textAlign: 'center', marginTop: '1em' }}>
                     <button className='btn btn-dark' style={{ margin: "5px" }} onClick={() => self.submitResults()}>
-                        Save & Next
+                        {button_text}
                     </button>
                 </div>
             )

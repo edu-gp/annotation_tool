@@ -1,6 +1,6 @@
 from tests.fixtures import *
 import pytest
-from shared.frontend_user_password import (
+from shared.frontend_path_finder import (
     get_frontend_user_password,
     _generate_frontend_user_login_path
 )

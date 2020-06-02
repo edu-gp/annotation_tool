@@ -4,6 +4,7 @@ from typing import List
 from flask import (
     Blueprint, flash, redirect, render_template, request, url_for
 )
+from werkzeug.urls import url_encode
 
 from db.model import db, Task, Model, AnnotationGuide, LabelPatterns
 from db.utils import get_all_data_files
@@ -21,8 +22,8 @@ from train.no_deps.utils import get_env_bool
 from shared.celery_job_status import (
     CeleryJobStatus, create_status, delete_status
 )
-from shared.frontend_user_password import generate_frontend_user_login_link, \
-    generate_frontend_admin_examine_link
+from shared.frontend_path_finder import generate_frontend_user_login_link, \
+    generate_frontend_admin_examine_link, generate_frontend_compare_link
 from shared.utils import (
     get_env_int, stem, list_to_textarea, textarea_to_list,
 )
@@ -107,7 +108,7 @@ def show(id):
     for label in task.get_labels():
         annotation_statistics_per_label[label] = \
             compute_annotation_statistics_db(dbsession=db.session,
-                                             label=label)
+                                             label=label, task_id=id)
 
     annotation_request_statistics = compute_annotation_request_statistics(
         dbsession=db.session, task_id=id)
@@ -137,6 +138,11 @@ def show(id):
         for username in task.get_annotators()
     ]
 
+    kappa_analysis_for_all_users_links = {
+        label: generate_frontend_compare_link(id, label)
+        for label in task.get_labels()
+    }
+
     # -------------------------------------------------------------------------
     # Models
 
@@ -157,6 +163,7 @@ def show(id):
         annotator_login_links=annotator_login_links,
         admin_examine_links=admin_examine_links,
         labels_and_attributes=labels_and_attributes,
+        kappa_analysis_for_all_users_links=kappa_analysis_for_all_users_links
     )
 
 
