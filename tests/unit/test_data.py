@@ -515,17 +515,18 @@ def test__construct_comparison_df(dbsession):
         users_to_compare=[user1.username,
                           user2.username,
                           user3.username])
+
     expected_comparison_df = pd.DataFrame({
-        user1.username: [str(annotation1.value), str(annotation2.value)],
-        user2.username: [str(annotation3.value), str(annotation4.value)],
-        user3.username: [str(annotation5.value), str(np.NaN)]
-    }, index=[entity1, entity2])
+        user1.username: [str(annotation2.value), str(annotation1.value)],
+        user2.username: [str(annotation4.value), str(annotation3.value)],
+        user3.username: [str(np.NaN), str(annotation5.value)]
+    }, index=[entity2, entity1])
 
     expected_id_df = pd.DataFrame({
-        user1.username: [str(annotation1.id), str(annotation2.id)],
-        user2.username: [str(annotation3.id), str(annotation4.id)],
-        user3.username: [str(annotation5.id), str(np.NaN)]
-    }, index=[entity1, entity2])
+        user1.username: [str(annotation2.id), str(annotation1.id)],
+        user2.username: [str(annotation4.id), str(annotation3.id)],
+        user3.username: [str(np.NaN), str(annotation5.id)]
+    }, index=[entity2, entity1])
 
     assert(comparison_df.equals(expected_comparison_df))
     assert(id_df.equals(expected_id_df))

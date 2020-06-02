@@ -19,13 +19,15 @@ if __name__ == "__main__":
         for item in annotation_request_context_and_entity
     }
 
+    to_update = []
     for annotation in annotations:
         if annotation.entity in entity_to_context:
             logging.info("Updating Entity {}".format(annotation.entity))
             annotation.context = entity_to_context[annotation.entity]
+            to_update.append(annotation)
         else:
             logging.info("Did not find request for entity {}".format(annotation.entity))
 
-    db.session.add_all(annotations)
+    db.session.add_all(to_update)
     db.session.commit()
     db.session.close()
