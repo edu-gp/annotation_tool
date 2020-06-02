@@ -243,6 +243,7 @@ def update_annotation():
         ).one_or_none()
         if annotation:
             annotation.value = value
+            annotation.context = context
         else:
             # In case the user forgot to annotate this label in the last pass.
             annotation = ClassificationAnnotation(
