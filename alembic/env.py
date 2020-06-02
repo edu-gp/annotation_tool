@@ -1,3 +1,4 @@
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
@@ -6,12 +7,19 @@ from sqlalchemy import pool
 from alembic import context
 
 import sys
+import logging
 
 sys.path = ['', '..'] + sys.path[1:]
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+db_url = os.environ.get("DB_URL_FOR_MIGRATION", None)
+if db_url:
+    logging.info("DB_URL is {}".format(db_url))
+    config.set_main_option('sqlalchemy.url', db_url)
+else:
+    raise ValueError("DB URL is not specified.")
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
