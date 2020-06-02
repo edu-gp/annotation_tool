@@ -5,7 +5,7 @@ from db.model import (
     db, EntityTypeEnum,
     ClassificationAnnotation, User, get_or_create
 )
-from .annotations_utils import _parse_form
+from .annotations_utils import parse_form
 
 from .auth import auth
 
@@ -52,7 +52,7 @@ def bulk_post():
 
         redirect_to = request.form['redirect_to'] or '/'
 
-        user, label, domains, annotations = _parse_form(request.form)
+        user, label, domains, annotations = parse_form(request.form)
 
         # Insert into Database
 
