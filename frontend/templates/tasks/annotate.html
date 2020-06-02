@@ -56,7 +56,9 @@
   </div>
   <div class="col">
     {% if next_ar_id or anno['is_admin_correction'] %}
-        <a style="display:block" class="btn btn-secondary m-auto" href={{url_for('tasks.annotate', task_id=task.id, ar_id=next_ar_id)
+        <a style="display:block" class="btn btn-secondary m-auto"
+           href={{url_for('tasks.annotate', task_id=task.id,
+                ar_id=next_ar_id, item_id=((anno['item_id'] | int) + 1))
                 }}>Skip</a>
     {% elif next_annotation_id %}
          <a style="display:block" class="btn btn-secondary m-auto" href={{url_for('tasks.reannotate', task_id=task.id, annotation_id=next_annotation_id)

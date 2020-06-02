@@ -7,7 +7,7 @@ from ar.data import (
     build_empty_annotation, construct_ar_request_dict,
     get_next_ar_id_from_db, fetch_user_id_by_username,
     fetch_ar_id_and_status, construct_annotation_dict,
-    _construct_comparison_df)
+    _construct_comparison_df, count_ar_under_task_and_user)
 import json
 from flask import (
     Blueprint, g, render_template, request, url_for)
@@ -108,18 +108,21 @@ def compare_annotations(task_id):
 @bp.route('/<string:task_id>/annotate/<string:ar_id>')
 @login_required
 def annotate(task_id, ar_id):
+    annotator = g.user['username']
     task, anno, next_example_id = _prepare_annotation_common(
         task_id=task_id,
         example_id=ar_id,
         is_request=True,
-        username=g.user['username']
+        username=annotator
     )
 
     anno["update_redirect_link"] = url_for('tasks.show', id=task_id)
     anno["task_page_name"] = "Task"
 
     anno["item_id"] = request.args.get("item_id", None)
-    anno["total_size"] = request.args.get("total_size", None)
+    anno["total_size"] = count_ar_under_task_and_user(dbsession=db.session,
+                                                      task_id=task_id,
+                                                      username=annotator)
 
     return render_template('tasks/annotate.html',
                            task=task,
@@ -142,7 +145,6 @@ def receive_annotation():
     entity = data['req']['entity']
 
     item_id = int(data['item_id']) + 1
-    total_size = data['total_size']
 
     context = {
         'data': data['req']['data'],
@@ -183,8 +185,7 @@ def receive_annotation():
 
     if next_ar_id:
         return {'redirect': url_for('tasks.annotate', task_id=task_id,
-                                    ar_id=next_ar_id, item_id=item_id,
-                                    total_size=total_size)}
+                                    ar_id=next_ar_id, item_id=item_id)}
     else:
         return {'redirect': url_for('tasks.show', id=task_id)}
 
