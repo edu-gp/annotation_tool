@@ -7,7 +7,8 @@ from ar.data import (
     build_empty_annotation, construct_ar_request_dict,
     get_next_ar_id_from_db, fetch_user_id_by_username,
     fetch_ar_id_and_status, construct_annotation_dict,
-    _construct_comparison_df, count_ar_under_task_and_user)
+    _construct_comparison_df, count_ar_under_task_and_user,
+    count_completed_ar_under_task_and_user)
 import json
 from flask import (
     Blueprint, g, render_template, request, url_for)
@@ -119,14 +120,14 @@ def annotate(task_id, ar_id):
     anno["update_redirect_link"] = url_for('tasks.show', id=task_id)
     anno["task_page_name"] = "Task"
 
-    ar_id_and_status_pairs = fetch_ar_id_and_status(dbsession=db.session,
-                                                    task_id=task_id,
-                                                    username=annotator)
+    anno["total_size"] = count_ar_under_task_and_user(dbsession=db.session,
+                                                      task_id=task_id,
+                                                      username=annotator)
 
-    anno["total_size"] = len(ar_id_and_status_pairs)
-    anno["item_id"] = sum(
-        [1 if pair[1] == AnnotationRequestStatus.Complete else 0
-         for pair in ar_id_and_status_pairs]
+    anno["item_id"] = count_completed_ar_under_task_and_user(
+        dbsession=db.session,
+        task_id=task_id,
+        username=annotator
     )
 
     return render_template('tasks/annotate.html',
