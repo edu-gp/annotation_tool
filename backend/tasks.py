@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Optional
 
 from flask import (
     Blueprint, flash, redirect, render_template, request, url_for
@@ -244,10 +244,83 @@ def download_prediction():
     model = db.session.query(Model).filter_by(id=model_id).one_or_none()
 
     if model is not None:
+        # --- 1. Get the model inference file ---
         label = model.label or "UNK_LABEL"
         df = model.export_inference(fname, include_text=True)
 
-        # Write it to a temp file and send it.
+        # --- 2. Merge it with the existing annotations from all users ---
+        # This makes it easier to QA the model.
+        from db.model import ClassificationAnnotation, User, EntityTypeEnum
+        import pandas as pd
+        q = db.session.query(
+            User.username,
+            ClassificationAnnotation.entity,
+            ClassificationAnnotation.value
+        ).join(User).filter(
+            ClassificationAnnotation.label == label,
+            ClassificationAnnotation.entity_type == EntityTypeEnum.COMPANY)
+        all_annos = q.all()
+
+        # Convert query result into a dataframe
+        df_all_annos = pd.DataFrame(
+            all_annos, columns=['username', 'entity', 'value'])
+
+        # Make sure the annotations are uniquer on (user, entity)
+        df_all_annos = df_all_annos.drop_duplicates(
+            ['username', 'entity'], keep='first')
+
+        # Make sure none of the entities are missing
+        # (otherwise this will result in extra rows when merging)
+        df_all_annos = df_all_annos.dropna(subset=['entity'])
+
+        # Merge it with the existing annotation one by one
+        n_cols = len(df.columns)
+        for username in df_all_annos['username'].drop_duplicates():
+            # Get just this user's annotations.
+            _df = df_all_annos[df_all_annos['username'] == username]
+            # Rename the "value" column to the username.
+            _df = _df.drop(columns=['username'])
+            _df = _df.rename(columns={'value': username, 'entity': 'domain'})
+            # Merge it with the main dataframe.
+            df = df.merge(_df, on='domain', how='left')
+
+        # Compute some statistics of the annotations
+        from collections import Counter
+        import numpy as np
+
+        def _build_counter(annos: List[Optional[int]]):
+            """
+            Input is a list of annotation values \in {-1, 0, 1, nan}.
+            We ignore 0 and nan, and return a Counter of {-1, 1}.
+            """
+            # Ignore all the elements that are 0 or nan.
+            annos = [x for x in annos if x != 0 and not pd.isna(x)]
+            return Counter(annos)
+
+        def _get_entropy(annos: List[Optional[int]], eps=0.0001):
+            """Contentiousness measured by entropy"""
+            cnt = _build_counter(annos)
+
+            total = sum(cnt.values()) + eps
+            probs = [cnt[x]/total for x in cnt]
+            log_probs = [np.log(p + eps) for p in probs]
+            entropy = -sum([p*logp for p, logp in zip(probs, log_probs)])
+            return entropy
+
+        def _get_majority_vote(annos: List[Optional[int]]):
+            cnt = _build_counter(annos)
+
+            if len(cnt):
+                return cnt.most_common(1)[0][0]
+            else:
+                return None
+
+        # Only consider the columns with the user annotations
+        df_annos = df.iloc[:, n_cols:]
+        df['CONTENTION (ENTROPY)'] = df_annos.apply(_get_entropy, axis=1)
+        df['MAJORITY_VOTE'] = df_annos.apply(_get_majority_vote, axis=1)
+
+        # 3. --- Write it to a temp file and send it ---
         import tempfile
         import os
         from werkzeug.utils import secure_filename
@@ -315,4 +388,3 @@ def parse_data(form, all_files):
     for fname in data:
         assert fname in all_files, f"Data file '{fname}' does not exist"
     return data
-
