@@ -25,18 +25,14 @@ bp.before_request(_before_request)
 def index():
     return render_template('annotations/index.html')
 
-# TODO eddie: Hook this up to the Admin UI
-
 
 @bp.route('/bulk', methods=['GET'])
 def bulk():
-    # TODO eddie: dev
     request.form = {
-        'user': 'eddie',
-        'label': 'HC',
-        'domains': 'a.com\nb.com\nc.com',
-        'annotations': '-1\n0\n1',
+        'user': request.args.get('user'),
+        'label': request.args.get('label'),
     }
+
     return render_template('annotations/bulk.html',
                            redirect_to=request.referrer)
 

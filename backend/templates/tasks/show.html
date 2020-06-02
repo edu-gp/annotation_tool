@@ -281,49 +281,65 @@
               {% set columns = table.columns %}
               {% set index = table.index.values %}
               <table class="table table-bordered">
-                  <thead>
-                    <tr>
-                        <th scope="col" class="text-center" style="width:
+                <thead>
+                  <tr>
+                    <th scope="col" class="text-center" style="width:
                         5%">User</th>
-                        {% for user in columns %}
-                            <td class="text-center">{{ user }}</td>
-                        {% endfor %}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for user1 in index %}
-                        <tr>
-                            <td class="text-center">{{ user1 }}</td>
-                            {% for user2 in columns %}
-                                <td class="text-center">
-                                {% if user1 == user2 %}
-                                    {{ table.loc[user1, user2] }}
-                                {% else %}
-                                    <a class="mx-2" target="_blank" href="{{
+                    {% for user in columns %}
+                    <td class="text-center">{{ user }}</td>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for user1 in index %}
+                  <tr>
+                    <td class="text-center">{{ user1 }}</td>
+                    {% for user2 in columns %}
+                    <td class="text-center">
+                      {% if user1 == user2 %}
+                      {{ table.loc[user1, user2] }}
+                      {% else %}
+                      <a class="mx-2" target="_blank" href="{{
                                             link_table[(user1, user2)]
                                             }}">{{ table
                                     .loc[user1, user2] }}</a>
-                                {% endif %}
-                                </td>
-                            {% endfor %}
-                        </tr>
+                      {% endif %}
+                    </td>
                     {% endfor %}
-                  </tbody>
+                  </tr>
+                  {% endfor %}
+                </tbody>
               </table>
-{#              {{annotation_statistics_per_label[label]['kappa_table'][k] | safe}}#}
+              {#              {{annotation_statistics_per_label[label]['kappa_table'][k] | safe}}#}
             </div>
             {% endfor %}
           </td>
           <td>
-              <a href="{{ kappa_analysis_for_all_users_links[label] }}"
-                 target="_blank">Compare All Annotations for "{{ label }}"</a>
+            <a href="{{ kappa_analysis_for_all_users_links[label] }}" target="_blank">Compare All Annotations for
+              "{{ label }}"</a>
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
 
-
+    <h5>Annotations Bulk Upload Quick Links</h5>
+    <table class="table table-sm table-bordered table-striped w-auto">
+      <tbody>
+        {% for user in task.get_annotators() %}
+        <tr>
+          <td class="align-middle">{{user}}</td>
+          {% for label in task.get_labels() %}
+          <td class="align-middle">
+            <a class="btn btn-secondary btn-sm" href="{{url_for('annotations.bulk', user=user, label=label)}}"
+              target="_blank">{{label}}</a>
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <a class="btn btn-secondary btn-sm" href="{{url_for('annotations.bulk')}}" target="_blank">Bulk Upload</a>
   </div>
 </div>
 
