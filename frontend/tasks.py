@@ -191,7 +191,7 @@ def receive_annotation():
 
     if next_ar_id:
         return {'redirect': url_for('tasks.annotate', task_id=task_id,
-                                    ar_id=next_ar_id, item_id=item_id)}
+                                    ar_id=next_ar_id)}
     else:
         return {'redirect': url_for('tasks.show', id=task_id)}
 
