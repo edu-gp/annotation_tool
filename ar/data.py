@@ -978,7 +978,8 @@ def _construct_comparison_df(dbsession, label: str, users_to_compare: List):
     comparison_df.sort_values(by="contentious_level", inplace=True,
                               ascending=False)
     sorted_index = comparison_df.index
-    annotation_id_per_user_df.set_index(sorted_index)
+    annotation_id_per_user_df = annotation_id_per_user_df.reindex(
+        sorted_index)
     
     comparison_df = comparison_df.drop(columns=["contentious_level"])
 
