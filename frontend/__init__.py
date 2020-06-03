@@ -4,6 +4,7 @@ import os
 from flask import (
     Flask, render_template, g
 )
+from sqlalchemy.exc import DatabaseError
 
 from db.model import db
 from db.config import DevelopmentConfig
@@ -55,6 +56,19 @@ def create_app(test_config=None):
     @login_required
     def secret():
         return render_template('secret.html')
+
+    # @app.teardown_request
+    # def teardown_request_func(error=None):
+    #     if error:
+    #         logging.error(error)
+    #         db.session.rollback()
+    #         raise error
+    #     try:
+    #         db.session.commit()
+    #     except DatabaseError as e:
+    #         logging.error(e)
+    #         db.session.rollback()
+    #         raise e
 
     from . import auth
     app.register_blueprint(auth.bp)

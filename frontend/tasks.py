@@ -1,6 +1,7 @@
 import logging
 from typing import Dict, Tuple
 
+from sqlalchemy.exc import DatabaseError
 from werkzeug.urls import url_decode
 
 from ar.data import (
@@ -269,8 +270,11 @@ def update_annotation():
                 context=context
             )
         db.session.add(annotation)
-
-    db.session.commit()
+    try:
+        db.session.commit()
+    except DatabaseError:
+        db.session.rollback()
+        raise
 
     return {'redirect': data.get('update_redirect_link')}
 
