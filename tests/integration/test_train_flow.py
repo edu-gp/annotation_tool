@@ -5,8 +5,8 @@ import numpy as np
 
 from db.model import (
     Task, ClassificationAnnotation, User, EntityTypeEnum,
-    majority_vote_annotations_query
-)
+    majority_vote_annotations_query,
+    AnnotationSource)
 from db.fs import RAW_DATA_DIR
 
 from train.no_deps.run import (
@@ -72,7 +72,7 @@ def _populate_db_and_fs(dbsession, tmp_path, N):
     # Create many Annotations for a Label
     def _create_anno(ent, v): return ClassificationAnnotation(
         entity_type=EntityTypeEnum.COMPANY, entity=ent, user=user,
-        label=LABEL, value=v)
+        label=LABEL, value=v, source=AnnotationSource.ALCHMEY)
 
     ents = [d['meta']['domain'] for d in data]
     annos = [

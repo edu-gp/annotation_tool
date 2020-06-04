@@ -2,8 +2,8 @@ from tests.sqlalchemy_conftest import *
 import ar
 from ar import Example
 from db.model import (
-    ClassificationAnnotation, get_or_create, User, LabelPatterns
-)
+    ClassificationAnnotation, get_or_create, User, LabelPatterns,
+    AnnotationSource)
 
 
 def test_assign_round_robin():
@@ -85,14 +85,16 @@ def populate_db(dbsession):
                                 entity=entity1,
                                 entity_type="company",
                                 label="b2c",
-                                user_id=user1.id)
+                                user_id=user1.id,
+                                source=AnnotationSource.ALCHMEY)
     annotation1 = get_or_create(dbsession=dbsession,
                                 model=ClassificationAnnotation,
                                 value=1,
                                 entity=entity1,
                                 entity_type="company",
                                 label="healthcare",
-                                user_id=user1.id)
+                                user_id=user1.id,
+                                source=AnnotationSource.ALCHMEY)
     user2 = get_or_create(dbsession=dbsession,
                           model=User,
                           username="user2")
@@ -102,7 +104,8 @@ def populate_db(dbsession):
                                 entity=entity2,
                                 entity_type="company",
                                 label="b2c",
-                                user_id=user2.id)
+                                user_id=user2.id,
+                                source=AnnotationSource.ALCHMEY)
     annotations = [annotation0, annotation1, annotation2]
     return user1, user2, annotations, entity1, entity2
 

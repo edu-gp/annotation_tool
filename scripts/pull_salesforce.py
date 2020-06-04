@@ -15,7 +15,7 @@ import tldextract
 
 from db.config import DevelopmentConfig
 from db.model import Database, get_or_create, User, ClassificationAnnotation, \
-    EntityTypeEnum
+    EntityTypeEnum, AnnotationSource, PredefinedUserName
 
 from google.cloud import secretmanager
 
@@ -189,14 +189,17 @@ def upsert_salesforce_b2c_annotations(
                         "meta": {
                             "name": entities_selected[entity]["Company"],
                             "domain": entity
-                        },
-                        "source": "salesforce_bot"
-                    }
+                        }
+                    },
+                    source=AnnotationSource.SALESFORCE
                 )
                 new_entities.append(entity)
                 dbsession.add(new_annotation)
             else:
                 updated_entities.append(entity)
+                # TODO I wonder if we should update the user to salesforce_bot.
+                #  Or should we add another column `updated_by` so we know
+                #  who made the change.
                 existing_entity_annotations[entity].value = value
 
         logging.info("Inserting the following new entities:")
@@ -226,7 +229,7 @@ if __name__ == "__main__":
     salesforce_bot = get_or_create(
         dbsession=db.session,
         model=User,
-        username="salesforce_bot"
+        username=PredefinedUserName.SALESFORCE_BOT
     )
     upsert_salesforce_b2c_annotations(
         dbsession=db.session,

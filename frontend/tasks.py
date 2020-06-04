@@ -16,7 +16,8 @@ from flask import (
 from db.model import (
     db, AnnotationRequest, Task, get_or_create, ClassificationAnnotation,
     AnnotationGuide, AnnotationValue, AnnotationRequestStatus,
-    fetch_annotation_entity_and_ids_done_by_user_under_labels, User)
+    fetch_annotation_entity_and_ids_done_by_user_under_labels, User,
+    AnnotationSource)
 
 from .auth import login_required
 
@@ -169,7 +170,8 @@ def receive_annotation():
                                    label=label,
                                    user_id=user_id,
                                    context=context,
-                                   value=AnnotationValue.NOT_ANNOTATED)
+                                   value=AnnotationValue.NOT_ANNOTATED,
+                                   source=AnnotationSource.ALCHMEY)
         annotation.value = value
         db.session.add(annotation)
 
@@ -266,7 +268,8 @@ def update_annotation():
                 entity=entity,
                 user_id=annotation_owner.id,
                 value=value,
-                context=context
+                context=context,
+                source=AnnotationSource.ALCHMEY
             )
         db.session.add(annotation)
 

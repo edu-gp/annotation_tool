@@ -2,8 +2,8 @@ from tests.sqlalchemy_conftest import *
 from db.model import (
     User, ClassificationAnnotation,
     ClassificationTrainingData,
-    majority_vote_annotations_query
-)
+    majority_vote_annotations_query,
+    AnnotationSource)
 import os
 from db.fs import filestore_base_dir
 from shared.utils import load_jsonl
@@ -97,7 +97,8 @@ def _populate_db_variable(dbsession, n_users, n_entities):
                 entity_type=ENTITY_TYPE,
                 entity=ent, user=user, label=LABEL,
                 context={"text": f"abc{i}"},
-                value=1 if i % 2 else -1)
+                value=1 if i % 2 else -1,
+                source=AnnotationSource.ALCHMEY)
             annos.append(anno)
 
     dbsession.add_all(annos)

@@ -26,8 +26,8 @@ from db.model import (
     EntityTypeEnum, AnnotationRequestStatus, AnnotationType,
     User, Task,
     AnnotationRequest, ClassificationAnnotation,
-    ClassificationTrainingData, TextClassificationModel
-)
+    ClassificationTrainingData, TextClassificationModel,
+    AnnotationSource)
 from db._task import _Task as _Task
 
 db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
@@ -68,7 +68,8 @@ def _convert_single_annotation(anno, username):
                                        label=label,
                                        user_id=user.id,
                                        context=anno["req"]["data"],
-                                       exclude_keys_in_retrieve=['context'])
+                                       source=AnnotationSource.ALCHMEY,
+                                       exclude_keys_in_retrieve=['context'],)
             return annotation.id
 
 

@@ -3,8 +3,8 @@ from flask import (
 )
 from db.model import (
     db, EntityTypeEnum,
-    ClassificationAnnotation, User, get_or_create
-)
+    ClassificationAnnotation, User, get_or_create,
+    AnnotationSource)
 from .annotations_utils import parse_form
 
 from .auth import auth
@@ -77,7 +77,8 @@ def bulk_post():
                             "name": domain,
                             "domain": domain
                         }
-                    }
+                    },
+                    source=AnnotationSource.ALCHMEY
                 )
             else:
                 anno.value = annotation

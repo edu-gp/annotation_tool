@@ -3,7 +3,7 @@ from ar.data import (
     _majority_label,
     _compute_total_distinct_number_of_annotated_entities_for_label
 )
-from db.model import User, ClassificationAnnotation
+from db.model import User, ClassificationAnnotation, AnnotationSource
 
 
 def test_majority_label():
@@ -21,7 +21,7 @@ def test__compute_total_distinct_number_of_annotated_entities_for_label(dbsessio
     def _anno(entity_type, entity, value, user):
         return ClassificationAnnotation(
             entity=entity, entity_type=entity_type, label='foo', value=value,
-            user=user)
+            user=user, source=AnnotationSource.ALCHMEY)
 
     # Add 3 distinct entities with labels, 2 with an unknown annotation.
     # Unknown annotations are not counted. So this should be 3.

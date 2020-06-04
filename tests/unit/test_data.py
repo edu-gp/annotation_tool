@@ -19,7 +19,7 @@ from ar.data import _compute_kappa_matrix, \
     _construct_comparison_df
 from db.model import User, ClassificationAnnotation, \
     AnnotationRequest, AnnotationType, AnnotationRequestStatus, Task, \
-    update_instance, AnnotationValue
+    update_instance, AnnotationValue, AnnotationSource
 
 ENTITY_TYPE = 'blah'
 
@@ -117,32 +117,39 @@ def _populate_annotation_data(dbsession):
     annotation1 = ClassificationAnnotation(value=1, user_id=user1.id,
                                            label=label1,
                                            entity_type=ENTITY_TYPE,
-                                           entity=entity1)
+                                           entity=entity1,
+                                           source=AnnotationSource.ALCHMEY)
     annotation2 = ClassificationAnnotation(value=1, user_id=user1.id,
                                            label=label1,
                                            entity_type=ENTITY_TYPE,
-                                           entity=entity2)
+                                           entity=entity2,
+                                           source=AnnotationSource.ALCHMEY)
     annotation3 = ClassificationAnnotation(value=-1, user_id=user1.id,
                                            label=label1,
                                            entity_type=ENTITY_TYPE,
-                                           entity=entity3)
+                                           entity=entity3,
+                                           source=AnnotationSource.ALCHMEY)
 
     annotation4 = ClassificationAnnotation(value=1, user_id=user2.id,
                                            label=label1,
                                            entity_type=ENTITY_TYPE,
-                                           entity=entity1)
+                                           entity=entity1,
+                                           source=AnnotationSource.ALCHMEY)
     annotation5 = ClassificationAnnotation(value=-1, user_id=user2.id,
                                            label=label1,
                                            entity_type=ENTITY_TYPE,
-                                           entity=entity2)
+                                           entity=entity2,
+                                           source=AnnotationSource.ALCHMEY)
     annotation6 = ClassificationAnnotation(value=-1, user_id=user3.id,
                                            label=label1,
                                            entity_type=ENTITY_TYPE,
-                                           entity=entity3)
+                                           entity=entity3,
+                                           source=AnnotationSource.ALCHMEY)
     annotation7 = ClassificationAnnotation(value=-1, user_id=user3.id,
                                            label=label2,
                                            entity_type=ENTITY_TYPE,
-                                           entity=entity3)
+                                           entity=entity3,
+                                           source=AnnotationSource.ALCHMEY)
 
     annotations = [
         annotation1, annotation2, annotation3, annotation4, annotation5,
@@ -468,7 +475,8 @@ def test__construct_comparison_df(dbsession):
         entity_type=entity_type,
         label=label,
         value=AnnotationValue.POSITIVE,
-        user_id=user1.id
+        user_id=user1.id,
+        source=AnnotationSource.ALCHMEY
     )
 
     annotation2 = ClassificationAnnotation(
@@ -476,7 +484,8 @@ def test__construct_comparison_df(dbsession):
         entity_type=entity_type,
         label=label,
         value=AnnotationValue.POSITIVE,
-        user_id=user1.id
+        user_id=user1.id,
+        source=AnnotationSource.ALCHMEY
     )
 
     # Annotations from user2
@@ -485,7 +494,8 @@ def test__construct_comparison_df(dbsession):
         entity_type=entity_type,
         label=label,
         value=AnnotationValue.POSITIVE,
-        user_id=user2.id
+        user_id=user2.id,
+        source=AnnotationSource.ALCHMEY
     )
 
     annotation4 = ClassificationAnnotation(
@@ -493,7 +503,8 @@ def test__construct_comparison_df(dbsession):
         entity_type=entity_type,
         label=label,
         value=AnnotationValue.NEGTIVE,
-        user_id=user2.id
+        user_id=user2.id,
+        source=AnnotationSource.ALCHMEY
     )
 
     # Annotations from user3
@@ -502,7 +513,8 @@ def test__construct_comparison_df(dbsession):
         entity_type=entity_type,
         label=label,
         value=AnnotationValue.UNSURE,
-        user_id=user3.id
+        user_id=user3.id,
+        source=AnnotationSource.ALCHMEY
     )
 
     dbsession.add_all([annotation1, annotation2, annotation3, annotation4,

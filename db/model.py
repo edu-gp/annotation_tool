@@ -97,6 +97,10 @@ DUMMY_ENTITY = '__dummy__'
 # Tables
 
 
+class PredefinedUserName:
+    SALESFORCE_BOT = "salesforce_bot"
+
+
 class User(Base):
     __tablename__ = 'user'
     id = Column(Integer, primary_key=True)
@@ -139,6 +143,12 @@ class User(Base):
         return q.all()
 
 
+class AnnotationSource:
+    ALCHMEY = "Alchemy"
+    SALESFORCE = "salesforce"
+    OTHER = "other"
+
+
 class ClassificationAnnotation(Base):
     __tablename__ = 'classification_annotation'
 
@@ -154,6 +164,9 @@ class ClassificationAnnotation(Base):
 
     user_id = Column(Integer, ForeignKey('user.id'))
     user = relationship("User", back_populates="classification_annotations")
+
+    source = Column(String, index=True, nullable=True,
+                    default=AnnotationSource.ALCHMEY)
 
     context = Column(JSON)
     """
@@ -177,6 +190,7 @@ class ClassificationAnnotation(Base):
         Value {},
         Created at {},
         Last Updated at {}
+        Source {}
         """.format(
             self.id,
             self.entity,
@@ -185,7 +199,8 @@ class ClassificationAnnotation(Base):
             self.user_id,
             self.value,
             self.created_at,
-            self.updated_at
+            self.updated_at,
+            self.source
         )
 
     @staticmethod
@@ -196,7 +211,8 @@ class ClassificationAnnotation(Base):
                              entity=DUMMY_ENTITY,
                              entity_type=entity_type,
                              label=label,
-                             value=AnnotationValue.NOT_ANNOTATED)
+                             value=AnnotationValue.NOT_ANNOTATED,
+                             source=AnnotationSource.ALCHMEY)
 
 
 def majority_vote_annotations_query(dbsession, label):
