@@ -4,8 +4,11 @@ from typing import List, Optional
 from flask import (
     Blueprint, flash, redirect, render_template, request, url_for
 )
+from sqlalchemy.exc import DatabaseError
+from werkzeug.urls import url_encode
 
-from db.model import db, Task, Model, AnnotationGuide, LabelPatterns
+from db.model import db, Task, Model, AnnotationGuide, LabelPatterns, \
+    AnnotationRequest, User, delete_requests_for_user_under_task
 from db.utils import get_all_data_files
 from ar.data import compute_annotation_statistics_db, \
     compute_annotation_request_statistics
@@ -188,10 +191,21 @@ def update(id):
         task.name = name
         task.set_data_filenames([data])
         task.set_labels(labels)
+
+        for current_annotator in task.get_annotators():
+            if current_annotator not in annotators:
+                logging.info("Prepare to remove requests under user {} for "
+                              "task {}".format(current_annotator, id))
+                delete_requests_for_user_under_task(db.session,
+                                                    current_annotator,
+                                                    id)
         task.set_annotators(annotators)
 
         db.session.add(task)
+
         db.session.commit()
+        logging.info("Updated tasks and deleted requests from removed "
+                      "annotators.")
         return redirect(url_for('tasks.show', id=task.id))
     except Exception as e:
         db.session.rollback()
@@ -199,7 +213,6 @@ def update(id):
         flash(error)
         return render_template('tasks/edit.html', task=task,
                                list_to_textarea=list_to_textarea)
-
 
 @bp.route('/<string:id>/assign', methods=['POST'])
 def assign(id):

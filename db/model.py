@@ -783,3 +783,16 @@ def fetch_annotation_entity_and_ids_done_by_user_under_labels(
             order_by(ClassificationAnnotation.created_at.desc()). \
             all()
     return res
+
+
+def delete_requests_for_user_under_task(dbsession, username, task_id):
+    # Can't call Query.update() or Query.delete() when join(),
+    # outerjoin(), select_from(), or from_self() has been called. So we have
+    # to get the user instance first.
+    user = get_or_create(dbsession=dbsession,
+                         model=User,
+                         username=username)
+    dbsession.query(AnnotationRequest). \
+        filter(AnnotationRequest.task_id == task_id,
+               AnnotationRequest.user_id == user.id). \
+        delete(synchronize_session=False)
