@@ -796,3 +796,16 @@ def delete_requests_for_user_under_task(dbsession, username, task_id):
         filter(AnnotationRequest.task_id == task_id,
                AnnotationRequest.user_id == user.id). \
         delete(synchronize_session=False)
+
+
+def delete_requests_for_label_under_task(dbsession, label, task_id):
+    dbsession.query(AnnotationRequest). \
+        filter(AnnotationRequest.task_id == task_id,
+               AnnotationRequest.label == label). \
+        delete(synchronize_session=False)
+
+
+def delete_requests_under_task(dbsession, task_id):
+    dbsession.query(AnnotationRequest). \
+        filter(AnnotationRequest.task_id == task_id). \
+        delete(synchronize_session=False)

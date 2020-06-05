@@ -8,7 +8,8 @@ from sqlalchemy.exc import DatabaseError
 from werkzeug.urls import url_encode
 
 from db.model import db, Task, Model, AnnotationGuide, LabelPatterns, \
-    AnnotationRequest, User, delete_requests_for_user_under_task
+    AnnotationRequest, User, delete_requests_for_user_under_task, \
+    delete_requests_for_label_under_task, delete_requests_under_task
 from db.utils import get_all_data_files
 from ar.data import compute_annotation_statistics_db, \
     compute_annotation_request_statistics
@@ -189,17 +190,32 @@ def update(id):
         annotators = parse_annotators(form)
 
         task.name = name
-        task.set_data_filenames([data])
-        task.set_labels(labels)
 
-        for current_annotator in task.get_annotators():
-            if current_annotator not in annotators:
-                logging.info("Prepare to remove requests under user {} for "
-                              "task {}".format(current_annotator, id))
-                delete_requests_for_user_under_task(db.session,
-                                                    current_annotator,
-                                                    id)
+        # Updating the data file
+        if data != task.get_data_filenames()[0]:
+            logging.info("Prepare to remove all requests under task {} "
+                         "since the data file has changed".format(id))
+            delete_requests_under_task(db.session, id)
+        else:
+            # Updating the annotators
+            for current_annotator in task.get_annotators():
+                if current_annotator not in annotators:
+                    logging.info("Prepare to remove requests under user {} for "
+                                  "task {}".format(current_annotator, id))
+                    delete_requests_for_user_under_task(db.session,
+                                                        current_annotator,
+                                                        id)
+            # Updating the labels
+            for current_label in task.get_labels():
+                if current_label not in labels:
+                    logging.info("Prepare to remove requests under label {} for "
+                                 "task {}".format(current_label, id))
+                    delete_requests_for_label_under_task(db.session,
+                                                         current_label, id)
+
+        task.set_data_filenames([data])
         task.set_annotators(annotators)
+        task.set_labels(labels)
 
         db.session.add(task)
 
