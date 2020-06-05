@@ -4,12 +4,11 @@ from typing import List, Optional
 from flask import (
     Blueprint, flash, redirect, render_template, request, url_for
 )
-from werkzeug.urls import url_encode
 
 from db.model import db, Task, Model, AnnotationGuide, LabelPatterns
 from db.utils import get_all_data_files
-from ar.data import compute_annotation_statistics, \
-    compute_annotation_statistics_db, compute_annotation_request_statistics
+from ar.data import compute_annotation_statistics_db, \
+    compute_annotation_request_statistics
 
 from ar.ar_celery import generate_annotation_requests
 
@@ -57,7 +56,6 @@ def new():
 def create():
     data_fnames = get_all_data_files()
 
-    error = None
     try:
         form = request.form
 
@@ -65,20 +63,21 @@ def create():
         labels = parse_labels(form)
         annotators = parse_annotators(form)
         data_files = parse_data(form, data_fnames)
-    except Exception as e:
-        error = str(e)
 
-    if error is not None:
-        flash(error)
-        return render_template('tasks/new.html', data_fnames=data_fnames)
-    else:
         task = Task(name=name)
         task.set_labels(labels)
         task.set_annotators(annotators)
         task.set_data_filenames(data_files)
+
         db.session.add(task)
         db.session.commit()
         return redirect(url_for('tasks.show', id=task.id))
+    except Exception as e:
+        db.session.rollback()
+        error = str(e)
+        flash(error)
+        return render_template('tasks/new.html', data_fnames=data_fnames)
+
 
 
 @bp.route('/<string:id>', methods=['GET'])
@@ -178,7 +177,6 @@ def edit(id):
 def update(id):
     task = db.session.query(Task).filter_by(id=id).one_or_none()
 
-    error = None
     try:
         form = request.form
 
@@ -186,21 +184,21 @@ def update(id):
         data = parse_data_filename(form)
         labels = parse_labels(form)
         annotators = parse_annotators(form)
-    except Exception as e:
-        error = str(e)
 
-    if error is not None:
-        flash(error)
-        return render_template('tasks/edit.html', task=task,
-                               list_to_textarea=list_to_textarea)
-    else:
         task.name = name
         task.set_data_filenames([data])
         task.set_labels(labels)
         task.set_annotators(annotators)
+
         db.session.add(task)
         db.session.commit()
         return redirect(url_for('tasks.show', id=task.id))
+    except Exception as e:
+        db.session.rollback()
+        error = str(e)
+        flash(error)
+        return render_template('tasks/edit.html', task=task,
+                               list_to_textarea=list_to_textarea)
 
 
 @bp.route('/<string:id>/assign', methods=['POST'])
