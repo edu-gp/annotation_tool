@@ -46,29 +46,14 @@ def create_app(test_config=None):
     @login_required
     def index():
         username = g.user['username']
-        task_ids = fetch_tasks_for_user(username)
         task_id_and_name_pairs = fetch_tasks_for_user_from_db(
             db.session, username)
-        # tasks = [Task.fetch(task_id) for task_id in task_ids]
         return render_template('index.html', tasks=task_id_and_name_pairs)
 
     @app.route('/secret')
     @login_required
     def secret():
         return render_template('secret.html')
-
-    # @app.teardown_request
-    # def teardown_request_func(error=None):
-    #     if error:
-    #         logging.error(error)
-    #         db.session.rollback()
-    #         raise error
-    #     try:
-    #         db.session.commit()
-    #     except DatabaseError as e:
-    #         logging.error(e)
-    #         db.session.rollback()
-    #         raise e
 
     from . import auth
     app.register_blueprint(auth.bp)
