@@ -4,11 +4,9 @@ from typing import List, Optional
 from flask import (
     Blueprint, flash, redirect, render_template, request, url_for
 )
-from sqlalchemy.exc import DatabaseError
-from werkzeug.urls import url_encode
 
 from db.model import db, Task, Model, AnnotationGuide, LabelPatterns, \
-    AnnotationRequest, User, delete_requests_for_user_under_task, \
+    delete_requests_for_user_under_task, \
     delete_requests_for_label_under_task, delete_requests_under_task
 from db.utils import get_all_data_files
 from ar.data import compute_annotation_statistics_db, \
@@ -189,39 +187,18 @@ def update(id):
         labels = parse_labels(form)
         annotators = parse_annotators(form)
 
-        task.name = name
-
-        # Updating the data file
-        if data != task.get_data_filenames()[0]:
-            logging.info("Prepare to remove all requests under task {} "
-                         "since the data file has changed".format(id))
-            delete_requests_under_task(db.session, id)
-        else:
-            # Updating the annotators
-            for current_annotator in task.get_annotators():
-                if current_annotator not in annotators:
-                    logging.info("Prepare to remove requests under user {} for "
-                                  "task {}".format(current_annotator, id))
-                    delete_requests_for_user_under_task(db.session,
-                                                        current_annotator,
-                                                        id)
-            # Updating the labels
-            for current_label in task.get_labels():
-                if current_label not in labels:
-                    logging.info("Prepare to remove requests under label {} for "
-                                 "task {}".format(current_label, id))
-                    delete_requests_for_label_under_task(db.session,
-                                                         current_label, id)
+        _remove_obsolete_requests_under_task(task, data, annotators, labels)
 
         task.set_data_filenames([data])
         task.set_annotators(annotators)
         task.set_labels(labels)
+        task.name = name
 
         db.session.add(task)
 
         db.session.commit()
         logging.info("Updated tasks and deleted requests from removed "
-                      "annotators.")
+                     "annotators.")
         return redirect(url_for('tasks.show', id=task.id))
     except Exception as e:
         db.session.rollback()
@@ -229,6 +206,7 @@ def update(id):
         flash(error)
         return render_template('tasks/edit.html', task=task,
                                list_to_textarea=list_to_textarea)
+
 
 @bp.route('/<string:id>/assign', methods=['POST'])
 def assign(id):
@@ -415,3 +393,27 @@ def parse_data(form, all_files):
     for fname in data:
         assert fname in all_files, f"Data file '{fname}' does not exist"
     return data
+
+
+def _remove_obsolete_requests_under_task(task, data, annotators, labels):
+    if data != task.get_data_filenames()[0]:
+        logging.info("Prepare to remove all requests under task {} "
+                     "since the data file has changed".format(task.id))
+        delete_requests_under_task(db.session, task.id)
+    else:
+        # Updating the annotators
+        for current_annotator in task.get_annotators():
+            if current_annotator not in annotators:
+                logging.info("Prepare to remove requests under user {} for "
+                             "task {}".format(current_annotator, task.id))
+                delete_requests_for_user_under_task(db.session,
+                                                    current_annotator,
+                                                    task.id)
+        # Updating the labels
+        for current_label in task.get_labels():
+            if current_label not in labels:
+                logging.info("Prepare to remove requests under label {} for "
+                             "task {}".format(current_label, task.id))
+                delete_requests_for_label_under_task(db.session,
+                                                     current_label, task.id)
+

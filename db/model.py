@@ -785,27 +785,42 @@ def fetch_annotation_entity_and_ids_done_by_user_under_labels(
     return res
 
 
-def delete_requests_for_user_under_task(dbsession, username, task_id):
+def delete_requests_under_task_with_condition(dbsession, task_id,
+                                              **kwargs):
     # Can't call Query.update() or Query.delete() when join(),
     # outerjoin(), select_from(), or from_self() has been called. So we have
     # to get the user instance first.
-    user = get_or_create(dbsession=dbsession,
-                         model=User,
-                         username=username)
+    if kwargs is None:
+        kwargs = {
+            "task_id": task_id
+        }
+    else:
+        kwargs.update({
+            "task_id": task_id
+        })
+        print(kwargs)
+
     dbsession.query(AnnotationRequest). \
-        filter(AnnotationRequest.task_id == task_id,
-               AnnotationRequest.user_id == user.id). \
+        filter_by(**kwargs). \
         delete(synchronize_session=False)
+
+
+def delete_requests_for_user_under_task(dbsession, username, task_id):
+    user = dbsession.query(User).filter(User.username == username).one_or_none()
+    if not user:
+        logging.info("No such user {} exists. Ignored.".format(username))
+        return None
+    delete_requests_under_task_with_condition(dbsession,
+                                              task_id=task_id,
+                                              user_id=user.id)
 
 
 def delete_requests_for_label_under_task(dbsession, label, task_id):
-    dbsession.query(AnnotationRequest). \
-        filter(AnnotationRequest.task_id == task_id,
-               AnnotationRequest.label == label). \
-        delete(synchronize_session=False)
+    delete_requests_under_task_with_condition(dbsession,
+                                              task_id=task_id,
+                                              label=label)
 
 
 def delete_requests_under_task(dbsession, task_id):
-    dbsession.query(AnnotationRequest). \
-        filter(AnnotationRequest.task_id == task_id). \
-        delete(synchronize_session=False)
+    delete_requests_under_task_with_condition(dbsession,
+                                              task_id=task_id)
