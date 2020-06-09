@@ -9,6 +9,12 @@ RUN pip install mockito flask-sqlalchemy alembic Flask-Testing psycopg2-binary
 # Salesforce feedback loop related packages.
 RUN pip install google-cloud-secret-manager simple-salesforce PyJWT cryptography requests tldextract
 
+# AWS CLI
+RUN pip install boto3
+
+# Spring3 data fetcher
+RUN pip install ijson tqdm google-cloud-storage
+
 # Some error with latest pillow verison... downgrade pillow
 RUN conda install pillow=6.1
 
