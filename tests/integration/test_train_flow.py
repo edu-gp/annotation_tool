@@ -10,7 +10,7 @@ from db.model import (
 from db.fs import RAW_DATA_DIR
 
 from train.no_deps.run import (
-    train_model, inference
+    train_model, inference, build_inference_cache
 )
 from train.no_deps.paths import (
     # Train Model
@@ -34,7 +34,11 @@ LABEL = 'IsTall'
 
 
 class stub_model:
+    def __init__(self):
+        self.history = []
+
     def predict(self, text: List[str]):
+        self.history.append(text)
         preds = np.array([1] * len(text))
         # This is the style when "Sliding Window" is enabled
         probs = [np.array([[-0.48803285,  0.56392884]],
@@ -167,11 +171,30 @@ def test_train_flow(dbsession, monkeypatch, tmp_path):
         {'text': 'hello'},
         {'text': 'world'}
     ])
-    fnames = [str(f)]
 
-    inference(model_dir, fnames,
+    inference(model_dir, str(f),
               build_model_fn=stub_build_fn, generate_plots=False)
 
-    ir = InferenceResults.load(
-        _get_inference_fname(model_dir, fnames[0]))
+    ir = InferenceResults.load(_get_inference_fname(model_dir, str(f)))
     assert np.isclose(ir.probs, [0.7411514, 0.7411514]).all()
+
+    # Part 4. New data update, run inference on the new data.
+    f2 = tmp_path / 'tmp_file_for_inference_v2.jsonl'
+    save_jsonl(str(f2), [
+        {'text': 'hello'},
+        {'text': 'world'},
+        {'text': 'newline_1'},
+        {'text': 'newline_2'}
+    ])
+
+    inference_cache = build_inference_cache(model_dir, [str(f)])
+    model, _ = inference(model_dir, str(f2),
+                         build_model_fn=stub_build_fn, generate_plots=False,
+                         inference_cache=inference_cache)
+
+    assert model.history == [['newline_1', 'newline_2']], \
+        "Model should have only been ran on the new lines"
+
+    ir2 = InferenceResults.load(_get_inference_fname(model_dir, str(f2)))
+    assert len(ir2.probs) == 4, "Inference should have 4 elements"
+    assert ir.probs[:2] == ir2.probs[:2], "Result on the same items should be the same"

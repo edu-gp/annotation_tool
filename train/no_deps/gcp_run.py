@@ -3,11 +3,16 @@ import tempfile
 from pathlib import Path
 from .run import (
     train_model as _train_model,
-    inference as _inference
+    inference as _inference,
+    build_inference_cache
 )
 from .utils import (
     gs_copy_dir as copy_dir,
     gs_copy_file as copy_file
+)
+from .paths import (
+    _get_all_inference_fnames,
+    _inference_fnames_to_original_fnames
 )
 
 
@@ -31,12 +36,12 @@ def download_files_to_local(fnames, local_data_dir):
     return local_fnames
 
 
-def inference(local_dir, remote_dir, local_fnames):
+def inference(local_dir, remote_dir, local_fname, inference_cache=None):
     # Download a trained model
     copy_dir(remote_dir, local_dir)
 
     # Run Inference - results saved in local_dir
-    _inference(local_dir, local_fnames)
+    _inference(local_dir, local_fname, inference_cache)
 
     # Upload results
     copy_dir(local_dir, remote_dir)
@@ -73,22 +78,39 @@ if __name__ == '__main__':
         print(f"Executing Training Script")
 
         with tempfile.TemporaryDirectory() as local_dir:
-            # TODO eddie debug
-            local_dir = '/tmp/blah'
-
             local_model_dir = os.path.join(local_dir, 'model')
             local_data_dir = os.path.join(local_dir, 'data')
 
             os.makedirs(local_model_dir, exist_ok=True)
             os.makedirs(local_data_dir, exist_ok=True)
 
+            # This will train the model if `force_retrain` or it doesn't exist.
             train_model(local_model_dir, remote_dir,
                         force_retrain=force_retrain)
+
+            # Inference on data sources.
+            # Assuming inferences don't get stale, we can build a cache of all
+            # previous inference to make sure we don't duplicate work. This is
+            # important to make inference on incremental changes in data fast
+            # and cost-efficient.
+
+            # Get the names of all the files we have ran inference on.
+            prev_infer_fnames = _get_all_inference_fnames(local_model_dir)
+            prev_infer_fnames = \
+                _inference_fnames_to_original_fnames(prev_infer_fnames)
+            # Download them.
+            local_infer_fnames = \
+                download_files_to_local(prev_infer_fnames, local_data_dir)
+            # Build a cache from them.
+            inference_cache = \
+                build_inference_cache(local_model_dir, local_infer_fnames)
 
             if len(infer_fnames) > 0:
                 local_fnames = download_files_to_local(
                     infer_fnames, local_data_dir)
-                inference(local_model_dir, remote_dir, local_fnames)
+                for fname in local_fnames:
+                    inference(local_model_dir, remote_dir,
+                              fname, inference_cache)
 
 
 '''
