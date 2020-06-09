@@ -18,7 +18,8 @@ from db import _task_dir
 from db.model import (
     db, User, ClassificationAnnotation, Task as NewTask,
     AnnotationRequest, AnnotationRequestStatus,
-    update_instance, AnnotationType, get_or_create, AnnotationValue)
+    update_instance, AnnotationType, get_or_create, AnnotationValue,
+    delete_requests_for_user_under_task)
 from db._task import _Task, DIR_ANNO, DIR_AREQ
 from shared.frontend_path_finder import generate_frontend_compare_link
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd, \
@@ -40,14 +41,15 @@ def save_new_ar_for_user_db(dbsession, task_id, username,
                          username=username)
     if clean_existing:
         try:
-            dbsession.query(AnnotationRequest).\
-                filter(AnnotationRequest.task_id == task_id,
-                       AnnotationRequest.user_id == user.id).\
-                delete(synchronize_session=False)
+            delete_requests_for_user_under_task(dbsession=dbsession,
+                                                username=username,
+                                                task_id=task_id)
             dbsession.commit()
+            logging.info("Deleted requests under user {} for task {}".
+                          format(username, task_id))
         except Exception as e:
-            logging.error(e)
             dbsession.rollback()
+            logging.error(e)
             raise
 
     try:

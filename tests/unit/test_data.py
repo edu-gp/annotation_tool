@@ -19,7 +19,8 @@ from ar.data import _compute_kappa_matrix, \
     _construct_comparison_df
 from db.model import User, ClassificationAnnotation, \
     AnnotationRequest, AnnotationType, AnnotationRequestStatus, Task, \
-    update_instance, AnnotationValue
+    update_instance, AnnotationValue, delete_requests_for_user_under_task, \
+    delete_requests_for_label_under_task, delete_requests_under_task
 
 ENTITY_TYPE = 'blah'
 
@@ -532,7 +533,87 @@ def test__construct_comparison_df(dbsession):
     assert(id_df.equals(expected_id_df))
 
 
+def test_delete_requests_under_task(dbsession):
+    user1, user2, label, task1, task2, requests = \
+        _populate_common_request_data(dbsession)
+
+    assert _count_requests(dbsession, task_id=task1.id) == 2
+    delete_requests_under_task(dbsession, task_id=task1.id)
+    dbsession.commit()
+    assert _count_requests(dbsession, task_id=task1.id) == 0
 
 
+def test_delete_requests_for_label_under_task(dbsession):
+    user1, user2, label, task1, task2, requests = \
+        _populate_common_request_data(dbsession)
+
+    assert _count_requests(dbsession, task_id=task1.id, label=label) == 2
+    delete_requests_for_label_under_task(dbsession, task_id=task1.id, label=label)
+    dbsession.commit()
+    assert _count_requests(dbsession, task_id=task1.id, label=label) == 0
 
 
+def test_delete_requests_for_user_under_task(dbsession):
+    user1, user2, label, task1, task2, requests = \
+        _populate_common_request_data(dbsession)
+
+    assert _count_requests(dbsession, task_id=task1.id,
+                           user_id=user2.id) == 1
+    delete_requests_for_user_under_task(dbsession, task_id=task1.id, username=user2.username)
+    dbsession.commit()
+    assert _count_requests(dbsession, task_id=task1.id, user_id=user2.id) == 0
+
+    assert delete_requests_for_user_under_task(
+        dbsession, task_id=task1.id, username="fake"
+    ) is None
+
+
+def _populate_common_request_data(dbsession):
+    task1 = Task(name="task1", default_params={})
+    task2 = Task(name="task2", default_params={})
+    user1 = User(username="user1")
+    user2 = User(username="user2")
+    label = "B2C"
+
+    dbsession.add_all([user1, user2, task1, task2])
+    dbsession.commit()
+
+    request1 = AnnotationRequest(
+        user_id=user1.id,
+        entity="abc.com",
+        entity_type=ENTITY_TYPE,
+        label="B2C",
+        annotation_type=AnnotationType.ClassificationAnnotation,
+        status=AnnotationRequestStatus.Pending,
+        task_id=task1.id
+    )
+
+    request2 = AnnotationRequest(
+        user_id=user2.id,
+        entity="bcd.com",
+        entity_type=ENTITY_TYPE,
+        label="B2C",
+        annotation_type=AnnotationType.ClassificationAnnotation,
+        status=AnnotationRequestStatus.Pending,
+        task_id=task1.id
+    )
+
+    request3 = AnnotationRequest(
+        user_id=user2.id,
+        entity="cde.com",
+        entity_type=ENTITY_TYPE,
+        label="B2C",
+        annotation_type=AnnotationType.ClassificationAnnotation,
+        status=AnnotationRequestStatus.Pending,
+        task_id=task2.id
+    )
+
+    dbsession.add_all([request1, request2, request3])
+    dbsession.commit()
+
+    return user1, user2, label, task1, task2, [request1, request2, request3]
+
+
+def _count_requests(dbsession, **kwargs):
+    return dbsession.query(func.count(AnnotationRequest.id)). \
+        filter_by(**kwargs).one()[0]
