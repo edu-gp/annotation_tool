@@ -47,26 +47,15 @@ def inference(local_dir, remote_dir, local_fname, inference_cache=None):
     copy_dir(local_dir, remote_dir)
 
 
-if __name__ == '__main__':
-    import argparse
-
-    parser = argparse.ArgumentParser(description='Train Model')
-    parser.add_argument('--dir', help='Remote GCS dir containing the assets')
-    parser.add_argument('--infer', default=[], nargs='*',
-                        help='A list of full gs:// filenames to run inference on')
-    parser.add_argument('--force-retrain',
-                        action='store_true', help='Force retraining')
-    parser.add_argument('--eval-batch-size',
-                        type=int, default=8, help='eval_batch_size')
-    args = parser.parse_args()
-
-    remote_dir = args.dir
-    infer_fnames = args.infer
-    force_retrain = args.force_retrain
-    eval_batch_size = args.eval_batch_size
-
-    print("Hello from Training Script!")
-    print(f"remote_dir={remote_dir}")
+def run(remote_dirs, infer_fnames, force_retrain, eval_batch_size):
+    """
+    For all models in `remote_dirs`
+        Train if `force_retrain`
+        For all files in `infer_fnames`
+            Run model inference on those files using bsize `eval_batch_size`
+    """
+    print("Running Training & Inference")
+    print(f"remote_dirs={remote_dirs}")
     print(f"infer_fnames={infer_fnames}")
     print(f"force_retrain={force_retrain}")
     print(f"eval_batch_size={eval_batch_size}")
@@ -112,6 +101,33 @@ if __name__ == '__main__':
                     inference(local_model_dir, remote_dir,
                               fname, inference_cache)
 
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Train Model')
+    parser.add_argument('--dir', help='Remote GCS dir containing the assets')
+    parser.add_argument('--dirs', default=[], nargs='*',
+                        help='Remote GCS dirs containing the assets '
+                             '(takes precedence over the --dir argument)')
+    parser.add_argument('--infer', default=[], nargs='*',
+                        help='A list of full gs:// filenames to run inference on')
+    parser.add_argument('--force-retrain',
+                        action='store_true', help='Force retraining')
+    parser.add_argument('--eval-batch-size',
+                        type=int, default=8, help='eval_batch_size')
+    args = parser.parse_args()
+
+    remote_dir = args.dir
+    remote_dirs = args.dirs
+    infer_fnames = args.infer
+    force_retrain = args.force_retrain
+    eval_batch_size = args.eval_batch_size
+
+    if len(remote_dirs) == 0 and remote_dir:
+        remote_dirs.append(remote_dir)
+
+    run(remote_dirs, infer_fnames, force_retrain, eval_batch_size)
 
 '''
 Try it out locally:
