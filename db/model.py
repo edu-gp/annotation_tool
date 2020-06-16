@@ -4,7 +4,8 @@ import os
 from typing import List
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import create_engine, inspect, UniqueConstraint, MetaData
+from sqlalchemy import create_engine, inspect, UniqueConstraint, MetaData, \
+    Boolean
 from sqlalchemy.schema import ForeignKey, Column
 from sqlalchemy.types import Integer, Float, String, JSON, DateTime, Text
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
@@ -316,6 +317,7 @@ class Model(Base):
     # training system. UUID makes sure those jobs don't clash.
     uuid = Column(String(64), index=True, nullable=False, default=gen_uuid)
     version = Column(Integer, index=True, nullable=False, default=1)
+    is_active = Column(Boolean, default=False)
 
     classification_training_data_id = Column(Integer, ForeignKey(
         'classification_training_data.id'))
@@ -564,6 +566,9 @@ class Task(Base):
 
     def get_active_nlp_model(self):
         from inference.nlp_model import NLPModel
+        # TODO change this to be getting the active model specified by the
+        #  user. We can default to the latest version but should allow user
+        #  to choose their own.
         latest_model = self.get_latest_model()
         if latest_model is not None and latest_model.is_ready():
             return NLPModel(inspect(self).session, latest_model.id)

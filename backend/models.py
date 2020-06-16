@@ -1,6 +1,9 @@
+import logging
+
 from flask import (
-    Blueprint, request, jsonify
-)
+    Blueprint, request, jsonify,
+    redirect)
+from sqlalchemy.exc import DatabaseError
 
 from bg.jobs import export_new_raw_data as _export_new_raw_data
 from db.model import db, Model
@@ -48,3 +51,37 @@ def export_new_raw_data():
         resp['message'] = f"Error: {resp['error']}"
 
     return jsonify(resp)
+
+
+@bp.route('update_active_model', methods=['POST'])
+def update_active_model():
+    model_id = request.form.get("model_id")
+    new_active_model = db.session.query(Model).\
+        filter(Model.id == model_id).one_or_none()
+    logging.error(new_active_model)
+
+    current_active_model = db.session.query(Model).\
+        filter(Model.label == new_active_model.label,
+               Model.type == new_active_model.type,
+               Model.task_id == new_active_model.task_id,
+               Model.is_active == True).one_or_none()
+
+    if current_active_model:
+        current_active_model.is_active = False
+        db.session.add(current_active_model)
+
+    new_active_model.is_active = True
+    db.session.add(new_active_model)
+
+    try:
+        db.session.commit()
+    except DatabaseError as e:
+        db.session.rollback()
+        logging.error(e)
+        raise
+
+    logging.error(f"Updated model in task {new_active_model.task_id} "
+                  f"for label {new_active_model.label} "
+                  f"to version {new_active_model.version}")
+
+    return redirect(request.referrer)

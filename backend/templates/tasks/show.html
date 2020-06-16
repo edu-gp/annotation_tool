@@ -367,8 +367,19 @@
 
         <div class="row">
           <div class="col-9">
-
+            <form action="{{ url_for('models.update_active_model') }}" method="POST">
+                <button type="submit" class="btn btn-primary">Update Active Model</button>
             {% for mv in models_per_label.get(label, []) %}
+                <div class="card mt-4">
+                 <div class="card-body">
+                     {% if mv.is_active %}
+                        <input type="radio" name="model_id" value="{{mv.id}}" checked="checked"/> Active Model
+                     {% else %}
+                        <input type="radio" name="model_id" value="{{mv.id}}"/> Set Active
+                     {% endif %}
+                </div>
+                </div>
+
             <div class="card mt-4">
               <div class="card-body">
                 <h5>
@@ -500,9 +511,8 @@
                 {% endif %}
               </div>
             </div>
-
             {% endfor %}
-
+            </form>
           </div>
           <div class="col mt-4">
 
