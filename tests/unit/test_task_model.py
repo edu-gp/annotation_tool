@@ -58,7 +58,6 @@ def test_get_latest_and_active_model(dbsession, monkeypatch, tmp_path):
     task = Task(name='My Task', default_params={})
 
     assert task.get_latest_model() is None
-    assert task.get_active_nlp_model() is None
 
     model = TextClassificationModel()
     task.text_classification_models.append(model)
@@ -66,9 +65,7 @@ def test_get_latest_and_active_model(dbsession, monkeypatch, tmp_path):
     dbsession.commit()
 
     assert task.get_latest_model() is not None
-    assert task.get_active_nlp_model() is None
 
     fake_train_model(model, str(tmp_path))
 
     assert task.get_latest_model() is not None
-    assert task.get_active_nlp_model() is not None

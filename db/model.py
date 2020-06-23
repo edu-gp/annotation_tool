@@ -317,7 +317,7 @@ class Model(Base):
     # training system. UUID makes sure those jobs don't clash.
     uuid = Column(String(64), index=True, nullable=False, default=gen_uuid)
     version = Column(Integer, index=True, nullable=False, default=1)
-    is_active = Column(Boolean, default=False)
+    is_active = Column(Boolean(name='is_active'), default=False)
 
     classification_training_data_id = Column(Integer, ForeignKey(
         'classification_training_data.id'))
@@ -563,17 +563,6 @@ class Task(Base):
 
     def get_latest_model(self):
         return self.text_classification_models.first()
-
-    def get_active_nlp_model(self):
-        from inference.nlp_model import NLPModel
-        # TODO change this to be getting the active model specified by the
-        #  user. We can default to the latest version but should allow user
-        #  to choose their own.
-        latest_model = self.get_latest_model()
-        if latest_model is not None and latest_model.is_ready():
-            return NLPModel(inspect(self).session, latest_model.id)
-        else:
-            return None
 
     def __repr__(self):
         return "<Task with id {}, \nname {}, \ndefault_params {}>".format(
@@ -829,3 +818,21 @@ def delete_requests_for_label_under_task(dbsession, label, task_id):
 def delete_requests_under_task(dbsession, task_id):
     delete_requests_under_task_with_condition(dbsession,
                                               task_id=task_id)
+
+
+def get_active_model_for_label(dbsession, label,
+                               model_type="text_classification_model"):
+    active_model = dbsession.query(Model) \
+        .filter_by(label=label,
+                   type=model_type,
+                   is_active=True) \
+        .one_or_none()
+
+    if active_model is None:
+        active_model = dbsession.query(Model) \
+            .filter_by(label=label,
+                       type=model_type) \
+            .order_by(Model.version.desc()) \
+            .first()
+
+    return active_model

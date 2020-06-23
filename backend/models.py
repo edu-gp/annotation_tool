@@ -1,12 +1,10 @@
 import logging
 
-from flask import (
-    Blueprint, request, jsonify,
-    redirect)
+from flask import Blueprint, request, jsonify, redirect
 from sqlalchemy.exc import DatabaseError
 
 from bg.jobs import export_new_raw_data as _export_new_raw_data
-from db.model import db, Model
+from db.model import db, Model, get_active_model_for_label
 
 bp = Blueprint('models', __name__, url_prefix='/models')
 
@@ -58,13 +56,17 @@ def update_active_model():
     model_id = request.form.get("model_id")
     new_active_model = db.session.query(Model).\
         filter(Model.id == model_id).one_or_none()
-    logging.error(new_active_model)
 
-    current_active_model = db.session.query(Model).\
-        filter(Model.label == new_active_model.label,
-               Model.type == new_active_model.type,
-               Model.task_id == new_active_model.task_id,
-               Model.is_active == True).one_or_none()
+    # current_active_model = db.session.query(Model).\
+    #     filter(Model.label == new_active_model.label,
+    #            Model.type == new_active_model.type,
+    #            Model.is_active == True).one_or_none()
+
+    current_active_model = get_active_model_for_label(
+        dbsession=db.session,
+        label=new_active_model.label,
+        model_type=new_active_model.type
+    )
 
     if current_active_model:
         current_active_model.is_active = False
@@ -80,8 +82,7 @@ def update_active_model():
         logging.error(e)
         raise
 
-    logging.error(f"Updated model in task {new_active_model.task_id} "
-                  f"for label {new_active_model.label} "
-                  f"to version {new_active_model.version}")
+    logging.info(f"Updated model for label {new_active_model.label} "
+                 f"to version {new_active_model.version}")
 
     return redirect(request.referrer)

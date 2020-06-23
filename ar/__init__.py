@@ -10,7 +10,8 @@ from sqlalchemy import func
 from db.fs import filestore_base_dir, RAW_DATA_DIR
 from db.model import get_or_create, Task, \
     AnnotationRequest, User, AnnotationRequestStatus, ClassificationAnnotation, \
-    AnnotationValue, LabelPatterns, TextClassificationModel
+    AnnotationValue, LabelPatterns, TextClassificationModel, \
+    get_active_model_for_label
 from shared.utils import load_jsonl
 from inference.base import ITextCatModel
 from inference import get_predicted
@@ -47,14 +48,12 @@ def get_nlp_model_for_label(dbsession, label, version: int = None):
         label: -
         version: If version is None, then return the latest version.
     """
-    all_models = dbsession.query(TextClassificationModel) \
-        .filter_by(label=label) \
-        .order_by(TextClassificationModel.version.desc()) \
-        .all()
 
-    for model in all_models:
-        if model.is_ready():
-            return NLPModel(dbsession, model.id)
+    active_model = get_active_model_for_label(dbsession=dbsession, label=label)
+
+    if active_model and active_model.is_ready():
+        return NLPModel(dbsession, active_model.id)
+
     return None
 
 
