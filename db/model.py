@@ -325,10 +325,6 @@ class Model(Base):
 
     config = Column(JSON)
 
-    # Optionally associated with a Task
-    task_id = Column(Integer, ForeignKey('task.id'))
-    task = relationship("Task", back_populates="models")
-
     # Optionally associated with a Label
     label = Column(String, index=True, nullable=True)
 
@@ -485,12 +481,6 @@ class Task(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    models = relationship("Model", back_populates="task")
-    text_classification_models = relationship(
-        "TextClassificationModel",
-        order_by="desc(TextClassificationModel.version)",
-        lazy="dynamic")
-
     def __init__(self, *args, **kwargs):
         # Set default
         default_params = kwargs.get('default_params', {})
@@ -560,9 +550,6 @@ class Task(Base):
             self.__cached_pattern_model = PatternModel(patterns)
 
         return self.__cached_pattern_model
-
-    def get_latest_model(self):
-        return self.text_classification_models.first()
 
     def __repr__(self):
         return "<Task with id {}, \nname {}, \ndefault_params {}>".format(

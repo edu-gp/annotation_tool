@@ -50,22 +50,3 @@ def test_uuid_exists(dbsession):
 
     task = dbsession.query(Task).first()
     assert task.get_uuid() is not None
-
-
-def test_get_latest_and_active_model(dbsession, monkeypatch, tmp_path):
-    monkeypatch.setenv('ALCHEMY_FILESTORE_DIR', str(tmp_path))
-
-    task = Task(name='My Task', default_params={})
-
-    assert task.get_latest_model() is None
-
-    model = TextClassificationModel()
-    task.text_classification_models.append(model)
-    dbsession.add(task)
-    dbsession.commit()
-
-    assert task.get_latest_model() is not None
-
-    fake_train_model(model, str(tmp_path))
-
-    assert task.get_latest_model() is not None
