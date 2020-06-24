@@ -3,7 +3,7 @@ from db.model import (
     Task,
     ClassificationTrainingData,
     TextClassificationModel,
-)
+    Model)
 
 
 def test_flow(dbsession):
@@ -35,14 +35,19 @@ def test_flow(dbsession):
     # case that it succeeds, we save the model and any post-training inferences
     # that were completed.
 
-    model = TextClassificationModel(task=task)
+    model = TextClassificationModel(label='Smart')
 
     dbsession.add(model)
 
     dbsession.commit()
     dbsession.refresh(model)
 
-    # After everything, check if the relationships are right.
-    dbsession.refresh(task)
-    assert len(task.models) == 1
-    assert len(task.text_classification_models.all()) == 1
+    text_classification_models = dbsession.query(TextClassificationModel).\
+        filter(TextClassificationModel.label == "Smart").all()
+
+    assert len(text_classification_models) == 1
+
+    models = dbsession.query(Model).\
+        filter(Model.label == "Smart").all()
+
+    assert len(models) == 1
