@@ -47,15 +47,15 @@ def inference(local_dir, remote_dir, local_fname, inference_cache=None):
     copy_dir(local_dir, remote_dir)
 
 
-def run(remote_dirs, infer_fnames, force_retrain, eval_batch_size):
+def run(remote_model_dirs, infer_fnames, force_retrain, eval_batch_size):
     """
-    For all models in `remote_dirs`
+    For all models in `remote_model_dirs`
         Train if `force_retrain`
         For all files in `infer_fnames`
             Run model inference on those files using bsize `eval_batch_size`
     """
     print("Running Training & Inference")
-    print(f"remote_dirs={remote_dirs}")
+    print(f"remote_model_dirs={remote_model_dirs}")
     print(f"infer_fnames={infer_fnames}")
     print(f"force_retrain={force_retrain}")
     print(f"eval_batch_size={eval_batch_size}")
@@ -63,25 +63,32 @@ def run(remote_dirs, infer_fnames, force_retrain, eval_batch_size):
     if isinstance(eval_batch_size, int):
         os.environ['TRANSFORMER_EVAL_BATCH_SIZE'] = str(eval_batch_size)
 
-    if remote_dir is not None:
+    for remote_model_dir in remote_model_dirs:
         print(f"Executing Training Script")
 
         with tempfile.TemporaryDirectory() as local_dir:
+            # -----------------------------------------------------------------
+            # 1. Setup
             local_model_dir = os.path.join(local_dir, 'model')
             local_data_dir = os.path.join(local_dir, 'data')
 
             os.makedirs(local_model_dir, exist_ok=True)
             os.makedirs(local_data_dir, exist_ok=True)
 
-            # This will train the model if `force_retrain` or it doesn't exist.
-            train_model(local_model_dir, remote_dir,
+            # -----------------------------------------------------------------
+            # 2. Train model, if needed (unless force_retrain=True)
+            train_model(local_model_dir, remote_model_dir,
                         force_retrain=force_retrain)
 
-            # Inference on data sources.
+            # -----------------------------------------------------------------
+            # 3. Build a cache of previous inference results
+
             # Assuming inferences don't get stale, we can build a cache of all
             # previous inference to make sure we don't duplicate work. This is
             # important to make inference on incremental changes in data fast
             # and cost-efficient.
+
+            # TODO only build cache if we have some files for inference?
 
             # Get the names of all the files we have ran inference on.
             prev_infer_fnames = _get_all_inference_fnames(local_model_dir)
@@ -94,22 +101,25 @@ def run(remote_dirs, infer_fnames, force_retrain, eval_batch_size):
             inference_cache = \
                 build_inference_cache(local_model_dir, local_infer_fnames)
 
+            # -----------------------------------------------------------------
+            # 3. Run inference on all the files
             if len(infer_fnames) > 0:
                 local_fnames = download_files_to_local(
                     infer_fnames, local_data_dir)
                 for fname in local_fnames:
-                    inference(local_model_dir, remote_dir,
+                    # TODO don't run inference if we have already done it on that file.
+                    inference(local_model_dir, remote_model_dir,
                               fname, inference_cache)
+
+            # TODO remove model locally to save space!
 
 
 if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(description='Train Model')
-    parser.add_argument('--dir', help='Remote GCS dir containing the assets')
     parser.add_argument('--dirs', default=[], nargs='*',
-                        help='Remote GCS dirs containing the assets '
-                             '(takes precedence over the --dir argument)')
+                        help='Remote GCS dirs containing the assets.')
     parser.add_argument('--infer', default=[], nargs='*',
                         help='A list of full gs:// filenames to run inference on')
     parser.add_argument('--force-retrain',
@@ -118,14 +128,10 @@ if __name__ == '__main__':
                         type=int, default=8, help='eval_batch_size')
     args = parser.parse_args()
 
-    remote_dir = args.dir
     remote_dirs = args.dirs
     infer_fnames = args.infer
     force_retrain = args.force_retrain
     eval_batch_size = args.eval_batch_size
-
-    if len(remote_dirs) == 0 and remote_dir:
-        remote_dirs.append(remote_dir)
 
     run(remote_dirs, infer_fnames, force_retrain, eval_batch_size)
 

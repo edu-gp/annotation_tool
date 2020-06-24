@@ -29,8 +29,11 @@ trainingInput:
 import os
 import json
 import tempfile
+import uuid
+import re
+from collections import namedtuple
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from .paths import _get_version_dir
 from .no_deps.paths import (
     _get_config_fname,
@@ -41,7 +44,9 @@ from .no_deps.utils import (
     run_cmd
 )
 
-VERSION = '1'
+ModelDefn = namedtuple("ModelDefn", ("uuid", "version"))
+
+VERSION = '2'
 
 # n1-standard-4 + NVIDIA_TESLA_P100 gives us the best bang for the buck.
 JOB_CONFIG_TEMPLATE = '''
@@ -52,9 +57,7 @@ labels:
 trainingInput:
   scaleTier: CUSTOM
   masterType: n1-standard-4
-  args:
-    - "--dir"
-    - {model_dir}{formatted_infer_filenames}
+  args:{model_dirs}{infer_filenames}
     - "--eval-batch-size"
     - '16'
   region: us-central1
@@ -66,8 +69,22 @@ trainingInput:
 '''
 
 
+def _fmt_yaml_list(key, values: List[str], nspaces=0):
+    """Spacing matters since we're constructing a yaml file. This function
+    creates a string that represents a list of values in yaml."""
+    result = ''
+    if isinstance(values, list) and len(values) > 0:
+        result = []
+        prefix = ' '*nspaces
+        result.append(f'{prefix}- "--{key}"')
+        for v in values:
+            result.append(f'{prefix}- {v}')
+        result = '\n' + '\n'.join(result)
+    return result
+
+
 def build_job_config(
-        model_dir: str,
+        model_dirs: List[str],
         infer_filenames: List[str] = None,
         docker_image_uri: str = None,
         label_type: str = 'production',
@@ -75,7 +92,7 @@ def build_job_config(
         version: str = VERSION):
     """
     Inputs:
-        model_dir: The gs:// location of the model (Also known as the
+        model_dirs: The list of gs:// location of the models (Also known as the
             "version_dir" elsewhere in the codebase).
         infer_filenames: A list of gs:// locations for the files we would like
             to run inference on after training.
@@ -91,18 +108,13 @@ def build_job_config(
     assert docker_image_uri
 
     # Note: Spacing matters since we're constructing a yaml file.
-    formatted_infer_filenames = ''
-    if isinstance(infer_filenames, list) and len(infer_filenames) > 0:
-        formatted_infer_filenames = []
-        formatted_infer_filenames.append('\n    - "--infer"')
-        for fname in infer_filenames:
-            formatted_infer_filenames.append(f'    - {fname}')
-        formatted_infer_filenames = '\n'.join(formatted_infer_filenames)
+    fmt_model_dirs = _fmt_yaml_list('dirs', model_dirs, nspaces=4)
+    fmt_infer_filenames = _fmt_yaml_list('infer', infer_filenames, nspaces=4)
 
     # TODO simple formatting like this is subject to injection attack.
     return JOB_CONFIG_TEMPLATE.format(
-        model_dir=model_dir,
-        formatted_infer_filenames=formatted_infer_filenames,
+        model_dirs=fmt_model_dirs,
+        infer_filenames=fmt_infer_filenames,
         docker_image_uri=docker_image_uri,
         label_type=label_type,
         label_owner=label_owner,
@@ -127,10 +139,10 @@ def build_remote_data_fname(data_filename):
     return f'gs://{bucket}/data/{name}'
 
 
-def get_exp_id(model_uuid, model_version):
-    # Generate a Exp ID that hopefully is (likely to be) unique.
-    # Note: They don't allow '-' in the name, just '_'.
-    return f't_{model_uuid.replace("-", "_")}_v_{model_version}'
+def prepare_data_for_inference(fname):
+    remote_fname = build_remote_data_fname(fname)
+    gs_copy_file(fname, remote_fname)
+    return remote_fname
 
 
 def prepare_model_assets_for_training(model_uuid, model_version):
@@ -155,23 +167,62 @@ def prepare_model_assets_for_training(model_uuid, model_version):
     return output_dir
 
 
-class GCPJob:
-    """Remote job on the Google AI Platform
-    This can be used either for training or batch inference.
+def download(model: ModelDefn, include_weights=False):
+    """Download a model from cloud to local storage.
+    Args:
+        include_weights: If True, download the model weights as well.
     """
-
-    def __init__(self, model_uuid, model_version):
-        self.model_uuid = model_uuid
-        self.model_version = model_version
-
-    def download(self):
-        # Download everything except the 'model' dir to save space.
-        src_dir = build_remote_model_dir(self.model_uuid, self.model_version)
-        dst_dir = _get_version_dir(self.model_uuid, self.model_version)
+    src_dir = build_remote_model_dir(model.uuid, model.version)
+    dst_dir = _get_version_dir(model.uuid, model.version)
+    if include_weights:
+        run_cmd(f'gsutil -m rsync -r {src_dir} {dst_dir}')
+    else:
         run_cmd(f'gsutil -m rsync -x "model" -r {src_dir} {dst_dir}')
 
-    def get_status(self):
+
+def submit_google_ai_platform_job(job_id, config_file):
+    run_cmd(f'gcloud ai-platform jobs submit training {job_id}'
+            f' --config {config_file}')
+
+
+def submit_job(model_defns: List[ModelDefn],
+               files_for_inference: Optional[List[str]] = None,
+               force_retrain=False):
+    """
+    Returns:
+        The job id on Google AI Platform.
+    """
+    # TODO pass through the force_retrain parameter.
+
+    job_id = str(uuid.uuid4())
+
+    print("Upload model assets for training, if needed")
+    model_dirs = [prepare_model_assets_for_training(md.uuid, md.version)
+                  for md in model_defns]
+
+    print("Upload data for inference, if needed")
+    files_for_inference = files_for_inference or []
+    infer_filenames = [prepare_data_for_inference(fname)
+                       for fname in files_for_inference]
+
+    print("Submit job")
+    with tempfile.NamedTemporaryFile(mode="w") as fp:
+        model_config = build_job_config(
+            model_dirs=model_dirs,
+            infer_filenames=infer_filenames)
+        fp.write(model_config)
+        fp.flush()
+
+        submit_google_ai_platform_job(job_id, fp.name)
+
+    return job_id
+
+
+class GoogleAIPlatformJob:
+    def __init__(self, response: dict):
         """
+        Note: Construct this via GoogleAIPlatformJob.fetch(job_id)
+
         Example response:
         {
             "createTime": "2020-04-02T23:24:18Z",
@@ -180,16 +231,18 @@ class GCPJob:
             "labels": {
                 "owner": "alchemy",
                 "type": "production",
-                "version": "1"
+                "version": "2"
             },
             "startTime": "2020-04-02T23:27:09Z",
             "state": "RUNNING",
             "trainingInput": {
                 "args": [
-                    "--dir",
-                    "gs://_REDACTED_/tasks/99e5cb31-8343-4ec3-8b5e-c6cdedfb7e3d/models/5",
+                    "--dirs",
+                    "gs://_REDACTED_/tasks/99e5cb31-8343-4ec3-8b5e-c6cdedfb7e3d/models/6",
+                    "gs://_REDACTED_/tasks/99e5cb31-8343-4ec3-8b5e-c6cdedfb7e3d/models/7",
                     "--infer",
                     "gs://_REDACTED_/data/spring_jan_2020.jsonl",
+                    "gs://_REDACTED_/data/spring_feb_2020.jsonl",
                     "--eval-batch-size",
                     "16"
                 ],
@@ -207,12 +260,11 @@ class GCPJob:
             "trainingOutput": {}
         }
         """
+        self.response = response or {}
 
-        # TODO also use logs
-        # gcloud ai-platform jobs stream-logs {exp_id}
-
-        exp_id = get_exp_id(self.model_uuid, self.model_version)
-        cmd = f"gcloud ai-platform jobs describe {exp_id} --format json"
+    @classmethod
+    def fetch(cls, job_id: str):
+        cmd = f"gcloud ai-platform jobs describe {job_id} --format json"
 
         # TODO this is not best way to capture real error
         # vs when a status doens't exist.
@@ -222,43 +274,43 @@ class GCPJob:
             print(e)
             return None
         else:
-            return json.loads(res.stdout)
+            return cls(json.loads(res.stdout))
 
-    def submit(self, files_for_inference=None):
-        print("Upload model assets for training")
-        model_dir = prepare_model_assets_for_training(
-            self.model_uuid, self.model_version)
+    def get_state(self):
+        return self.response.get('state')
 
-        print("Upload data for inference")
-        infer_filenames = []
-        for fname in files_for_inference or []:
-            remote_fname = build_remote_data_fname(fname)
-            # TODO check file does not already exist remotely
-            gs_copy_file(fname, remote_fname)
-            infer_filenames.append(remote_fname)
+    def get_model_defns(self) -> List[ModelDefn]:
+        try:
+            training_args = self.response['trainingInput']['args']
+        except KeyError:
+            # self.response['trainingInput']['args'] does not exist
+            return []
+        else:
+            res = []
+            in_region = False
 
-        print("Submit training job")
-        with tempfile.NamedTemporaryFile(mode="w") as fp:
-            model_config = build_job_config(
-                model_dir=model_dir,
-                infer_filenames=infer_filenames)
-            fp.write(model_config)
-            fp.flush()
+            for el in training_args:
+                if in_region:
+                    if el.startswith('--'):
+                        # We've exited the region with model dirs.
+                        in_region = False
+                        # There should be no more.
+                        break
+                    else:
+                        res.append(el)
+                else:
+                    # v2 is called --dirs, v1 is called --dir
+                    if el == '--dirs' or el == '--dir':
+                        # We hit the region with model dirs.
+                        in_region = True
 
-            exp_id = get_exp_id(self.model_uuid, self.model_version)
+            model_defns = []
+            for remote_model_dir in res:
+                # remote_model_dir is of the form:
+                # "gs://_REDACTED_/tasks/8b5e-c6cdedfb7e3d/models/6"
+                # This parses out "8b5e-c6cdedfb7e3d" and "6"
+                m = re.match(".+/(.+)/models/(.+)", remote_model_dir)
+                md = ModelDefn(*m.groups())
+                model_defns.append(md)
 
-            cmd = f'gcloud ai-platform jobs submit training {exp_id} --config {fp.name}'
-            run_cmd(cmd)
-
-
-"""
-from train.gcp_job import GCPJob
-job = GCPJob('99e5cb31-8343-4ec3-8b5e-c6cdedfb7e3d', 5)
-job.submit()
-job.get_status()
-job.download()
-
-from train.gcp_job import GCPJob
-job = GCPJob('8a79a035-56fa-415c-8202-9297652dfe75', 6)
-job.submit()
-"""
+            return model_defns

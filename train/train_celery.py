@@ -6,7 +6,7 @@ from train.no_deps.run import (
     train_model as _train_model,
     inference as _inference
 )
-from train.gcp_job import GCPJob
+from train.gcp_job import ModelDefn, submit_job
 from train.gcp_celery import poll_status as gcp_poll_status
 
 app = Celery(
@@ -61,13 +61,12 @@ def submit_gcp_training(label, raw_file_path):
             raw_file_path=raw_file_path
         )
 
-        job = GCPJob(model.uuid, model.version)
+        model_defn = ModelDefn(model.uuid, model.version)
 
-        # TODO: A duplicate job would error out. Currently errors for
-        # background jobs are silent...
-        job.submit(files_for_inference=[raw_file_path])
+        job_id = submit_job(model_defns=[model_defn],
+                            files_for_inference=[raw_file_path])
 
-        gcp_poll_status.delay(model.id)
+        gcp_poll_status.delay(job_id)
     finally:
         db.session.close()
 

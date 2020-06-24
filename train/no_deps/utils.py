@@ -141,4 +141,5 @@ def gs_copy_dir(src_dir, dst_dir):
 
 
 def gs_copy_file(fname, dst):
-    run_cmd(f'gsutil cp {fname} {dst}')
+    # -n : No-clobber. When specified, existing files or objects at the destination will not be overwritten.
+    run_cmd(f'gsutil cp -n {fname} {dst}')
