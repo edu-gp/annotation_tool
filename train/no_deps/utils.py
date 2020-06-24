@@ -131,6 +131,8 @@ def run_cmd(cmd: str):
     Inputs:
         cmd: A command line command.
     """
+    # print the command for easier debugging
+    print(cmd)
     # check=True makes this function raise an Exception if the command fails.
     return subprocess.run(shlex.split(cmd), check=True, capture_output=True)
 
@@ -140,6 +142,10 @@ def gs_copy_dir(src_dir, dst_dir):
     run_cmd(f'gsutil -m rsync -r {src_dir} {dst_dir}')
 
 
-def gs_copy_file(fname, dst):
-    # -n : No-clobber. When specified, existing files or objects at the destination will not be overwritten.
-    run_cmd(f'gsutil cp -n {fname} {dst}')
+def gs_copy_file(fname, dst, no_clobber=True):
+    if no_clobber:
+        # -n : No-clobber. When specified, existing files or objects at the destination will not be overwritten.
+        run_cmd(f'gsutil cp -n {fname} {dst}')
+    else:
+        # Overwrite existing
+        run_cmd(f'gsutil cp {fname} {dst}')

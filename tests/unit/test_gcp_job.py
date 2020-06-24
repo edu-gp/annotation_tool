@@ -10,6 +10,7 @@ from train.gcp_job import (
 def test_build_job_config_simple(monkeypatch):
     monkeypatch.setenv('GOOGLE_AI_PLATFORM_DOCKER_IMAGE_URI',
                        'gcr.io/blah/myimage')
+    monkeypatch.setenv('GOOGLE_AI_PLATFORM_BUCKET', 'gs://blah')
 
     expected = '''
 labels:
@@ -22,6 +23,8 @@ trainingInput:
   args:
     - "--dirs"
     - gs://my_bucket/model_dir
+    - "--data-dir"
+    - gs://gs://blah/data
     - "--eval-batch-size"
     - '16'
   region: us-central1
@@ -41,6 +44,7 @@ trainingInput:
 def test_build_job_config_infer_1(monkeypatch):
     monkeypatch.setenv('GOOGLE_AI_PLATFORM_DOCKER_IMAGE_URI',
                        'gcr.io/blah/myimage')
+    monkeypatch.setenv('GOOGLE_AI_PLATFORM_BUCKET', 'gs://blah')
 
     expected = '''
 labels:
@@ -55,6 +59,8 @@ trainingInput:
     - gs://my_bucket/model_dir
     - "--infer"
     - gs://my_bucket/data/spring_jan_2020.jsonl
+    - "--data-dir"
+    - gs://gs://blah/data
     - "--eval-batch-size"
     - '16'
   region: us-central1
@@ -66,7 +72,7 @@ trainingInput:
     '''
 
     result = build_job_config(model_dirs=['gs://my_bucket/model_dir'],
-                              infer_filenames=[
+                              files_for_inference=[
                                   'gs://my_bucket/data/spring_jan_2020.jsonl'],
                               version='1')
     assert expected.strip() == result.strip()
@@ -75,6 +81,7 @@ trainingInput:
 def test_build_job_config_infer_2(monkeypatch):
     monkeypatch.setenv('GOOGLE_AI_PLATFORM_DOCKER_IMAGE_URI',
                        'gcr.io/blah/myimage')
+    monkeypatch.setenv('GOOGLE_AI_PLATFORM_BUCKET', 'gs://blah')
 
     expected = '''
 labels:
@@ -90,6 +97,8 @@ trainingInput:
     - "--infer"
     - gs://my_bucket/data/spring_jan_2020.jsonl
     - gs://my_bucket/data/spring_jan_2021.jsonl
+    - "--data-dir"
+    - gs://gs://blah/data
     - "--eval-batch-size"
     - '16'
   region: us-central1
@@ -101,7 +110,7 @@ trainingInput:
     '''
 
     result = build_job_config(model_dirs=['gs://my_bucket/model_dir'],
-                              infer_filenames=[
+                              files_for_inference=[
                                   'gs://my_bucket/data/spring_jan_2020.jsonl', 'gs://my_bucket/data/spring_jan_2021.jsonl'],
                               version='1')
 
@@ -111,6 +120,7 @@ trainingInput:
 def test_build_job_config_infer_3(monkeypatch):
     monkeypatch.setenv('GOOGLE_AI_PLATFORM_DOCKER_IMAGE_URI',
                        'gcr.io/blah/myimage')
+    monkeypatch.setenv('GOOGLE_AI_PLATFORM_BUCKET', 'gs://blah')
 
     expected = '''
 labels:
@@ -127,6 +137,8 @@ trainingInput:
     - "--infer"
     - gs://my_bucket/data/spring_jan_2020.jsonl
     - gs://my_bucket/data/spring_jan_2021.jsonl
+    - "--data-dir"
+    - gs://gs://blah/data
     - "--eval-batch-size"
     - '16'
   region: us-central1
@@ -138,7 +150,7 @@ trainingInput:
     '''
 
     result = build_job_config(model_dirs=['gs://my_bucket/model_dir1', 'gs://my_bucket/model_dir2'],
-                              infer_filenames=[
+                              files_for_inference=[
                                   'gs://my_bucket/data/spring_jan_2020.jsonl', 'gs://my_bucket/data/spring_jan_2021.jsonl'],
                               version='1')
 

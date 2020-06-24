@@ -27,9 +27,11 @@ def train_model(local_dir, remote_dir, force_retrain=False):
     copy_dir(local_dir, remote_dir)
 
 
-def download_files_to_local(fnames, local_data_dir):
+def download_files_to_local(remote_data_dir, fnames, local_data_dir):
+    remote_fnames = [f'{remote_data_dir}/{fname}' for fname in fnames]
+
     local_fnames = []
-    for fname in fnames:
+    for fname in remote_fnames:
         local_fname = os.path.join(local_data_dir, Path(fname).name)
         copy_file(fname, local_fname)
         local_fnames.append(local_fname)
@@ -41,13 +43,13 @@ def inference(local_dir, remote_dir, local_fname, inference_cache=None):
     copy_dir(remote_dir, local_dir)
 
     # Run Inference - results saved in local_dir
-    _inference(local_dir, local_fname, inference_cache)
+    _inference(local_dir, local_fname, inference_cache=inference_cache)
 
     # Upload results
     copy_dir(local_dir, remote_dir)
 
 
-def run(remote_model_dirs, infer_fnames, force_retrain, eval_batch_size):
+def run(remote_model_dirs, remote_data_dir, infer_fnames, force_retrain, eval_batch_size):
     """
     For all models in `remote_model_dirs`
         Train if `force_retrain`
@@ -95,8 +97,8 @@ def run(remote_model_dirs, infer_fnames, force_retrain, eval_batch_size):
             prev_infer_fnames = \
                 _inference_fnames_to_original_fnames(prev_infer_fnames)
             # Download them.
-            local_infer_fnames = \
-                download_files_to_local(prev_infer_fnames, local_data_dir)
+            local_infer_fnames = download_files_to_local(
+                remote_data_dir, prev_infer_fnames, local_data_dir)
             # Build a cache from them.
             inference_cache = \
                 build_inference_cache(local_model_dir, local_infer_fnames)
@@ -105,7 +107,7 @@ def run(remote_model_dirs, infer_fnames, force_retrain, eval_batch_size):
             # 3. Run inference on all the files
             if len(infer_fnames) > 0:
                 local_fnames = download_files_to_local(
-                    infer_fnames, local_data_dir)
+                    remote_data_dir, infer_fnames, local_data_dir)
                 for fname in local_fnames:
                     # TODO don't run inference if we have already done it on that file.
                     inference(local_model_dir, remote_model_dir,
@@ -120,23 +122,26 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train Model')
     parser.add_argument('--dirs', default=[], nargs='*',
                         help='Remote GCS dirs containing the assets.')
+    parser.add_argument('--data-dir',
+                        help='Location of raw data files.')
     parser.add_argument('--infer', default=[], nargs='*',
-                        help='A list of full gs:// filenames to run inference on')
+                        help='A list of filenames to run inference on')
     parser.add_argument('--force-retrain',
                         action='store_true', help='Force retraining')
     parser.add_argument('--eval-batch-size',
                         type=int, default=8, help='eval_batch_size')
     args = parser.parse_args()
 
-    remote_dirs = args.dirs
+    remote_model_dirs = args.dirs
+    data_dir = args.data_dir
     infer_fnames = args.infer
     force_retrain = args.force_retrain
     eval_batch_size = args.eval_batch_size
 
-    run(remote_dirs, infer_fnames, force_retrain, eval_batch_size)
+    run(remote_model_dirs, data_dir, infer_fnames, force_retrain, eval_batch_size)
 
 '''
 Try it out locally:
 
-python -m train.gcp_run --dir gs://alchemy-gp/tasks/8a79a035-56fa-415c-8202-9297652dfe75/models/3 --infer gs://alchemy-gp/data/spring_jan_2020_small.jsonl --eval-batch-size 32
+python -m train.no_deps.gcp_run --dir gs://alchemy-gp/tasks/8a79a035-56fa-415c-8202-9297652dfe75/models/3 --data-dir gs://alchemy-gp/data --infer spring_jan_2020_small.jsonl --eval-batch-size 32
 '''

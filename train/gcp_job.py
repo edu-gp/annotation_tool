@@ -11,10 +11,12 @@ trainingInput:
   scaleTier: CUSTOM
   masterType: n1-standard-4
   args:
-    - "--dir"
+    - "--dirs"
     - gs://_REDACTED_/tasks/8a79a035-56fa-415c-8202-9297652dfe75/models/6
+    - "--data-dir"
+    - gs://_REDACTED_/data
     - "--infer"
-    - gs://_REDACTED_/data/spring_jan_2020.jsonl
+    - spring_jan_2020.jsonl
     - "--eval-batch-size"
     - '16'
   region: us-central1
@@ -34,6 +36,7 @@ import re
 from collections import namedtuple
 from pathlib import Path
 from typing import List, Optional
+from db.utils import get_local_data_file_path
 from .paths import _get_version_dir
 from .no_deps.paths import (
     _get_config_fname,
@@ -57,7 +60,9 @@ labels:
 trainingInput:
   scaleTier: CUSTOM
   masterType: n1-standard-4
-  args:{model_dirs}{infer_filenames}
+  args:{model_dirs}{files_for_inference}
+    - "--data-dir"
+    - {remote_data_dir}
     - "--eval-batch-size"
     - '16'
   region: us-central1
@@ -85,7 +90,7 @@ def _fmt_yaml_list(key, values: List[str], nspaces=0):
 
 def build_job_config(
         model_dirs: List[str],
-        infer_filenames: List[str] = None,
+        files_for_inference: List[str] = None,
         docker_image_uri: str = None,
         label_type: str = 'production',
         label_owner: str = 'alchemy',
@@ -94,8 +99,7 @@ def build_job_config(
     Inputs:
         model_dirs: The list of gs:// location of the models (Also known as the
             "version_dir" elsewhere in the codebase).
-        infer_filenames: A list of gs:// locations for the files we would like
-            to run inference on after training.
+        files_for_inference: A list of files we would like to run inference on.
         docker_image_uri: The docker image URI. If None, will default to the
             env var GOOGLE_AI_PLATFORM_DOCKER_IMAGE_URI.
         label_type: Label for type.
@@ -109,12 +113,18 @@ def build_job_config(
 
     # Note: Spacing matters since we're constructing a yaml file.
     fmt_model_dirs = _fmt_yaml_list('dirs', model_dirs, nspaces=4)
-    fmt_infer_filenames = _fmt_yaml_list('infer', infer_filenames, nspaces=4)
+    fmt_files_for_inference = _fmt_yaml_list(
+        'infer', files_for_inference, nspaces=4)
+
+    bucket = os.environ.get('GOOGLE_AI_PLATFORM_BUCKET')
+    assert bucket, "Missing GOOGLE_AI_PLATFORM_BUCKET"
+    remote_data_dir = f'gs://{bucket}/data'
 
     # TODO simple formatting like this is subject to injection attack.
     return JOB_CONFIG_TEMPLATE.format(
         model_dirs=fmt_model_dirs,
-        infer_filenames=fmt_infer_filenames,
+        files_for_inference=fmt_files_for_inference,
+        remote_data_dir=remote_data_dir,
         docker_image_uri=docker_image_uri,
         label_type=label_type,
         label_owner=label_owner,
@@ -123,7 +133,7 @@ def build_job_config(
 
 def build_remote_model_dir(model_uuid, model_version):
     bucket = os.environ.get('GOOGLE_AI_PLATFORM_BUCKET')
-    assert bucket
+    assert bucket, "Missing GOOGLE_AI_PLATFORM_BUCKET"
     # Legacy path system - let's not change it in fear of breaking things
     return f'gs://{bucket}/tasks/{model_uuid}/models/{model_version}'
 
@@ -139,9 +149,10 @@ def build_remote_data_fname(data_filename):
     return f'gs://{bucket}/data/{name}'
 
 
-def prepare_data_for_inference(fname):
+def sync_data_file(fname):
+    local_fname = get_local_data_file_path(fname)
     remote_fname = build_remote_data_fname(fname)
-    gs_copy_file(fname, remote_fname)
+    gs_copy_file(local_fname, remote_fname, no_clobber=True)
     return remote_fname
 
 
@@ -187,12 +198,16 @@ def submit_google_ai_platform_job(job_id, config_file):
 
 def submit_job(model_defns: List[ModelDefn],
                files_for_inference: Optional[List[str]] = None,
-               force_retrain=False):
+               force_retrain=False,
+               submit_job_fn=None):
     """
     Returns:
         The job id on Google AI Platform.
     """
     # TODO pass through the force_retrain parameter.
+
+    if submit_job_fn is None:
+        submit_job_fn = submit_google_ai_platform_job
 
     job_id = str(uuid.uuid4())
 
@@ -202,18 +217,18 @@ def submit_job(model_defns: List[ModelDefn],
 
     print("Upload data for inference, if needed")
     files_for_inference = files_for_inference or []
-    infer_filenames = [prepare_data_for_inference(fname)
-                       for fname in files_for_inference]
+    for fname in files_for_inference:
+        sync_data_file(fname)
 
     print("Submit job")
     with tempfile.NamedTemporaryFile(mode="w") as fp:
         model_config = build_job_config(
             model_dirs=model_dirs,
-            infer_filenames=infer_filenames)
+            files_for_inference=files_for_inference)
         fp.write(model_config)
         fp.flush()
 
-        submit_google_ai_platform_job(job_id, fp.name)
+        submit_job_fn(job_id, fp.name)
 
     return job_id
 
@@ -314,3 +329,30 @@ class GoogleAIPlatformJob:
                 model_defns.append(md)
 
             return model_defns
+
+
+if __name__ == '__main__':
+    md = ModelDefn('229a971a-2a1c-47ec-9934-4e4abcef5bd6', '6')
+
+    # Part 1. Submit job
+    # '''
+    # python -m train.gcp_job
+    # '''
+
+    # def dummy_submit_job(job_id, config_file):
+    #     print(f"submitted job_id={job_id}")
+
+    # submit_job([md],
+    #            ['spring_jan_2020_small.jsonl',
+    #             'spring_jan_2020_small_v2.jsonl'],
+    #            submit_job_fn=dummy_submit_job)
+
+    # Part 2. Train & Inference (simulating it locally)
+    '''
+    Then, you can run the training & inference locally (this would be what's triggered automatically on GCP):
+    python -m train.no_deps.gcp_run --dirs gs://alchemy-gp/tasks/229a971a-2a1c-47ec-9934-4e4abcef5bd6/models/6 --data-dir gs://alchemy-gp/data --infer spring_jan_2020_small.jsonl spring_jan_2020_small_v2.jsonl --eval-batch-size 16
+    '''
+
+    # # Part 3. Download the result to local
+    # from train.gcp_job import download
+    # download(md)
