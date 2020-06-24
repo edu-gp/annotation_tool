@@ -12,9 +12,6 @@ RUN pip install google-cloud-secret-manager simple-salesforce PyJWT cryptography
 # GCP Cloud logging
 RUN pip install google-cloud-logging
 
-# AWS CLI
-RUN pip install boto3
-
 # Spring3 data fetcher
 RUN pip install ijson tqdm google-cloud-storage
 

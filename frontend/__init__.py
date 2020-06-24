@@ -19,7 +19,9 @@ from google.cloud.logging.handlers import CloudLoggingHandler, setup_logging
 
 client = glog.Client()
 
-handler = CloudLoggingHandler(client, name="alchemy-frontend")
+handler = CloudLoggingHandler(client,
+                              name=os.environ.get("FRONTEND_LOGGER",
+                                                  "alchemy-frontend"))
 logging.getLogger().setLevel(logging.INFO)
 setup_logging(handler)
 

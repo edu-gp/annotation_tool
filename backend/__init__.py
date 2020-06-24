@@ -15,7 +15,9 @@ from google.cloud.logging.handlers import CloudLoggingHandler, setup_logging
 
 client = glog.Client()
 
-handler = CloudLoggingHandler(client, name="alchemy-backend")
+handler = CloudLoggingHandler(client,
+                              name=os.environ.get("BACKEND_LOGGER",
+                                                  "alchemy-backend"))
 logging.getLogger().setLevel(logging.INFO)
 setup_logging(handler)
 
