@@ -31,6 +31,8 @@ Descriptions of the env vars:
 - `CLOUDSDK_COMPUTE_REGION`: The GCP region, e.g. "us-central1". You must set this in order for Google AI Platform to work.
 - `GCP_PROJECT_ID`: The id of the current project on GCP
 - `DB_URL_FOR_MIGRATION`: The link to the database instance when running migration.
+- `BACKEND_LOGGER`: The logger name for the alchemy backend server.
+- `FRONTEND_LOGGER`: The logger name for the alchemy frontend server.
 
 New env vars:
 
