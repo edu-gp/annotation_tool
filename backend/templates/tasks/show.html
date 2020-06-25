@@ -369,6 +369,7 @@
           <div class="col-9">
             <form action="{{ url_for('models.update_active_model') }}" method="POST">
                 <button type="submit" class="btn btn-primary">Update Active Model for {{ label }}</button>
+                <button type="submit" class="btn btn-primary" name="label" value="{{ label }}" formaction="{{ url_for('models.reset_active_model') }}" formmethod="POST">Reset Active Model for {{ label }}</button>
             {% for mv in models_per_label.get(label, []) %}
                 <div class="card mt-4">
                  <div class="card-body">

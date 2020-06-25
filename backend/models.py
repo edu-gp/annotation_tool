@@ -57,11 +57,6 @@ def update_active_model():
     new_active_model = db.session.query(Model).\
         filter(Model.id == model_id).one_or_none()
 
-    # current_active_model = db.session.query(Model).\
-    #     filter(Model.label == new_active_model.label,
-    #            Model.type == new_active_model.type,
-    #            Model.is_active == True).one_or_none()
-
     current_active_model = get_active_model_for_label(
         dbsession=db.session,
         label=new_active_model.label,
@@ -84,5 +79,30 @@ def update_active_model():
 
     logging.info(f"Updated model for label {new_active_model.label} "
                  f"to version {new_active_model.version}")
+
+    return redirect(request.referrer)
+
+
+@bp.route('reset_active_model', methods=['POST'])
+def reset_active_model():
+    label = request.form.get("label")
+
+    current_active_model = get_active_model_for_label(
+        dbsession=db.session,
+        label=label
+    )
+
+    if current_active_model:
+        current_active_model.is_active = False
+        db.session.add(current_active_model)
+
+    try:
+        db.session.commit()
+    except DatabaseError as e:
+        db.session.rollback()
+        logging.error(e)
+        raise
+
+    logging.info(f"Reset active model for label {label}.")
 
     return redirect(request.referrer)
