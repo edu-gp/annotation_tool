@@ -32,9 +32,13 @@
                 <div class="col">
 
                     <div class="form-group">
-                        <label for="domains">Domains (one per line)</label>
-                        <textarea class="form-control" name="domains" id="domains" rows=10 required>
-                    {{- request.form['domains'] -}}
+                        {% if request.form['entity_type'] == "company" %}
+                            <label for="entities">Domains (one per line)</label>
+                        {% else %}
+                            <label for="entities">{{ request.form['entity_type'] }} (one per line)</label>
+                        {% endif %}
+                        <textarea class="form-control" name="entities" id="entities" rows=10 required>
+                    {{- request.form['entities'] -}}
                   </textarea>
 
                     </div>

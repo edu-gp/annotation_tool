@@ -28,9 +28,11 @@ def index():
 
 @bp.route('/bulk', methods=['GET'])
 def bulk():
+    # TODO these two fields are not added to the html form
     request.form = {
         'user': request.args.get('user'),
         'label': request.args.get('label'),
+        'entity_type': request.args.get('entity_type')
     }
 
     return render_template('annotations/bulk.html',
@@ -41,14 +43,15 @@ def bulk():
 def bulk_post():
     import logging
     logging.error(request.form)
-    logging.error(request.form.get('domains'))
+    logging.error(request.form.get('entities'))
 
     try:
         # Validate Form
 
         redirect_to = request.form['redirect_to'] or '/'
 
-        user, label, domains, annotations = parse_form(request.form)
+        user, label, entities, annotations, entity_type = \
+            parse_form(request.form)
 
         # Insert into Database
 
@@ -60,22 +63,22 @@ def bulk_post():
         # For now, here's a less efficient solution.
         # Note: We can't use `get_or_create` since 'value' is a required field.
 
-        for domain, annotation in zip(domains, annotations):
+        for entity, annotation in zip(entities, annotations):
             anno = db.session.query(ClassificationAnnotation).filter_by(
-                entity_type=EntityTypeEnum.COMPANY, entity=domain,
+                entity_type=entity_type, entity=entity,
                 user=user, label=label
             ).first()
 
             if anno is None:
                 anno = ClassificationAnnotation(
-                    entity_type=EntityTypeEnum.COMPANY, entity=domain,
+                    entity_type=entity_type, entity=entity,
                     user=user, label=label,
                     value=annotation,
                     context={
                         "text": "N/A",
                         "meta": {
-                            "name": domain,
-                            "domain": domain
+                            "name": entity,
+                            "domain": entity  # TODO should we rename this for different entity_type?
                         }
                     }
                 )

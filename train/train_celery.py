@@ -26,13 +26,14 @@ app = Celery(
 
 
 @app.task
-def train_model(label, raw_file_path):
+def train_model(label, raw_file_path, entity_type):
     db = Database.from_config(DevelopmentConfig)
     try:
         model = prepare_next_model_for_label(
             db.session,
             label=label,
-            raw_file_path=raw_file_path
+            raw_file_path=raw_file_path,
+            entity_type=entity_type
         )
         model_dir = model.dir(abs=True)
 
@@ -52,13 +53,14 @@ def inference(model_dir, raw_file_path):
 
 
 @app.task
-def submit_gcp_training(label, raw_file_path):
+def submit_gcp_training(label, raw_file_path, entity_type):
     db = Database.from_config(DevelopmentConfig)
     try:
         model = prepare_next_model_for_label(
             db.session,
             label=label,
-            raw_file_path=raw_file_path
+            raw_file_path=raw_file_path,
+            entity_type=entity_type
         )
 
         model_defn = ModelDefn(model.uuid, model.version)
