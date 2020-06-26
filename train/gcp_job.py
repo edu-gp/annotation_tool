@@ -138,6 +138,10 @@ def build_remote_model_dir(model_uuid, model_version):
     return f'gs://{bucket}/tasks/{model_uuid}/models/{model_version}'
 
 
+def get_name(filename_or_path):
+    return Path(filename_or_path).name
+
+
 def build_remote_data_fname(data_filename):
     """
     Inputs:
@@ -145,8 +149,7 @@ def build_remote_data_fname(data_filename):
     """
     bucket = os.environ.get('GOOGLE_AI_PLATFORM_BUCKET')
     assert bucket
-    name = Path(data_filename).name
-    return f'gs://{bucket}/data/{name}'
+    return f'gs://{bucket}/data/{get_name(data_filename)}'
 
 
 def sync_data_file(fname):
@@ -209,14 +212,19 @@ def submit_job(model_defns: List[ModelDefn],
     if submit_job_fn is None:
         submit_job_fn = submit_google_ai_platform_job
 
-    job_id = str(uuid.uuid4())
+    # A valid job_id only contains letters, numbers and underscores
+    # AND must start with a letter.
+    job_id = 't_' + str(uuid.uuid4()).replace('-', '_')
 
     print("Upload model assets for training, if needed")
     model_dirs = [prepare_model_assets_for_training(md.uuid, md.version)
                   for md in model_defns]
 
-    print("Upload data for inference, if needed")
+    # Make sure the filenames are _names_, not _paths_
     files_for_inference = files_for_inference or []
+    files_for_inference = [get_name(f) for f in files_for_inference]
+
+    print("Upload data for inference, if needed")
     for fname in files_for_inference:
         sync_data_file(fname)
 
