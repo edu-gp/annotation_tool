@@ -7,7 +7,8 @@ from flask import (
 
 from db.model import db, Task, Model, AnnotationGuide, LabelPatterns, \
     delete_requests_for_user_under_task, \
-    delete_requests_for_label_under_task, delete_requests_under_task
+    delete_requests_for_label_under_task, delete_requests_under_task, \
+    ModelDeploymentConfig
 from db.utils import get_all_data_files
 from ar.data import compute_annotation_statistics_db, \
     compute_annotation_request_statistics
@@ -81,7 +82,6 @@ def create():
         return render_template('tasks/new.html', data_fnames=data_fnames)
 
 
-
 @bp.route('/<string:id>', methods=['GET'])
 def show(id):
     task = db.session.query(Task).filter_by(id=id).one_or_none()
@@ -149,10 +149,25 @@ def show(id):
 
     # TODO optimize query
     models_per_label = {}
+    deployment_configs_per_model = {}
     for label in task.get_labels():
         models = db.session.query(Model).filter_by(
             label=label).order_by(Model.created_at.desc()).limit(10).all()
         models_per_label[label] = models
+        model_ids = [model.id for model in models]
+        res = db.session.query(
+            ModelDeploymentConfig.model_id,
+            ModelDeploymentConfig.is_approved,
+            ModelDeploymentConfig.is_selected_for_deployment,
+            ModelDeploymentConfig.threshold).\
+            filter(ModelDeploymentConfig.model_id.in_(model_ids)).all()
+        for model_id, is_approved, is_selected_for_deployment, threshold in \
+                res:
+            deployment_configs_per_model[model_id] = {
+                "is_approved": is_approved,
+                "is_selected_for_deployment": is_selected_for_deployment,
+                "threshold": threshold
+            }
 
     return render_template(
         'tasks/show.html',
@@ -161,6 +176,7 @@ def show(id):
         annotation_request_statistics=annotation_request_statistics,
         status_assign_jobs=status_assign_jobs_active,
         models_per_label=models_per_label,
+        deployment_configs_per_model=deployment_configs_per_model,
         annotator_login_links=annotator_login_links,
         admin_examine_links=admin_examine_links,
         labels_and_attributes=labels_and_attributes,

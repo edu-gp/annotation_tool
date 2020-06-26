@@ -4,7 +4,8 @@ from flask import Blueprint, request, jsonify, redirect
 from sqlalchemy.exc import DatabaseError
 
 from bg.jobs import export_new_raw_data as _export_new_raw_data
-from db.model import db, Model, get_active_model_for_label
+from db.model import db, Model, get_active_model_for_label, get_or_create, \
+    ModelDeploymentConfig
 
 bp = Blueprint('models', __name__, url_prefix='/models')
 
@@ -51,24 +52,34 @@ def export_new_raw_data():
     return jsonify(resp)
 
 
-@bp.route('update_active_model', methods=['POST'])
-def update_active_model():
-    model_id = request.form.get("model_id")
-    new_active_model = db.session.query(Model).\
-        filter(Model.id == model_id).one_or_none()
+@bp.route('update_model_deployment_config', methods=['POST'])
+def update_model_deployment_config():
+    approved_model_ids = set(request.form.getlist("approved_model_id"))
+    selected_model_id_for_deployment = request.form.get("selected_model_id")
+    threshold = float(request.form.get("selected_threshold"))
 
-    current_active_model = get_active_model_for_label(
-        dbsession=db.session,
-        label=new_active_model.label,
-        model_type=new_active_model.type
-    )
+    label = request.form.get("label")
 
-    if current_active_model:
-        current_active_model.is_active = False
-        db.session.add(current_active_model)
+    models = db.session.query(Model).filter(Model.label == label).all()
 
-    new_active_model.is_active = True
-    db.session.add(new_active_model)
+    for model in models:
+        model_deployment_config = db.session.query(ModelDeploymentConfig).\
+            filter(ModelDeploymentConfig.model_id == model.id).one_or_none()
+        is_approved = str(model.id) in approved_model_ids
+        is_selected_for_deployment = str(model.id) == selected_model_id_for_deployment
+        if model_deployment_config:
+            model_deployment_config.is_approved = is_approved
+            model_deployment_config.is_selected_for_deployment = is_selected_for_deployment
+            if is_selected_for_deployment:
+                model_deployment_config.threshold = threshold
+        else:
+            model_deployment_config = ModelDeploymentConfig(
+                model_id=model.id,
+                is_approved=is_approved,
+                is_selected_for_deployment=is_selected_for_deployment,
+                threshold=threshold if is_selected_for_deployment else 0.5
+            )
+        db.session.add(model_deployment_config)
 
     try:
         db.session.commit()
@@ -77,8 +88,7 @@ def update_active_model():
         logging.error(e)
         raise
 
-    logging.info(f"Updated model for label {new_active_model.label} "
-                 f"to version {new_active_model.version}")
+    logging.info(f"Updated model deployment config for label {label}.")
 
     return redirect(request.referrer)
 

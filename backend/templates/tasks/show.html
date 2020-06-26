@@ -367,17 +367,52 @@
 
         <div class="row">
           <div class="col-9">
-            <form action="{{ url_for('models.update_active_model') }}" method="POST">
-                <button type="submit" class="btn btn-primary">Update Active Model for {{ label }}</button>
-                <button type="submit" class="btn btn-primary" name="label" value="{{ label }}" formaction="{{ url_for('models.reset_active_model') }}" formmethod="POST">Reset Active Model for {{ label }}</button>
+            <form action="{{ url_for('models.update_model_deployment_config') }}" method="POST">
+                <button type="submit" class="btn btn-primary">Update Model Deployment Config for {{ label }}</button>
+                <input type="hidden" name="label" value="{{ label }}" />
+{#                <button type="submit" class="btn btn-primary" name="label" value="{{ label }}" formaction="{{ url_for('models.reset_active_model') }}" formmethod="POST">Reset Active Model for {{ label }}</button>#}
             {% for mv in models_per_label.get(label, []) %}
                 <div class="card mt-4">
                  <div class="card-body">
-                     {% if mv.is_active %}
-                        <input type="radio" name="model_id" value="{{mv.id}}" checked="checked"/> Active Model
+                     {% set deployment_config = deployment_configs_per_model[mv.id] %}
+                     {% if deployment_config and deployment_config["is_approved"] %}
+                         <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}" checked="checked" onclick="displayRadioButton(this.id)"/> Approved
                      {% else %}
-                        <input type="radio" name="model_id" value="{{mv.id}}"/> Set Active
+                         <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}" onclick="displayRadioButton(this.id)"/> Approved
                      {% endif %}
+
+                     {% if deployment_config and deployment_config["is_approved"] %}
+                         <div id="{{mv.id}}_div_radio">
+                             <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}" checked="checked"/>
+                             <label for="selected_model_id">Selected for deployment</label>
+                         </div>
+                     {% else %}
+                         <div id="{{mv.id}}_div_radio" style="display: none">
+                             <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}"/>
+                             <label for="selected_model_id">Selected for deployment</label>
+                         </div>
+                     {% endif %}
+
+                     {% if deployment_config and deployment_config["is_selected_for_deployment"] %}
+                         <div id="{{mv.id}}_div_threshold">
+                             <label for="threshold">Threshold</label>
+                             <input type="text" name="threshold" value="{{ deployment_config["threshold"] }}"/>
+                         </div>
+                     {% else %}
+                         <div id="{{mv.id}}_div_threshold" style="display: none">
+                             <label for="threshold">Threshold</label>
+                             {% if deployment_config %}
+                                 {% if deployment_config["is_selected_for_deployment"] %}
+                                     <input type="text" name="selected_threshold" value="{{ deployment_config["threshold"] }}"/>
+                                 {% else %}
+                                    <input type="text" name="threshold" value="{{ deployment_config["threshold"] }}"/>
+                                 {% endif %}
+                             {% else %}
+                                 <input type="text" name="threshold"/>
+                             {% endif %}
+                         </div>
+                     {% endif %}
+
                 </div>
                 </div>
 
@@ -535,6 +570,38 @@
 </div>
 
 <script>
+  document.querySelectorAll('input[type="radio"]').forEach(function(a){
+      a.addEventListener("click", function() {
+          let threshold_divs = document.querySelectorAll('div[id$="_div_threshold"]')
+          threshold_divs.forEach(function(div){
+              div.style.display = 'none';
+              let threshold_input = div.querySelector('input');
+              threshold_input.name = 'threshold'
+          })
+          let model_id = this.id.split("_")[0];
+          let div_threshold = document.getElementById(model_id + "_div_threshold");
+          div_threshold.style.display = 'block';
+          let threshold_input = div_threshold.querySelector('input');
+          threshold_input.name = 'selected_threshold'
+      })
+
+  })
+
+  function displayRadioButton(id) {
+      let checkbox = document.getElementById(id);
+      let model_id = id.split("_")[0];
+      let radio_button = document.getElementById(model_id + "_radio");
+      let div_radio = document.getElementById(model_id + "_div_radio");
+      let div_threshold = document.getElementById(model_id + "_div_threshold");
+      if (checkbox.checked) {
+          div_radio.style.display = 'block';
+      } else {
+          div_radio.style.display = 'none';
+          div_threshold.style.display = 'none';
+          radio_button.checked = false;
+      }
+  }
+
   //https://www.sanwebe.com/2014/04/select-all-text-in-element-on-click
   function selectText(id) {
     var sel, range;

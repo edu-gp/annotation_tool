@@ -306,6 +306,16 @@ class ClassificationTrainingData(Base):
         return file_len(self.path())
 
 
+class ModelDeploymentConfig(Base):
+    __tablename__ = 'model_deployment_config'
+    id = Column(Integer, primary_key=True)
+    model_id = Column(Integer, ForeignKey('model.id'), nullable=False)
+    is_approved = Column(Boolean(name='is_approved'), default=False)
+    is_selected_for_deployment = Column(
+        Boolean(name='is_selected_for_deployment'), default=False)
+    threshold = Column(Float, default=0.5)
+
+
 class Model(Base):
     __tablename__ = 'model'
 
@@ -816,10 +826,16 @@ def get_active_model_for_label(dbsession, label,
         .one_or_none()
 
     if active_model is None:
-        active_model = dbsession.query(Model) \
+        active_model = get_latest_model_for_label(dbsession, label, model_type)
+
+    return active_model
+
+
+def get_latest_model_for_label(dbsession, label,
+                               model_type="text_classification_model"):
+
+    return dbsession.query(Model) \
             .filter_by(label=label,
                        type=model_type) \
             .order_by(Model.version.desc()) \
             .first()
-
-    return active_model
