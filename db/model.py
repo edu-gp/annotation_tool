@@ -825,6 +825,13 @@ def delete_requests_for_label_under_task(dbsession, label, task_id):
                                               label=label)
 
 
+def delete_requests_for_entity_type_under_task(dbsession, task_id,
+                                               entity_type):
+    delete_requests_under_task_with_condition(dbsession,
+                                              task_id=task_id,
+                                              entity_type=entity_type)
+
+
 def delete_requests_under_task(dbsession, task_id):
     delete_requests_under_task_with_condition(dbsession,
                                               task_id=task_id)

@@ -31,6 +31,19 @@
       value="{{ request.form['data'] | default(task.get_data_filenames()[0]) }}" required>
   </div>
 
+  <div class="form-group">
+    <label for="name">Entity Type</label>
+    <select name="entity_type">
+        {% for type in entity_types %}
+            {% if type == task.get_entity_type() %}
+                <option value="{{ type }}" selected>{{ type }}</option>
+            {% else %}
+                <option value="{{ type }}">{{ type }}</option>
+            {% endif %}
+        {% endfor %}
+    </select>
+  </div>
+
   <div class="row">
     <div class="col">
 

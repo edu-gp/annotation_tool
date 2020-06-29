@@ -15,6 +15,7 @@
 
         <form action="{{ url_for('annotations.bulk_post') }}" method="POST">
             <input type="hidden" name="redirect_to" value="{{ request.form['redirect_to'] | default(redirect_to) }}" />
+            <input type="hidden" name="entity_type" value="{{ request.form['entity_type'] | default(None) }}" />
 
             <div class="form-group">
                 <label for="user">User</label>
@@ -28,6 +29,19 @@
                     required>
             </div>
 
+            <div class="form-group">
+                <label for="label">Entity Type</label><br/>
+                <select name="entity_type">
+                    {% for type in entity_types %}
+                        {% if 'entity_type' in request.form and type == request.form['entity_type'] %}
+                            <option value="{{ type }}" selected>{{ type }}</option>
+                        {% else %}
+                            <option value="{{ type }}">{{ type }}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+
             <div class="row">
                 <div class="col">
 
@@ -35,7 +49,7 @@
                         {% if request.form['entity_type'] == "company" %}
                             <label for="entities">Domains (one per line)</label>
                         {% else %}
-                            <label for="entities">{{ request.form['entity_type'] }} (one per line)</label>
+                            <label for="entities">Entities (one per line)</label>
                         {% endif %}
                         <textarea class="form-control" name="entities" id="entities" rows=10 required>
                     {{- request.form['entities'] -}}

@@ -36,7 +36,8 @@ def bulk():
     }
 
     return render_template('annotations/bulk.html',
-                           redirect_to=request.referrer)
+                           redirect_to=request.referrer,
+                           entity_types=EntityTypeEnum.get_all_entity_types())
 
 
 @bp.route('/bulk', methods=['POST'])
@@ -52,6 +53,9 @@ def bulk_post():
 
         user, label, entities, annotations, entity_type = \
             parse_form(request.form)
+
+        # TODO should we add check on the User and Label?
+        #  We should only accept upload from existing users and labels.
 
         # Insert into Database
 
@@ -70,17 +74,28 @@ def bulk_post():
             ).first()
 
             if anno is None:
+                if entity_type == EntityTypeEnum.COMPANY:
+                    context = {
+                        "text": "N/A",
+                        "meta": {
+                            "name": entity,
+                            "domain": entity
+                        }
+                    }
+                else:
+                    context = {
+                        "text": "N/A",
+                        "meta": {
+                            "name": entity
+                            # TODO we probably should name `domain` to
+                            #  something else according to the entity type
+                        }
+                    }
                 anno = ClassificationAnnotation(
                     entity_type=entity_type, entity=entity,
                     user=user, label=label,
                     value=annotation,
-                    context={
-                        "text": "N/A",
-                        "meta": {
-                            "name": entity,
-                            "domain": entity  # TODO should we rename this for different entity_type?
-                        }
-                    }
+                    context=context
                 )
             else:
                 anno.value = annotation

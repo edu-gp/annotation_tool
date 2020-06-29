@@ -15,6 +15,9 @@ def parse_form(form: dict):
     user = form.get('user')
     label = form.get('label')
     entity_type = form.get('entity_type')
+    if entity_type == 'None':
+        entity_type = None
+
     entities = _parse_list(form, 'entities')
     annotations = _parse_list(form, 'annotations')
 
