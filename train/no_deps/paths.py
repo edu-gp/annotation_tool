@@ -58,3 +58,19 @@ def _get_all_inference_fnames(version_dir):
             if f.endswith('.pred.npy'):
                 res.append(f'{dirname}/{f}')
     return res
+
+
+def _inference_fnames_to_original_fnames(fnames):
+    # Only retain files with the valid ending, and convert them to .jsonl
+    ending = '.pred.npy'
+
+    res = []
+    for fname in fnames:
+        # Remove any directory prefix.
+        fname = Path(fname).name
+        if fname.endswith(ending):
+            # Swap ending with '.jsonl'
+            fname = fname[:-len(ending)] + '.jsonl'
+            res.append(fname)
+
+    return res

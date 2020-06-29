@@ -1,8 +1,6 @@
 import time
 from celery import Celery
-from train.gcp_job import GCPJob
-from db.model import Database, Model
-from db.config import DevelopmentConfig
+from train.gcp_job import GoogleAIPlatformJob, download
 
 app = Celery(
     # module name
@@ -17,32 +15,20 @@ app = Celery(
 
 
 @app.task
-def poll_status(model_id):
-    db = Database.from_config(DevelopmentConfig)
-    try:
-        model = db.session.query(Model).filter_by(id=model_id).one_or_none()
+def poll_status(job_id):
+    # TODO put this on a queue, rather than just a loop check.
+    while True:
+        job = GoogleAIPlatformJob.fetch(job_id)
 
-        assert model, f"Model not found model_id={model_id}"
-
-        job = GCPJob(model.uuid, model.version)
-
-        while True:
-            status = job.get_status()
-
-            if status is None:
-                print("Unknown job status")
+        if job is None:
+            raise Exception("Unknown job")
+        else:
+            if job.get_state() == 'SUCCEEDED':
+                for md in job.get_model_defns():
+                    download(md)
                 break
-                # TODO: Print the actual error.
-            else:
-                print(status)
 
-                if status.get('state') == 'SUCCEEDED':
-                    job.download()
-                    break
-
-            time.sleep(60)
-    finally:
-        db.session.close()
+        time.sleep(60)
 
 
 app.conf.task_routes = {'*.gcp_celery.*': {'queue': 'gcp_celery'}}

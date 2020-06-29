@@ -33,3 +33,7 @@ def get_all_pattern_files():
     d = os.path.join(filestore_base_dir(), RAW_DATA_DIR)
     return sorted([x for x in os.listdir(d)
                    if is_pattern_file(os.path.join(d, x))])
+
+
+def get_local_data_file_path(fname):
+    return os.path.join(filestore_base_dir(), RAW_DATA_DIR, fname)

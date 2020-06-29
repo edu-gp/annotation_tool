@@ -6,7 +6,7 @@ from train.no_deps.run import (
     train_model as _train_model,
     inference as _inference
 )
-from train.gcp_job import GCPJob
+from train.gcp_job import ModelDefn, submit_job
 from train.gcp_celery import poll_status as gcp_poll_status
 
 app = Celery(
@@ -61,13 +61,39 @@ def submit_gcp_training(label, raw_file_path):
             raw_file_path=raw_file_path
         )
 
-        job = GCPJob(model.uuid, model.version)
+        model_defn = ModelDefn(model.uuid, model.version)
 
-        # TODO: A duplicate job would error out. Currently errors for
-        # background jobs are silent...
-        job.submit(files_for_inference=[raw_file_path])
+        job_id = submit_job(model_defns=[model_defn],
+                            files_for_inference=[raw_file_path])
 
-        gcp_poll_status.delay(model.id)
+        gcp_poll_status.delay(job_id)
+    finally:
+        db.session.close()
+
+
+@app.task
+def submit_gcp_inference(label, version, raw_file_path):
+    '''
+    TODO: Use this function in prod when new data arrives.
+
+    Staging test:
+    from train.train_celery import submit_gcp_inference
+    submit_gcp_inference.delay('Healthcare', 7, 'spring_jan_2020.jsonl')
+    '''
+    from db.model import TextClassificationModel
+    db = Database.from_config(DevelopmentConfig)
+    try:
+        model = db.session.query(TextClassificationModel).filter_by(
+            label=label, version=version).one_or_none()
+
+        assert model, f"Model not found - label={label} version={version}"
+
+        model_defn = ModelDefn(model.uuid, model.version)
+
+        job_id = submit_job(model_defns=[model_defn],
+                            files_for_inference=[raw_file_path])
+
+        gcp_poll_status.delay(job_id)
     finally:
         db.session.close()
 

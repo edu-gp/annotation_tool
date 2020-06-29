@@ -6,7 +6,6 @@ so we can use it for distributed model training.
 import re
 import os
 import json
-from typing import List
 from pathlib import Path
 
 from sklearn.model_selection import train_test_split
@@ -122,17 +121,7 @@ def train_model(version_dir, train_fn=None, force_retrain=False):
     })
 
 
-def inference(version_dir, fnames: List[str],
-              build_model_fn=None, generate_plots=True):
-    """
-    Inputs:
-        fnames: A list of filenames to run inference on.
-
-    Results will be stored in version_dir/inference
-    """
-
-    # --- LOAD MODEL ---
-
+def load_model(version_dir, build_model_fn=None):
     config = load_json(_get_config_fname(version_dir))
 
     # You can increase TRANSFORMER_EVAL_BATCH_SIZE for faster inference.
@@ -144,44 +133,89 @@ def inference(version_dir, fnames: List[str],
     model = build_model_fn(config['train_config'],
                            model_dir=_get_model_output_dir(version_dir))
 
-    # --- LOAD METADATA ---
+    return model
 
+
+def plot_results(version_dir, fname, inference_results) -> None:
     data_parser = load_json(_get_data_parser_fname(version_dir))
-    problem_type = data_parser['problem_type']
-    class_order = data_parser['class_order']
 
-    # --- RUN INFERENCE ---
+    if data_parser['problem_type'] == BINARY_CLASSIFICATION:
+        # Plot positive class for binary classification
+        class_name = data_parser['class_order'][0]
+        class_name = re.sub('[^0-9a-zA-Z]+', '_', class_name)
+        outname = _get_inference_density_plot_fname(
+            version_dir, fname, class_name)
+        _plot(outname, inference_results.probs,
+              f'{class_name} : {Path(fname).name}')
+    else:
+        raise Exception("generate_plots only supports binary classification")
+
+
+def inference(version_dir, fname,
+              build_model_fn=None, generate_plots=True, inference_cache=None):
+    """
+    Inputs:
+        fname: A .jsonl file to run inference on.
+            Each line should contain a "text" key.
+
+    Results will be stored in version_dir/inference
+    """
+
+    model = load_model(version_dir, build_model_fn)
+
+    # Run Inference on fname
+    text = load_original_data_text(fname)
+    if inference_cache:
+        # If using the cache, we first pick out the elements not in cache
+        # and send those for inference.
+        to_infer = []
+        for t in text:
+            if inference_cache.get(t) is None:
+                to_infer.append(t)
+        _, raw = model.predict(to_infer)
+        # After we receive the results, update the cache.
+        for x, y in zip(to_infer, raw):
+            inference_cache[x] = y
+
+        # Finally, using the updated cache to populate all the raw results.
+        raw = []
+        for t in text:
+            # By now, all elements in text should have some results,
+            # so we can safely use [ ] to access.
+            raw.append(inference_cache[t])
+    else:
+        # If not using the cache, we just predict on all text.
+        _, raw = model.predict(text)
+        to_infer = text
+
+    inference_results = InferenceResults(raw)
+
+    # Make sure the output dir exists and save it
+    inference_results.save(_get_inference_fname(version_dir, fname))
+
+    # Generate Plots
+    if generate_plots:
+        plot_results(version_dir, fname, inference_results)
+
+    return model, inference_results
+
+
+def build_inference_cache(version_dir, fnames):
+    """Build an inference cache from the previous inference results by the
+    model in version_dir on the files in fnames.
+    """
+    lookup = {}
 
     for fname in fnames:
-        # Run Inference on fname
         text = load_original_data_text(fname)
-        _, raw = model.predict(text)
-        inference_results = InferenceResults(raw)
+        inf = InferenceResults.load(_get_inference_fname(version_dir, fname))
 
-        # Make sure the output dir exists and save it
-        inf_output_fname = _get_inference_fname(version_dir, fname)
-        inference_results.save(inf_output_fname)
+        if text and inf:
+            for x, y in zip(text, inf.raw):
+                if x:
+                    lookup[x] = y
 
-        # Generate Plots
-        if generate_plots:
-            if problem_type == BINARY_CLASSIFICATION:
-                # Plot positive class for binary classification
-                class_name = class_order[0]
-                class_name = re.sub('[^0-9a-zA-Z]+', '_', class_name)
-                outname = _get_inference_density_plot_fname(
-                    version_dir, fname, class_name)
-                _plot(outname, inference_results.probs,
-                      f'{class_name} : {Path(fname).name}')
-            else:
-                raise Exception(
-                    "generate_plots only supports binary classification")
-            # TODO: We don't fully support MULTILABEL_CLASSIFICATION at the moment.
-            # elif problem_type == MULTILABEL_CLASSIFICATION:
-            #     # Plot all classes for multilabel classification
-            #     for i, class_name in enumerate(class_order):
-            #         outname = _get_inference_density_plot_fname(version_dir, fname, class_name)
-            #         # TODO get_prob_for_class is deprecated
-            #         _plot(outname, inference_results.get_prob_for_class(i), f'{class_name} : {fname}')
+    return lookup
 
 
 def _plot(outname, data, title):
