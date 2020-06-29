@@ -372,49 +372,53 @@
                 <input type="hidden" name="label" value="{{ label }}" />
 {#                <button type="submit" class="btn btn-primary" name="label" value="{{ label }}" formaction="{{ url_for('models.reset_active_model') }}" formmethod="POST">Reset Active Model for {{ label }}</button>#}
             {% for mv in models_per_label.get(label, []) %}
-                <div class="card mt-4">
-                 <div class="card-body">
-                     {% set deployment_config = deployment_configs_per_model[mv.id] %}
-                     {% if deployment_config and deployment_config["is_approved"] %}
-                         <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}" checked="checked" onclick="displayRadioButton(this.id)"/> Approved
-                     {% else %}
-                         <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}" onclick="displayRadioButton(this.id)"/> Approved
-                     {% endif %}
+                {% if mv.is_ready() %}
+                    <div class="card mt-4">
+                     <div class="card-body">
+                         {% set deployment_config = deployment_configs_per_model[mv.id] %}
+                         {{ deployment_config }}
+                         <br>
 
-                     {% if deployment_config and deployment_config["is_approved"] %}
-                         <div id="{{mv.id}}_div_radio">
-                             <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}" checked="checked"/>
-                             <label for="selected_model_id">Selected for deployment</label>
-                         </div>
-                     {% else %}
-                         <div id="{{mv.id}}_div_radio" style="display: none">
-                             <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}"/>
-                             <label for="selected_model_id">Selected for deployment</label>
-                         </div>
-                     {% endif %}
+                         {% if deployment_config and deployment_config["is_approved"] %}
+                             <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}" checked="checked" onclick="displayRadioButton(this.id)"/> Approved
 
-                     {% if deployment_config and deployment_config["is_selected_for_deployment"] %}
-                         <div id="{{mv.id}}_div_threshold">
-                             <label for="threshold">Threshold</label>
-                             <input type="text" name="threshold" value="{{ deployment_config["threshold"] }}"/>
-                         </div>
-                     {% else %}
-                         <div id="{{mv.id}}_div_threshold" style="display: none">
-                             <label for="threshold">Threshold</label>
-                             {% if deployment_config %}
-                                 {% if deployment_config["is_selected_for_deployment"] %}
-                                     <input type="text" name="selected_threshold" value="{{ deployment_config["threshold"] }}"/>
-                                 {% else %}
-                                    <input type="text" name="threshold" value="{{ deployment_config["threshold"] }}"/>
-                                 {% endif %}
+                             {% if deployment_config["is_selected_for_deployment"] %}
+                                 <div id="{{mv.id}}_div_radio">
+                                      <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}" checked="checked"/>
+                                      <label for="selected_model_id">Selected for deployment</label>
+                                 </div>
+                                 <div id="{{mv.id}}_div_threshold">
+                                      <label for="threshold">Threshold</label>
+                                      <input type="text" name="selected_threshold" value="{{ deployment_config["threshold"] }}"/>
+                                 </div>
                              {% else %}
-                                 <input type="text" name="threshold"/>
-                             {% endif %}
-                         </div>
-                     {% endif %}
-
-                </div>
-                </div>
+                                 <div id="{{mv.id}}_div_radio">
+                                     <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}"/>
+                                     <label for="selected_model_id">Selected for deployment</label>
+                                 </div>
+                                 <div id="{{mv.id}}_div_threshold" style="display: none">
+                                     <label for="threshold">Threshold</label>
+                                     <input type="text" name="threshold" value="{{ deployment_config["threshold"] }}"/>
+                                 </div>
+                             {%  endif %}
+                         {% else %}
+                             <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}" onclick="displayRadioButton(this.id)"/> Approved
+                             <div id="{{mv.id}}_div_radio" style="display: none">
+                                 <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}"/>
+                                 <label for="selected_model_id">Selected for deployment</label>
+                             </div>
+                             <div id="{{mv.id}}_div_threshold" style="display: none">
+                                 <label for="threshold">Threshold</label>
+                                 {% if deployment_config %}
+                                    <input type="text" name="threshold" value="{{ deployment_config["threshold"] }}"/>
+                                 {% else %}
+                                    <input type="text" name="threshold" value="0.5"/>
+                                 {% endif %}
+                             </div>
+                         {% endif %}
+                    </div>
+                    </div>
+            {% endif %}
 
             <div class="card mt-4">
               <div class="card-body">

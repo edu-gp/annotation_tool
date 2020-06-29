@@ -56,7 +56,10 @@ def export_new_raw_data():
 def update_model_deployment_config():
     approved_model_ids = set(request.form.getlist("approved_model_id"))
     selected_model_id_for_deployment = request.form.get("selected_model_id")
-    threshold = float(request.form.get("selected_threshold"))
+
+    threshold = request.form.get("selected_threshold", None)
+    if threshold:
+        threshold = float(threshold)
 
     label = request.form.get("label")
 
