@@ -4,8 +4,7 @@ from flask import Blueprint, request, jsonify, redirect
 from sqlalchemy.exc import DatabaseError
 
 from bg.jobs import export_new_raw_data as _export_new_raw_data
-from db.model import db, Model, get_active_model_for_label, get_or_create, \
-    ModelDeploymentConfig
+from db.model import db, Model, ModelDeploymentConfig
 
 bp = Blueprint('models', __name__, url_prefix='/models')
 
@@ -92,30 +91,5 @@ def update_model_deployment_config():
         raise
 
     logging.info(f"Updated model deployment config for label {label}.")
-
-    return redirect(request.referrer)
-
-
-@bp.route('reset_active_model', methods=['POST'])
-def reset_active_model():
-    label = request.form.get("label")
-
-    current_active_model = get_active_model_for_label(
-        dbsession=db.session,
-        label=label
-    )
-
-    if current_active_model:
-        current_active_model.is_active = False
-        db.session.add(current_active_model)
-
-    try:
-        db.session.commit()
-    except DatabaseError as e:
-        db.session.rollback()
-        logging.error(e)
-        raise
-
-    logging.info(f"Reset active model for label {label}.")
 
     return redirect(request.referrer)

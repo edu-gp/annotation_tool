@@ -4,8 +4,7 @@ from mockito import when
 from sqlalchemy.exc import ArgumentError
 from tests.sqlalchemy_conftest import *
 from tests.utils import fake_train_model
-from db.model import TextClassificationModel, get_or_create, User, \
-    get_active_model_for_label
+from db.model import TextClassificationModel, get_or_create, User
 
 
 def test_default_uuid_and_version(dbsession):
@@ -85,31 +84,4 @@ def test_is_ready(dbsession, monkeypatch, tmp_path):
     fake_train_model(model, str(tmp_path))
 
     assert model.is_ready() is True
-
-
-def test_get_active_model_for_label(dbsession):
-    label1 = "test_label1"
-
-    model1 = TextClassificationModel(uuid='123', version=1, label=label1,
-                                     is_active=True)
-    model2 = TextClassificationModel(uuid='123', version=2, label=label1)
-
-    dbsession.add_all([model1, model2])
-    dbsession.commit()
-
-    active_model1 = get_active_model_for_label(dbsession=dbsession,
-                                              label=label1)
-
-    assert active_model1.id == model1.id
-
-    label2 = "test_label2"
-    model3 = TextClassificationModel(uuid='1234', version=1, label=label2)
-    model4 = TextClassificationModel(uuid='1234', version=2, label=label2)
-
-    dbsession.add_all([model3, model4])
-    dbsession.commit()
-
-    active_model2 = get_active_model_for_label(dbsession=dbsession,
-                                               label=label2)
-    assert active_model2.id == model4.id
 

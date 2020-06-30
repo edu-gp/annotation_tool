@@ -327,7 +327,6 @@ class Model(Base):
     # training system. UUID makes sure those jobs don't clash.
     uuid = Column(String(64), index=True, nullable=False, default=gen_uuid)
     version = Column(Integer, index=True, nullable=False, default=1)
-    is_active = Column(Boolean(name='is_active'), default=False)
 
     classification_training_data_id = Column(Integer, ForeignKey(
         'classification_training_data.id'))
@@ -815,20 +814,6 @@ def delete_requests_for_label_under_task(dbsession, label, task_id):
 def delete_requests_under_task(dbsession, task_id):
     delete_requests_under_task_with_condition(dbsession,
                                               task_id=task_id)
-
-
-def get_active_model_for_label(dbsession, label,
-                               model_type="text_classification_model"):
-    active_model = dbsession.query(Model) \
-        .filter_by(label=label,
-                   type=model_type,
-                   is_active=True) \
-        .one_or_none()
-
-    if active_model is None:
-        active_model = get_latest_model_for_label(dbsession, label, model_type)
-
-    return active_model
 
 
 def get_latest_model_for_label(dbsession, label,
