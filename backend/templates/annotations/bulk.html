@@ -31,7 +31,7 @@
 
             <div class="form-group">
                 <label for="label">Entity Type</label><br/>
-                <select name="entity_type">
+                <select name="entity_type" disabled>
                     {% for type in entity_types %}
                         {% if 'entity_type' in request.form and type == request.form['entity_type'] %}
                             <option value="{{ type }}" selected>{{ type }}</option>

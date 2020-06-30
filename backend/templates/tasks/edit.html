@@ -33,7 +33,7 @@
 
   <div class="form-group">
     <label for="name">Entity Type</label>
-    <select name="entity_type">
+    <select name="entity_type" disabled>
         {% for type in entity_types %}
             {% if type == task.get_entity_type() %}
                 <option value="{{ type }}" selected>{{ type }}</option>
