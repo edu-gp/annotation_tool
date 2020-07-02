@@ -2,6 +2,12 @@ import logging
 
 from flask import Blueprint, request, jsonify, redirect
 from sqlalchemy.exc import DatabaseError
+import logging
+
+from flask import (
+    Blueprint, request, jsonify,
+    redirect)
+from sqlalchemy.exc import DatabaseError
 
 from bg.jobs import export_new_raw_data as _export_new_raw_data
 from db.model import db, Model, ModelDeploymentConfig

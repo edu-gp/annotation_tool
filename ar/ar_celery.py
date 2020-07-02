@@ -28,12 +28,13 @@ def hello():
 
 @app.task
 def generate_annotation_requests(task_id, max_per_annotator,
-                                 max_per_dp):
+                                 max_per_dp, entity_type):
     celery_id = str(generate_annotation_requests.request.id)
     set_status(celery_id, JobStatus.STARTED, progress=0.0)
 
     logging.info(
-        f"Generate max={max_per_annotator} annotations per user with max_per_dp={max_per_dp}, task_id={task_id}")
+        f"Generate max={max_per_annotator} annotations per user with max_per_dp={max_per_dp}, "
+        f"task_id={task_id}, entity_type={entity_type}")
 
     db = Database.from_config(DevelopmentConfig)
     res = _generate_annotation_requests(
@@ -49,13 +50,13 @@ def generate_annotation_requests(task_id, max_per_annotator,
 
     count = 0
     for username, annotation_requests in res.items():
-        logging.error("Creating annotation requests for user {}".
+        logging.info("Creating annotation requests for user {}".
                       format(username))
         #  Here we have a user and a list of request in the form of a
         #  dictionary and we want to save it for this user in db.
         save_new_ar_for_user_db(
             db.session, task_id, username, annotation_requests, label,
-            EntityTypeEnum.COMPANY, clean_existing=True)
+            entity_type, clean_existing=True)
         count += len(annotation_requests)
     print(f"Done")
     print("The number of requests processed: {}".format(count))

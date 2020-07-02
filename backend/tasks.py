@@ -8,7 +8,7 @@ from flask import (
 from db.model import db, Task, Model, AnnotationGuide, LabelPatterns, \
     delete_requests_for_user_under_task, \
     delete_requests_for_label_under_task, delete_requests_under_task, \
-    ModelDeploymentConfig
+    ModelDeploymentConfig, EntityTypeEnum, delete_requests_for_entity_type_under_task
 from db.utils import get_all_data_files
 from ar.data import compute_annotation_statistics_db, \
     compute_annotation_request_statistics
@@ -29,6 +29,9 @@ from shared.frontend_path_finder import generate_frontend_user_login_link, \
 from shared.utils import (
     get_env_int, stem, list_to_textarea, textarea_to_list,
 )
+
+from db.model import ClassificationAnnotation, User, EntityTypeEnum
+import pandas as pd
 
 from .auth import auth
 
@@ -52,7 +55,8 @@ def index():
 
 @bp.route('/new', methods=['GET'])
 def new():
-    return render_template('tasks/new.html', data_fnames=get_all_data_files())
+    return render_template('tasks/new.html', data_fnames=get_all_data_files(),
+                           entity_types=EntityTypeEnum.get_all_entity_types())
 
 
 @bp.route('/', methods=['POST'])
@@ -63,6 +67,7 @@ def create():
         form = request.form
 
         name = parse_name(form)
+        entity_type = parse_entity_type(form)
         labels = parse_labels(form)
         annotators = parse_annotators(form)
         data_files = parse_data(form, data_fnames)
@@ -71,6 +76,7 @@ def create():
         task.set_labels(labels)
         task.set_annotators(annotators)
         task.set_data_filenames(data_files)
+        task.set_entity_type(entity_type)
 
         db.session.add(task)
         db.session.commit()
@@ -188,7 +194,8 @@ def show(id):
 def edit(id):
     task = db.session.query(Task).filter_by(id=id).one_or_none()
     return render_template('tasks/edit.html', task=task,
-                           list_to_textarea=list_to_textarea)
+                           list_to_textarea=list_to_textarea,
+                           entity_types=EntityTypeEnum.get_all_entity_types())
 
 
 @bp.route('/<string:id>', methods=['POST'])
@@ -202,8 +209,12 @@ def update(id):
         data = parse_data_filename(form)
         labels = parse_labels(form)
         annotators = parse_annotators(form)
+        # TODO do we ever need to update the entity_type for a task?
+        #  It doesn't hurt to add it here.
+        entity_type = parse_entity_type(form)
 
-        _remove_obsolete_requests_under_task(task, data, annotators, labels)
+        _remove_obsolete_requests_under_task(task, data,
+                                             annotators, labels, entity_type)
 
         task.set_data_filenames([data])
         task.set_annotators(annotators)
@@ -228,9 +239,17 @@ def update(id):
 def assign(id):
     max_per_annotator = get_env_int('ANNOTATION_TOOL_MAX_PER_ANNOTATOR', 100)
     max_per_dp = get_env_int('ANNOTATION_TOOL_MAX_PER_DP', 3)
-    logging.error("generating annotations asynchronously.")
+    entity_type = request.form.get('entity_type')
+    if entity_type is None:
+        msg = f"Cannot request annotations without " \
+              f"an entity type for task {id}."
+        logging.error(msg)
+        raise ValueError(msg)
+    logging.info("generating annotations asynchronously.")
     async_result = generate_annotation_requests.delay(
-        id, max_per_annotator=max_per_annotator, max_per_dp=max_per_dp)
+        task_id=id, max_per_annotator=max_per_annotator,
+        max_per_dp=max_per_dp, entity_type=entity_type
+    )
     celery_id = str(async_result)
     # Touching Redis, no need to change anything.
     create_status(celery_id, f'assign:{id}')
@@ -248,9 +267,11 @@ def train(id):
     raw_file_path = task.get_data_filenames(abs=True)[0]
 
     if get_env_bool('GOOGLE_AI_PLATFORM_ENABLED', False):
-        async_result = submit_gcp_training.delay(label, raw_file_path)
+        async_result = submit_gcp_training.delay(
+            label, raw_file_path, entity_type=task.get_entity_type())
     else:
-        async_result = local_train_model.delay(label, raw_file_path)
+        async_result = local_train_model.delay(
+            label, raw_file_path, entity_type=task.get_entity_type())
     # TODO
     # celery_id = str(async_result)
     # CeleryJobStatus(celery_id, f'assign:{id}').save()
@@ -269,6 +290,7 @@ def download_training_data():
 def download_prediction():
     model_id = int(request.form['model_id'])
     fname = request.form['fname']
+    entity_type = request.form['entity_type']
 
     model = db.session.query(Model).filter_by(id=model_id).one_or_none()
 
@@ -279,15 +301,13 @@ def download_prediction():
 
         # --- 2. Merge it with the existing annotations from all users ---
         # This makes it easier to QA the model.
-        from db.model import ClassificationAnnotation, User, EntityTypeEnum
-        import pandas as pd
         q = db.session.query(
             User.username,
             ClassificationAnnotation.entity,
             ClassificationAnnotation.value
         ).join(User).filter(
             ClassificationAnnotation.label == label,
-            ClassificationAnnotation.entity_type == EntityTypeEnum.COMPANY)
+            ClassificationAnnotation.entity_type == entity_type)
         all_annos = q.all()
 
         # Convert query result into a dataframe
@@ -381,6 +401,13 @@ def parse_data_filename(form):
     return name
 
 
+def parse_entity_type(form):
+    entity_type = form['entity_type']
+    entity_type = entity_type.strip()
+    assert entity_type, 'Entity type is required'
+    return entity_type
+
+
 def parse_labels(form):
     labels = form['labels']
     assert labels, 'Labels is required'
@@ -419,11 +446,17 @@ def parse_data(form, all_files):
     return data
 
 
-def _remove_obsolete_requests_under_task(task, data, annotators, labels):
+def _remove_obsolete_requests_under_task(task, data, annotators,
+                                         labels, entity_type):
     if data != task.get_data_filenames()[0]:
         logging.info("Prepare to remove all requests under task {} "
                      "since the data file has changed".format(task.id))
         delete_requests_under_task(db.session, task.id)
+    elif entity_type != task.get_entity_type():
+        logging.info("Prepare to remove all requests under task {} "
+                     "since the entity type has changed".format(task.id))
+        delete_requests_for_entity_type_under_task(db.session, task.id,
+                                                   entity_type)
     else:
         # Updating the annotators
         for current_annotator in task.get_annotators():

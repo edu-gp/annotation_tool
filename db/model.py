@@ -82,6 +82,10 @@ class JobStatus:
 class EntityTypeEnum:
     COMPANY = "company"
 
+    @classmethod
+    def get_all_entity_types(cls):
+        return [cls.COMPANY]
+
 
 class AnnotationValue:
     POSITIVE = 1
@@ -505,6 +509,10 @@ class Task(Base):
         self.default_params['labels'] = labels
         flag_modified(self, 'default_params')
 
+    def set_entity_type(self, entity_type: str):
+        self.default_params['entity_type'] = entity_type
+        flag_modified(self, 'default_params')
+
     def set_annotators(self, annotators: List[str]):
         self.default_params['annotators'] = annotators
         flag_modified(self, 'default_params')
@@ -524,6 +532,12 @@ class Task(Base):
 
     def get_uuid(self):
         return self.default_params.get('uuid')
+
+    # TODO remember to write a script to backfill this field into existing
+    #  task. remember to remove the default value since this is only for
+    #  testing purpose.
+    def get_entity_type(self):
+        return self.default_params.get('entity_type', EntityTypeEnum.COMPANY)
 
     def get_labels(self):
         return self.default_params.get('labels', [])
@@ -809,6 +823,13 @@ def delete_requests_for_label_under_task(dbsession, label, task_id):
     delete_requests_under_task_with_condition(dbsession,
                                               task_id=task_id,
                                               label=label)
+
+
+def delete_requests_for_entity_type_under_task(dbsession, task_id,
+                                               entity_type):
+    delete_requests_under_task_with_condition(dbsession,
+                                              task_id=task_id,
+                                              entity_type=entity_type)
 
 
 def delete_requests_under_task(dbsession, task_id):

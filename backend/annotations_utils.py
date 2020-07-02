@@ -14,19 +14,23 @@ def _parse_list(form: dict, key: str) -> List:
 def parse_form(form: dict):
     user = form.get('user')
     label = form.get('label')
-    domains = _parse_list(form, 'domains')
+    entity_type = form.get('entity_type')
+    if entity_type == 'None':
+        entity_type = None
+
+    entities = _parse_list(form, 'entities')
     annotations = _parse_list(form, 'annotations')
 
     assert user, 'User is required'
     assert label, 'Label is required'
 
-    assert len(domains) == len(annotations), \
-        f'Number of domains ({len(domains)}) does not match ' \
+    assert len(entities) == len(annotations), \
+        f'Number of entities ({len(entities)}) does not match ' \
         f'with number of annotations ({len(annotations)})'
 
     # For now, we leave it up to the user to make sure no duplicates.
-    assert len(set(domains)) == len(domains), \
-        "There are duplicates in domains"
+    assert len(set(entities)) == len(entities), \
+        "There are duplicates in entities"
 
     acceptable_annotations = set([
         AnnotationValue.POSITIVE,
@@ -40,4 +44,4 @@ def parse_form(form: dict):
             f"Annotation {annotations[i]} is not in the list of " \
             f"acceptable annotations {acceptable_annotations}"
 
-    return user, label, domains, annotations
+    return user, label, entities, annotations, entity_type
