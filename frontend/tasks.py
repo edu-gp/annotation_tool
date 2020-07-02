@@ -151,8 +151,6 @@ def receive_annotation():
     entity_type = data['req']['entity_type']
     entity = data['req']['entity']
 
-    item_id = int(data['item_id']) + 1
-
     context = {
         'data': data['req']['data'],
         'pattern_info': data['req']['pattern_info']
@@ -161,27 +159,52 @@ def receive_annotation():
     annotation_result = data['anno']['labels']
     for label in annotation_result:
         value = annotation_result[label]
-        annotation = get_or_create(dbsession=db.session,
-                                   model=ClassificationAnnotation,
-                                   exclude_keys_in_retrieve=["context",
-                                                             "value"],
-                                   entity=entity,
-                                   entity_type=entity_type,
-                                   label=label,
-                                   user_id=user_id,
-                                   context=context,
-                                   value=AnnotationValue.NOT_ANNOTATED)
-        annotation.value = value
+
+        annotation = db.session.query(ClassificationAnnotation).filter(
+            ClassificationAnnotation.entity_type == entity_type,
+            ClassificationAnnotation.entity == entity,
+            ClassificationAnnotation.label == label,
+            ClassificationAnnotation.user_id == user_id
+        ).one_or_none()
+
+        if annotation:
+            annotation.value = value
+            annotation_logging_msg = f"Updated existing annotation for " \
+                                     f"{entity} under label {label} with " \
+                                     f"new value {value}"
+        else:
+            annotation = ClassificationAnnotation(
+                entity_type=entity_type,
+                entity=entity,
+                label=label,
+                user_id=user_id,
+                context=context,
+                value=value
+            )
+            annotation_logging_msg = f"Created an instance of " \
+                                     f"annotation {annotation}"
+
+            # TODO only mark request as complete if the incoming label matches
+            #  the request label.
+            annotatation_request = get_or_create(dbsession=db.session,
+                                                 model=AnnotationRequest,
+                                                 id=ar_id)
+            annotatation_request.status = AnnotationRequestStatus.Complete
+            db.session.add(annotatation_request)
+
+            request_logging_msg = f"Marked annotation request for {entity} " \
+                                  f"under {label} as complete."
+
         db.session.add(annotation)
 
-    # TODO only mark request as complete if the incoming label matches the
-    # request label.
-    annotatation_request = get_or_create(dbsession=db.session,
-                                         model=AnnotationRequest,
-                                         id=ar_id)
-    annotatation_request.status = AnnotationRequestStatus.Complete
-    db.session.add(annotatation_request)
-    db.session.commit()
+    try:
+        db.session.commit()
+        logging.info(annotation_logging_msg)
+        logging.info(request_logging_msg)
+    except DatabaseError as e:
+        logging.error(e)
+        db.session.rollback()
+        raise e
 
     next_ar_id = get_next_ar_id_from_db(
         dbsession=db.session,
