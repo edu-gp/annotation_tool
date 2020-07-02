@@ -14,8 +14,8 @@ bp = Blueprint('labels', __name__, url_prefix='/labels')
 @bp.route('/fetch_by_entity_type', methods=['GET'])
 # @login_required
 def fetch_all_labels():
-    entity = request.args["entity_type"]
-    labels = fetch_labels_by_entity_type(db.session, entity)
+    entity_type = request.args["entity_type"]
+    labels = fetch_labels_by_entity_type(db.session, entity_type)
     return jsonify(labels)
 
 

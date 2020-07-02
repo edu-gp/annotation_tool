@@ -4,7 +4,8 @@ import os
 from typing import List
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import create_engine, inspect, UniqueConstraint, MetaData
+from sqlalchemy import create_engine, inspect, UniqueConstraint, MetaData, \
+    Boolean
 from sqlalchemy.schema import ForeignKey, Column
 from sqlalchemy.types import Integer, Float, String, JSON, DateTime, Text
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
@@ -305,6 +306,16 @@ class ClassificationTrainingData(Base):
         return file_len(self.path())
 
 
+class ModelDeploymentConfig(Base):
+    __tablename__ = 'model_deployment_config'
+    id = Column(Integer, primary_key=True)
+    model_id = Column(Integer, ForeignKey('model.id'), nullable=False)
+    is_approved = Column(Boolean(name='is_approved'), default=False)
+    is_selected_for_deployment = Column(
+        Boolean(name='is_selected_for_deployment'), default=False)
+    threshold = Column(Float, default=0.5)
+
+
 class Model(Base):
     __tablename__ = 'model'
 
@@ -322,10 +333,6 @@ class Model(Base):
     classification_training_data = relationship("ClassificationTrainingData")
 
     config = Column(JSON)
-
-    # Optionally associated with a Task
-    task_id = Column(Integer, ForeignKey('task.id'))
-    task = relationship("Task", back_populates="models")
 
     # Optionally associated with a Label
     label = Column(String, index=True, nullable=True)
@@ -483,12 +490,6 @@ class Task(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    models = relationship("Model", back_populates="task")
-    text_classification_models = relationship(
-        "TextClassificationModel",
-        order_by="desc(TextClassificationModel.version)",
-        lazy="dynamic")
-
     def __init__(self, *args, **kwargs):
         # Set default
         default_params = kwargs.get('default_params', {})
@@ -558,17 +559,6 @@ class Task(Base):
             self.__cached_pattern_model = PatternModel(patterns)
 
         return self.__cached_pattern_model
-
-    def get_latest_model(self):
-        return self.text_classification_models.first()
-
-    def get_active_nlp_model(self):
-        from inference.nlp_model import NLPModel
-        latest_model = self.get_latest_model()
-        if latest_model is not None and latest_model.is_ready():
-            return NLPModel(inspect(self).session, latest_model.id)
-        else:
-            return None
 
     def __repr__(self):
         return "<Task with id {}, \nname {}, \ndefault_params {}>".format(
@@ -824,3 +814,13 @@ def delete_requests_for_label_under_task(dbsession, label, task_id):
 def delete_requests_under_task(dbsession, task_id):
     delete_requests_under_task_with_condition(dbsession,
                                               task_id=task_id)
+
+
+def get_latest_model_for_label(dbsession, label,
+                               model_type="text_classification_model"):
+
+    return dbsession.query(Model) \
+            .filter_by(label=label,
+                       type=model_type) \
+            .order_by(Model.version.desc()) \
+            .first()

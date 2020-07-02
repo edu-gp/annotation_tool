@@ -53,7 +53,7 @@ def create_example_model(dbsession):
         'data_filenames': [data_fname]
     })
     model = TextClassificationModel(
-        uuid=model_uuid, version=version, task=task)
+        uuid=model_uuid, version=version)
 
     dbsession.add_all([task, model])
     dbsession.commit()

@@ -84,3 +84,4 @@ def test_is_ready(dbsession, monkeypatch, tmp_path):
     fake_train_model(model, str(tmp_path))
 
     assert model.is_ready() is True
+
