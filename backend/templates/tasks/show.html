@@ -381,22 +381,30 @@
 
                 {% for fname in mv.get_inference_fnames() %}
                 <div class="row">
+                  <div class="col">
+                    Data File: <code>{{fname}}</code>
+                  </div>
                   <table class="table">
                     <tbody>
                       <tr>
-                        <td>Data File:<br /><code>{{fname}}</code></td>
                         <td>
                           <form action="{{ url_for('tasks.download_prediction') }}" method="POST">
                             <input type="hidden" name="model_id" value="{{mv.id}}">
                             <input type="hidden" name="fname" value="{{fname}}">
-                            <button type="submit" class="btn btn-secondary">Download Prediction</button>
+                            <button type="submit" class="btn btn-dark">Download Prediction</button>
                           </form>
                         </td>
                         <td>
                           <!-- Button trigger modal -->
                           <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModal">
-                            Export to new data file
+                            Export to new Data File
                           </button>
+                        </td>
+                        <td>
+                          <form action="{{ url_for('tasks.download_training_data') }}" method="POST">
+                            <input type="hidden" name="model_id" value="{{mv.id}}">
+                            <button type="submit" class="btn btn-secondary">Download Training Data</button>
+                          </form>
                         </td>
                       </tr>
                     </tbody>

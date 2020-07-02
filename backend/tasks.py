@@ -240,6 +240,14 @@ def train(id):
     # CeleryJobStatus(celery_id, f'assign:{id}').save()
     return redirect(url_for('tasks.show', id=id))
 
+@bp.route('/download_training_data', methods=['POST'])
+def download_training_data():
+    model_id = int(request.form['model_id'])
+    model = db.session.query(Model).filter_by(id=model_id).one_or_none()
+    fname = model.classification_training_data.path(abs=True)
+    from flask import send_file
+    return send_file(fname, mimetype='text/csv', cache_timeout=0,
+                     as_attachment=True)
 
 @bp.route('/download_prediction', methods=['POST'])
 def download_prediction():
