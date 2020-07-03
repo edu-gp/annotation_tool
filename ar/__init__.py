@@ -102,13 +102,13 @@ def get_ranked_examples_for_label(dbession, task, label, data_filenames) -> List
 
     if top_prob_model:
         examples.append(_get_predictions(
-            data_filenames, [highest_entropy_model]))
+            data_filenames, [top_prob_model]))
         proportions.append(6)  # [1,3,12,6] -> [0.05, 0.14, 0.55, 0.27]
         logging.info("Prediction from top prob nlp model finished...")
 
     if bottom_prob_model:
         examples.append(_get_predictions(
-            data_filenames, [highest_entropy_model]))
+            data_filenames, [bottom_prob_model]))
         proportions.append(6)  # [1,3,12,6,6] -> [0.04, 0.11, 0.43, 0.21, 0.21]
         logging.info("Prediction from bottom prob nlp model finished...")
 
