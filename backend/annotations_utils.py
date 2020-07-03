@@ -23,6 +23,7 @@ def parse_form(form: dict):
 
     assert user, 'User is required'
     assert label, 'Label is required'
+    assert entity_type, 'Entity type is required'
 
     assert len(entities) == len(annotations), \
         f'Number of entities ({len(entities)}) does not match ' \
