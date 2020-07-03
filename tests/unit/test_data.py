@@ -20,7 +20,8 @@ from ar.data import _compute_kappa_matrix, \
 from db.model import User, ClassificationAnnotation, \
     AnnotationRequest, AnnotationType, AnnotationRequestStatus, Task, \
     update_instance, AnnotationValue, delete_requests_for_user_under_task, \
-    delete_requests_for_label_under_task, delete_requests_under_task
+    delete_requests_for_label_under_task, delete_requests_under_task, \
+    delete_requests_for_entity_type_under_task
 
 ENTITY_TYPE = 'blah'
 
@@ -551,6 +552,17 @@ def test_delete_requests_for_label_under_task(dbsession):
     delete_requests_for_label_under_task(dbsession, task_id=task1.id, label=label)
     dbsession.commit()
     assert _count_requests(dbsession, task_id=task1.id, label=label) == 0
+
+
+def test_delete_requests_for_entity_type_under_task(dbsession):
+    user1, user2, label, task1, task2, requests = \
+        _populate_common_request_data(dbsession)
+
+    assert _count_requests(dbsession, task_id=task1.id, entity_type=ENTITY_TYPE) == 2
+    delete_requests_for_entity_type_under_task(
+        dbsession, task_id=task1.id, entity_type=ENTITY_TYPE)
+    dbsession.commit()
+    assert _count_requests(dbsession, task_id=task1.id, entity_type=ENTITY_TYPE) == 0
 
 
 def test_delete_requests_for_user_under_task(dbsession):

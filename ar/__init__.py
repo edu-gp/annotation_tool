@@ -8,9 +8,8 @@ import numpy as np
 from sqlalchemy import func
 
 from db.fs import filestore_base_dir, RAW_DATA_DIR
-from db.model import get_or_create, Task, \
-    AnnotationRequest, User, AnnotationRequestStatus, ClassificationAnnotation, \
-    AnnotationValue, LabelPatterns, TextClassificationModel
+from db.model import Task, User, ClassificationAnnotation, \
+    AnnotationValue, LabelPatterns, get_latest_model_for_label
 from shared.utils import load_jsonl
 from inference.base import ITextCatModel
 from inference import get_predicted
@@ -49,21 +48,16 @@ def get_nlp_models_for_label(dbsession, label, version: int = None):
         label: -
         version: If version is None, then return the latest version.
     """
-    all_models = dbsession.query(TextClassificationModel) \
-        .filter_by(label=label) \
-        .order_by(TextClassificationModel.version.desc()) \
-        .all()
-
     highest_entropy_model = None
     top_prob_model = None
     bottom_prob_model = None
 
-    for model in all_models:
-        if model.is_ready():
-            highest_entropy_model = NLPModel(dbsession, model.id)
-            top_prob_model = NLPModelTopResults(dbsession, model.id)
-            bottom_prob_model = NLPModelBottomResults(dbsession, model.id)
-            break
+    latest_model = get_latest_model_for_label(dbsession=dbsession, label=label)
+
+    if latest_model and latest_model.is_ready():
+        highest_entropy_model = NLPModel(dbsession, latest_model.id)
+        top_prob_model = NLPModelTopResults(dbsession, latest_model.id)
+        bottom_prob_model = NLPModelBottomResults(dbsession, latest_model.id)
 
     return highest_entropy_model, top_prob_model, bottom_prob_model
 

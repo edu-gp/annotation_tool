@@ -188,6 +188,7 @@
       <div class="col">
         <div>
           <form action="{{ url_for('tasks.assign', id=task.id) }}" method="POST">
+            <input type="hidden" name="entity_type" value="{{task.get_entity_type()}}">
             <button type="submit" class="btn btn-primary click-once" value={{ task.get_labels() }}>
               Request More Annotations
             </button>
@@ -331,7 +332,7 @@
           <td class="align-middle">{{user}}</td>
           {% for label in task.get_labels() %}
           <td class="align-middle">
-            <a class="btn btn-secondary btn-sm" href="{{url_for('annotations.bulk', user=user, label=label)}}"
+            <a class="btn btn-secondary btn-sm" href="{{url_for('annotations.bulk', user=user, label=label, entity_type=task.get_entity_type())}}"
               target="_blank">{{label}}</a>
           </td>
           {% endfor %}
@@ -339,7 +340,7 @@
         {% endfor %}
       </tbody>
     </table>
-    <a class="btn btn-secondary btn-sm" href="{{url_for('annotations.bulk')}}" target="_blank">Bulk Upload</a>
+    <a class="btn btn-secondary btn-sm" href="{{url_for('annotations.bulk', entity_type=task.get_entity_type())}}" target="_blank">Bulk Upload</a>
   </div>
 </div>
 
@@ -367,8 +368,58 @@
 
         <div class="row">
           <div class="col-9">
-
+            <form action="{{ url_for('models.update_model_deployment_config') }}" method="POST">
+                <button type="submit" class="btn btn-primary">Update Model Deployment Config for {{ label }}</button>
+                <input type="hidden" name="label" value="{{ label }}" />
+{#                <button type="submit" class="btn btn-primary" name="label" value="{{ label }}" formaction="{{ url_for('models.reset_active_model') }}" formmethod="POST">Reset Active Model for {{ label }}</button>#}
             {% for mv in models_per_label.get(label, []) %}
+                {% if mv.is_ready() %}
+                    <div class="card mt-4">
+                     <div class="card-body">
+                         {% set deployment_config = deployment_configs_per_model[mv.id] %}
+                         <br>
+
+                         {% if deployment_config and deployment_config["is_approved"] %}
+                             <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}" checked="checked" onclick="displayRadioButton(this.id)"/> Approved
+
+                             {% if deployment_config["is_selected_for_deployment"] %}
+                                 <div id="{{mv.id}}_div_radio">
+                                      <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}" checked="checked"/>
+                                      <label for="selected_model_id">Selected for deployment</label>
+                                 </div>
+                                 <div id="{{mv.id}}_div_threshold">
+                                      <label for="threshold">Threshold</label>
+                                      <input type="text" name="selected_threshold" value="{{ deployment_config["threshold"] }}"/>
+                                 </div>
+                             {% else %}
+                                 <div id="{{mv.id}}_div_radio">
+                                     <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}"/>
+                                     <label for="selected_model_id">Selected for deployment</label>
+                                 </div>
+                                 <div id="{{mv.id}}_div_threshold" style="display: none">
+                                     <label for="threshold">Threshold</label>
+                                     <input type="text" name="threshold" value="{{ deployment_config["threshold"] }}"/>
+                                 </div>
+                             {%  endif %}
+                         {% else %}
+                             <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}" onclick="displayRadioButton(this.id)"/> Approved
+                             <div id="{{mv.id}}_div_radio" style="display: none">
+                                 <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}"/>
+                                 <label for="selected_model_id">Selected for deployment</label>
+                             </div>
+                             <div id="{{mv.id}}_div_threshold" style="display: none">
+                                 <label for="threshold">Threshold</label>
+                                 {% if deployment_config %}
+                                    <input type="text" name="threshold" value="{{ deployment_config["threshold"] }}"/>
+                                 {% else %}
+                                    <input type="text" name="threshold" value="0.5"/>
+                                 {% endif %}
+                             </div>
+                         {% endif %}
+                    </div>
+                    </div>
+            {% endif %}
+
             <div class="card mt-4">
               <div class="card-body">
                 <h5>
@@ -381,22 +432,31 @@
 
                 {% for fname in mv.get_inference_fnames() %}
                 <div class="row">
+                  <div class="col">
+                    Data File: <code>{{fname}}</code>
+                  </div>
                   <table class="table">
                     <tbody>
                       <tr>
-                        <td>Data File:<br /><code>{{fname}}</code></td>
                         <td>
                           <form action="{{ url_for('tasks.download_prediction') }}" method="POST">
                             <input type="hidden" name="model_id" value="{{mv.id}}">
                             <input type="hidden" name="fname" value="{{fname}}">
-                            <button type="submit" class="btn btn-secondary">Download Prediction</button>
+                            <input type="hidden" name="entity_type" value="{{task.get_entity_type()}}">
+                            <button type="submit" class="btn btn-dark">Download Prediction</button>
                           </form>
                         </td>
                         <td>
                           <!-- Button trigger modal -->
                           <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModal">
-                            Export to new data file
+                            Export to new Data File
                           </button>
+                        </td>
+                        <td>
+                          <form action="{{ url_for('tasks.download_training_data') }}" method="POST">
+                            <input type="hidden" name="model_id" value="{{mv.id}}">
+                            <button type="submit" class="btn btn-secondary">Download Training Data</button>
+                          </form>
                         </td>
                       </tr>
                     </tbody>
@@ -500,9 +560,8 @@
                 {% endif %}
               </div>
             </div>
-
             {% endfor %}
-
+            </form>
           </div>
           <div class="col mt-4">
 
@@ -524,6 +583,38 @@
 </div>
 
 <script>
+  document.querySelectorAll('input[type="radio"]').forEach(function(a){
+      a.addEventListener("click", function() {
+          let threshold_divs = document.querySelectorAll('div[id$="_div_threshold"]')
+          threshold_divs.forEach(function(div){
+              div.style.display = 'none';
+              let threshold_input = div.querySelector('input');
+              threshold_input.name = 'threshold'
+          })
+          let model_id = this.id.split("_")[0];
+          let div_threshold = document.getElementById(model_id + "_div_threshold");
+          div_threshold.style.display = 'block';
+          let threshold_input = div_threshold.querySelector('input');
+          threshold_input.name = 'selected_threshold'
+      })
+
+  })
+
+  function displayRadioButton(id) {
+      let checkbox = document.getElementById(id);
+      let model_id = id.split("_")[0];
+      let radio_button = document.getElementById(model_id + "_radio");
+      let div_radio = document.getElementById(model_id + "_div_radio");
+      let div_threshold = document.getElementById(model_id + "_div_threshold");
+      if (checkbox.checked) {
+          div_radio.style.display = 'block';
+      } else {
+          div_radio.style.display = 'none';
+          div_threshold.style.display = 'none';
+          radio_button.checked = false;
+      }
+  }
+
   //https://www.sanwebe.com/2014/04/select-all-text-in-element-on-click
   function selectText(id) {
     var sel, range;
