@@ -16,7 +16,9 @@ from inference.base import ITextCatModel
 from inference import get_predicted
 from inference.random_model import RandomModel
 from inference.pattern_model import PatternModel
-from inference.nlp_model import NLPModel
+from inference.nlp_model import (
+    NLPModel, NLPModelTopResults, NLPModelBottomResults
+)
 
 from .data import fetch_all_ar_ids
 from .utils import get_ar_id, timeit
@@ -40,7 +42,7 @@ def get_pattern_model_for_label(dbsession, label):
     return None
 
 
-def get_nlp_model_for_label(dbsession, label, version: int = None):
+def get_nlp_models_for_label(dbsession, label, version: int = None):
     """
     Inputs:
         dbsession: -
@@ -52,10 +54,18 @@ def get_nlp_model_for_label(dbsession, label, version: int = None):
         .order_by(TextClassificationModel.version.desc()) \
         .all()
 
+    highest_entropy_model = None
+    top_prob_model = None
+    bottom_prob_model = None
+
     for model in all_models:
         if model.is_ready():
-            return NLPModel(dbsession, model.id)
-    return None
+            highest_entropy_model = NLPModel(dbsession, model.id)
+            top_prob_model = NLPModelTopResults(dbsession, model.id)
+            bottom_prob_model = NLPModelBottomResults(dbsession, model.id)
+            break
+
+    return highest_entropy_model, top_prob_model, bottom_prob_model
 
 
 def get_ranked_examples_for_label(dbession, task, label, data_filenames) -> List[Example]:
@@ -76,17 +86,31 @@ def get_ranked_examples_for_label(dbession, task, label, data_filenames) -> List
 
     # Pattern-driven Examples
     _patterns_model = get_pattern_model_for_label(dbession, label)
-    if _patterns_model is not None:
+    if _patterns_model:
         examples.append(_get_predictions(data_filenames, [_patterns_model]))
         proportions.append(3)  # [1,3] -> [0.25, 0.75]
         logging.info("Prediction from pattern model finished...")
 
     # NLP-driven Examples
-    _nlp_model = get_nlp_model_for_label(dbession, label)
-    if _nlp_model is not None:
-        examples.append(_get_predictions(data_filenames, [_nlp_model]))
+    highest_entropy_model, top_prob_model, bottom_prob_model = \
+        get_nlp_models_for_label(dbession, label)
+    if highest_entropy_model:
+        examples.append(_get_predictions(
+            data_filenames, [highest_entropy_model]))
         proportions.append(12)  # [1,3,12] -> [0.0625, 0.1875, 0.75]
-        logging.info("Prediction from nlp model finished...")
+        logging.info("Prediction from highest entropy nlp model finished...")
+
+    if top_prob_model:
+        examples.append(_get_predictions(
+            data_filenames, [highest_entropy_model]))
+        proportions.append(6)  # [1,3,12,6] -> [0.05, 0.14, 0.55, 0.27]
+        logging.info("Prediction from top prob nlp model finished...")
+
+    if bottom_prob_model:
+        examples.append(_get_predictions(
+            data_filenames, [highest_entropy_model]))
+        proportions.append(6)  # [1,3,12,6,6] -> [0.04, 0.11, 0.43, 0.21, 0.21]
+        logging.info("Prediction from bottom prob nlp model finished...")
 
     logging.error("Shuffling together examples...")
     ranked_examples = _shuffle_together_examples(

@@ -5,8 +5,18 @@ from inference.base import ITextCatModel
 from db.model import Model
 
 
+def _hash_text(text):
+    text = text or ''
+    return hashlib.md5(text.strip().encode()).hexdigest()
+
+
+def _get_uncertainty(pred, eps=1e-6):
+    # Return entropy as the uncertainty value
+    pred = np.array(pred)
+    return float(-np.sum(pred * np.log(pred + eps)))
+
+
 class NLPModel(ITextCatModel):
-    # TODO exploit vs explore
     def __init__(self, dbsession, model_id):
         self.dbsession = dbsession
         self.model_id = model_id
@@ -14,7 +24,7 @@ class NLPModel(ITextCatModel):
 
     def __str__(self):
         # Note: This is also used as a cache key.
-        return f"NLPModel-model_id={self.model_id}"
+        return f"{self.__class__.__name__}-model_id={self.model_id}"
 
     def _warm_up_cache(self):
         if self._cache is None:
@@ -43,17 +53,19 @@ class NLPModel(ITextCatModel):
                 # TODO run any inferences that have not been ran, instead of silently erroring out
                 res.append({'score': 0., 'prob': None})
             else:
-                res.append({'score': _get_uncertainty(prob), 'prob': prob})
+                res.append({'score': self._score_fn(prob), 'prob': prob})
 
         return res
 
-
-def _hash_text(text):
-    text = text or ''
-    return hashlib.md5(text.strip().encode()).hexdigest()
+    def _score_fn(self, prob):
+        return _get_uncertainty(prob)
 
 
-def _get_uncertainty(pred, eps=1e-6):
-    # Return entropy as the uncertainty value
-    pred = np.array(pred)
-    return float(-np.sum(pred * np.log(pred + eps)))
+class NLPModelTopResults(NLPModel):
+    def _score_fn(self, prob):
+        return prob
+
+
+class NLPModelBottomResults(NLPModel):
+    def _score_fn(self, prob):
+        return -prob
