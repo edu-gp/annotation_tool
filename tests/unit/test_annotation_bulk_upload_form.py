@@ -24,30 +24,36 @@ def test_parse_form():
         parse_form(form)
 
     form = {'user': 'a', 'label': 'b'}
-    user, label, domains, annotations = parse_form(form)
+    with pytest.raises(Exception, match="Entity type is required"):
+        parse_form(form)
+
+    form = {'user': 'a', 'label': 'b', 'entity_type': 'company'}
+    user, label, domains, annotations, entity_type = parse_form(form)
     assert user == 'a'
     assert label == 'b'
     assert len(domains) == 0
     assert len(annotations) == 0
+    assert entity_type == 'company'
 
-    form = {'user': 'a', 'label': 'b', 'domains': 'a.com'}
-    with pytest.raises(Exception, match=r"Number of domains .* does not match .* number of annotations .*"):
+    form = {'user': 'a', 'label': 'b', 'entities': 'a.com', 'entity_type': 'company'}
+    with pytest.raises(Exception, match=r"Number of entities .* does not match .* number of annotations .*"):
         parse_form(form)
 
     form = {'user': 'a', 'label': 'b',
-            'domains': 'a.com', 'annotations': '1\n-1'}
-    with pytest.raises(Exception, match=r"Number of domains .* does not match .* number of annotations .*"):
+            'entities': 'a.com', 'annotations': '1\n-1', 'entity_type': 'company'}
+    with pytest.raises(Exception, match=r"Number of entities .* does not match .* number of annotations .*"):
         parse_form(form)
 
     form = {'user': 'a', 'label': 'b',
-            'domains': 'a.com\nb.com', 'annotations': '1\n-1'}
-    user, label, domains, annotations = parse_form(form)
+            'entities': 'a.com\nb.com', 'annotations': '1\n-1', 'entity_type': 'company'}
+    user, label, domains, annotations, entity_type = parse_form(form)
     assert user == 'a'
     assert label == 'b'
     assert len(domains) == 2
     assert len(annotations) == 2
+    assert entity_type == 'company'
 
     form = {'user': 'a', 'label': 'b',
-            'domains': 'a.com\nb.com', 'annotations': '1\n5'}
+            'entities': 'a.com\nb.com', 'annotations': '1\n5', 'entity_type': 'company'}
     with pytest.raises(Exception, match=r"Annotation 5 is not in the list of acceptable annotations .*"):
         parse_form(form)
