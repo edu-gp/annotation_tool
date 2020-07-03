@@ -1,4 +1,3 @@
-from tests.sqlalchemy_conftest import *
 import ar
 from ar import Example
 from db.model import (

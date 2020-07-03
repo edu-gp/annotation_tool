@@ -1,4 +1,3 @@
-from tests.sqlalchemy_conftest import *
 from db.model import (
     ClassificationAnnotation,
     fetch_labels_by_entity_type, save_labels_by_entity_type

@@ -1,4 +1,3 @@
-from tests.sqlalchemy_conftest import *
 from db.model import (
     User, ClassificationAnnotation,
     ClassificationTrainingData,
