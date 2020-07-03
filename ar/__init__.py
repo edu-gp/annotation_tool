@@ -41,12 +41,9 @@ def get_pattern_model_for_label(dbsession, label):
     return None
 
 
-def get_nlp_models_for_label(dbsession, label, version: int = None):
+def get_nlp_models_for_label(dbsession, label):
     """
-    Inputs:
-        dbsession: -
-        label: -
-        version: If version is None, then return the latest version.
+    Create active learning models for this label based on a trained NLP model.
     """
     highest_entropy_model = None
     top_prob_model = None
