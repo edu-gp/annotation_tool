@@ -1,4 +1,3 @@
-from tests.sqlalchemy_conftest import *
 from tests.utils import fake_train_model
 from db.model import Task, TextClassificationModel
 

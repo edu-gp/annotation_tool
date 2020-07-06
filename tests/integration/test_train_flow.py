@@ -1,4 +1,3 @@
-from tests.sqlalchemy_conftest import *
 from typing import List
 import os
 import numpy as np

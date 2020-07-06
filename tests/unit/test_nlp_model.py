@@ -1,4 +1,3 @@
-from tests.sqlalchemy_conftest import *
 from tests.utils import create_example_model
 from db.model import Task
 from inference.nlp_model import NLPModel
