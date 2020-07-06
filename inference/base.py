@@ -13,5 +13,7 @@ class ITextCatModel(abc.ABC):
 
             e.g.
                 [ {'score': 0.324} , {'score': 3.434}, ... ]
+
+        Higher scores are more likely to be selected for annotation.
         '''
         pass
