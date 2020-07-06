@@ -539,56 +539,75 @@
                   <table class="table">
                     <tbody>
                       {% for mv in models_per_label.get(label, []) %}
-                      {% if mv.is_ready() %}
+{#                      {% if mv.is_ready() %}#}
                       {% set deployment_config = deployment_configs_per_model[mv.id] %}
                       <tr>
                         <td>
                           Version {{mv.version}} ({{mv.created_at.strftime('%Y-%m-%d')}})
+
+                          {% if deployment_config %}
+                              {% if deployment_config["is_selected_for_deployment"] %}
+                                  <div id="{{mv.id}}_div_threshold">
+                                    <label for="threshold">Threshold</label>
+                                    <input type="text" id="{{mv.id}}_input_threshold" name="selected_threshold" value="{{ deployment_config["threshold"] }}" />
+                                  </div>
+                              {% else %}
+                                  <div id="{{mv.id}}_div_threshold">
+                                    <label for="threshold">Threshold</label>
+                                    <input type="text" id="{{mv.id}}_input_threshold" name="threshold" value="{{ deployment_config["threshold"] }}" />
+                                  </div>
+                              {% endif %}
+                          {% else %}
+                              <div id="{{mv.id}}_div_threshold">
+                                <label for="threshold">Threshold</label>
+                                <input type="text" id="{{mv.id}}_input_threshold" name="threshold" value="0.5" />
+                              </div>
+                          {% endif %}
                         </td>
                         <td>
                           {% if deployment_config and deployment_config["is_approved"] %}
                           <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}"
                             checked="checked" onclick="displayRadioButton(this.id)" /> Approved
 
-                          {% if deployment_config["is_selected_for_deployment"] %}
-                          <div id="{{mv.id}}_div_radio">
-                            <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}"
-                              checked="checked" />
-                            <label for="selected_model_id">Selected for deployment</label>
-                          </div>
-                          <div id="{{mv.id}}_div_threshold">
-                            <label for="threshold">Threshold</label>
-                            <input type="text" name="selected_threshold" value="{{ deployment_config["threshold"] }}" />
-                          </div>
+                              {% if deployment_config["is_selected_for_deployment"] %}
+                                  <div id="{{mv.id}}_div_radio">
+                                    <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}"
+                                      checked="checked" />
+                                    <label for="selected_model_id">Selected for deployment</label>
+                                  </div>
+{#                                  <div id="{{mv.id}}_div_threshold">#}
+{#                                    <label for="threshold">Threshold</label>#}
+{#                                    <input type="text" name="selected_threshold" value="{{ deployment_config["threshold"] }}" />#}
+{#                                  </div>#}
+                              {% else %}
+                                  <div id="{{mv.id}}_div_radio">
+                                    <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}" />
+                                    <label for="selected_model_id">Selected for deployment</label>
+                                  </div>
+{#                                  <div id="{{mv.id}}_div_threshold" style="display: none">#}
+{#                                    <label for="threshold">Threshold</label>#}
+{#                                    <input type="text" name="threshold" value="{{ deployment_config["threshold"] }}" />#}
+{#                                  </div>#}
+                              {%  endif %}
                           {% else %}
-                          <div id="{{mv.id}}_div_radio">
-                            <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}" />
-                            <label for="selected_model_id">Selected for deployment</label>
-                          </div>
-                          <div id="{{mv.id}}_div_threshold" style="display: none">
-                            <label for="threshold">Threshold</label>
-                            <input type="text" name="threshold" value="{{ deployment_config["threshold"] }}" />
-                          </div>
-                          {%  endif %}
-                          {% else %}
-                          <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}"
-                            onclick="displayRadioButton(this.id)" /> Approved
-                          <div id="{{mv.id}}_div_radio" style="display: none">
-                            <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}" />
-                            <label for="selected_model_id">Selected for deployment</label>
-                          </div>
-                          <div id="{{mv.id}}_div_threshold" style="display: none">
-                            <label for="threshold">Threshold</label>
-                            {% if deployment_config %}
-                            <input type="text" name="threshold" value="{{ deployment_config["threshold"] }}" />
-                            {% else %}
-                            <input type="text" name="threshold" value="0.5" />
-                            {% endif %}
-                          </div>
+                              <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}"
+                                onclick="displayRadioButton(this.id)" /> Approved
+                              <div id="{{mv.id}}_div_radio" style="display: none">
+                                <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}" />
+                                <label for="selected_model_id">Selected for deployment</label>
+                              </div>
+{#                              <div id="{{mv.id}}_div_threshold" style="display: none">#}
+{#                                <label for="threshold">Threshold</label>#}
+{#                                {% if deployment_config %}#}
+{#                                    <input type="text" name="threshold" value="{{ deployment_config["threshold"] }}" />#}
+{#                                {% else %}#}
+{#                                    <input type="text" name="threshold" value="0.5" />#}
+{#                                {% endif %}#}
+{#                              </div>#}
                           {% endif %}
                         </td>
                       </tr>
-                      {% endif %}
+{#                      {% endif %}#}
                       {% endfor %}
                     </tbody>
                   </table>
@@ -608,34 +627,55 @@
 </div>
 
 <script>
+    {# TODO should we allow user to update threshold of other configs if they are not approved and/or selected #}
   document.querySelectorAll('input[type="radio"]').forEach(function (a) {
     a.addEventListener("click", function () {
       let threshold_divs = document.querySelectorAll('div[id$="_div_threshold"]')
       threshold_divs.forEach(function (div) {
-        div.style.display = 'none';
+        {#div.style.display = 'none';#}
         let threshold_input = div.querySelector('input');
         threshold_input.name = 'threshold'
       })
       let model_id = this.id.split("_")[0];
       let div_threshold = document.getElementById(model_id + "_div_threshold");
-      div_threshold.style.display = 'block';
+      {#div_threshold.style.display = 'block';#}
       let threshold_input = div_threshold.querySelector('input');
       threshold_input.name = 'selected_threshold'
     })
 
   })
 
+  document.querySelectorAll('input[id$="_input_threshold"]').forEach(
+      function (a) {
+          a.addEventListener("change", thresholdChange);
+          a.addEventListener("keyup", thresholdChange);
+          a.addEventListener("paste", thresholdChange);
+          a.addEventListener("input", thresholdChange);
+      }
+  )
+
+  function thresholdChange() {
+      let model_id = this.id.split("_")[0];
+      let checkbox = document.getElementById(model_id + "_checkbox");
+      let radio_button = document.getElementById(model_id + "_radio");
+      let div_radio = document.getElementById(model_id + "_div_radio");
+      this.name = 'threshold'
+      checkbox.checked = false;
+      radio_button.checked = false;
+      div_radio.style.display = 'none';
+  }
+
   function displayRadioButton(id) {
     let checkbox = document.getElementById(id);
     let model_id = id.split("_")[0];
     let radio_button = document.getElementById(model_id + "_radio");
     let div_radio = document.getElementById(model_id + "_div_radio");
-    let div_threshold = document.getElementById(model_id + "_div_threshold");
+    {#let div_threshold = document.getElementById(model_id + "_div_threshold");#}
     if (checkbox.checked) {
       div_radio.style.display = 'block';
     } else {
       div_radio.style.display = 'none';
-      div_threshold.style.display = 'none';
+      {#div_threshold.style.display = 'none';#}
       radio_button.checked = false;
     }
   }
