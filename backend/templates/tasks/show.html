@@ -546,21 +546,14 @@
                           Version {{mv.version}} ({{mv.created_at.strftime('%Y-%m-%d')}})
 
                           {% if deployment_config %}
-                              {% if deployment_config["is_selected_for_deployment"] %}
-                                  <div id="{{mv.id}}_div_threshold">
-                                    <label for="threshold">Threshold</label>
-                                    <input type="text" id="{{mv.id}}_input_threshold" name="selected_threshold" value="{{ deployment_config["threshold"] }}" />
-                                  </div>
-                              {% else %}
-                                  <div id="{{mv.id}}_div_threshold">
-                                    <label for="threshold">Threshold</label>
-                                    <input type="text" id="{{mv.id}}_input_threshold" name="threshold" value="{{ deployment_config["threshold"] }}" />
-                                  </div>
-                              {% endif %}
+                              <div id="{{mv.id}}_div_threshold">
+                                <label for="threshold">Threshold</label>
+                                <input type="text" id="{{mv.id}}_input_threshold" name="{{mv.id}}_threshold" value="{{ deployment_config["threshold"] }}" />
+                              </div>
                           {% else %}
                               <div id="{{mv.id}}_div_threshold">
                                 <label for="threshold">Threshold</label>
-                                <input type="text" id="{{mv.id}}_input_threshold" name="threshold" value="0.5" />
+                                <input type="text" id="{{mv.id}}_input_threshold" name="{{mv.id}}_threshold" value="0.5" />
                               </div>
                           {% endif %}
                         </td>
@@ -627,24 +620,6 @@
 </div>
 
 <script>
-    {# TODO should we allow user to update threshold of other configs if they are not approved and/or selected #}
-  document.querySelectorAll('input[type="radio"]').forEach(function (a) {
-    a.addEventListener("click", function () {
-      let threshold_divs = document.querySelectorAll('div[id$="_div_threshold"]')
-      threshold_divs.forEach(function (div) {
-        {#div.style.display = 'none';#}
-        let threshold_input = div.querySelector('input');
-        threshold_input.name = 'threshold'
-      })
-      let model_id = this.id.split("_")[0];
-      let div_threshold = document.getElementById(model_id + "_div_threshold");
-      {#div_threshold.style.display = 'block';#}
-      let threshold_input = div_threshold.querySelector('input');
-      threshold_input.name = 'selected_threshold'
-    })
-
-  })
-
   document.querySelectorAll('input[id$="_input_threshold"]').forEach(
       function (a) {
           a.addEventListener("change", thresholdChange);
@@ -659,7 +634,6 @@
       let checkbox = document.getElementById(model_id + "_checkbox");
       let radio_button = document.getElementById(model_id + "_radio");
       let div_radio = document.getElementById(model_id + "_div_radio");
-      this.name = 'threshold'
       checkbox.checked = false;
       radio_button.checked = false;
       div_radio.style.display = 'none';

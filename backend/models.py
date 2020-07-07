@@ -59,18 +59,18 @@ def export_new_raw_data():
 
 @bp.route('update_model_deployment_config', methods=['POST'])
 def update_model_deployment_config():
+    logging.error(request.form)
     approved_model_ids = set(request.form.getlist("approved_model_id"))
     selected_model_id_for_deployment = request.form.get("selected_model_id")
-
-    threshold = request.form.get("selected_threshold", None)
-    if threshold:
-        threshold = float(threshold)
 
     label = request.form.get("label")
 
     models = db.session.query(Model).filter(Model.label == label).all()
 
     for model in models:
+        threshold = request.form.get(str(model.id) + "_threshold", None)
+        if threshold:
+            threshold = float(threshold)
         model_deployment_config = db.session.query(ModelDeploymentConfig).\
             filter(ModelDeploymentConfig.model_id == model.id).one_or_none()
         is_approved = str(model.id) in approved_model_ids
@@ -78,14 +78,13 @@ def update_model_deployment_config():
         if model_deployment_config:
             model_deployment_config.is_approved = is_approved
             model_deployment_config.is_selected_for_deployment = is_selected_for_deployment
-            if is_selected_for_deployment:
-                model_deployment_config.threshold = threshold
+            model_deployment_config.threshold = threshold
         else:
             model_deployment_config = ModelDeploymentConfig(
                 model_id=model.id,
                 is_approved=is_approved,
                 is_selected_for_deployment=is_selected_for_deployment,
-                threshold=threshold if is_selected_for_deployment else 0.5
+                threshold=threshold
             )
         db.session.add(model_deployment_config)
 
