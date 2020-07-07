@@ -59,6 +59,7 @@ def export_new_raw_data():
 
 @bp.route('update_model_deployment_config', methods=['POST'])
 def update_model_deployment_config():
+    logging.error(request.form)
     approved_model_ids = set(request.form.getlist("approved_model_id"))
     selected_model_id_for_deployment = request.form.get("selected_model_id")
 
