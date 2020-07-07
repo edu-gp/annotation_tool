@@ -1,11 +1,12 @@
 import hashlib
 import os
-from collections import defaultdict
+from collections import defaultdict, Counter
+import numpy as np
 import pandas as pd
 import json
 import uuid
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 
 def load_json(fname):
@@ -145,3 +146,33 @@ def json_lookup(json_data, key):
         except:
             return None
     return sofar
+
+
+def build_counter(annos: List[Optional[int]]):
+    """
+    Input is a list of annotation values \in {-1, 0, 1, nan}.
+    We ignore 0 and nan, and return a Counter of {-1, 1}.
+    """
+    # Ignore all the elements that are 0 or nan.
+    annos = [x for x in annos if x != 0 and not pd.isna(x)]
+    return Counter(annos)
+
+
+def get_entropy(annos: List[Optional[int]], eps=0.0001):
+    """Contentiousness measured by entropy"""
+    cnt = build_counter(annos)
+
+    total = sum(cnt.values()) + eps
+    probs = [cnt[x]/total for x in cnt]
+    log_probs = [np.log(p + eps) for p in probs]
+    entropy = -sum([p*logp for p, logp in zip(probs, log_probs)])
+    return entropy
+
+
+def get_majority_vote(annos: List[Optional[int]]):
+    cnt = build_counter(annos)
+
+    if len(cnt):
+        return cnt.most_common(1)[0][0]
+    else:
+        return None

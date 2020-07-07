@@ -843,5 +843,5 @@ def get_latest_model_for_label(dbsession, label,
     return dbsession.query(Model) \
             .filter_by(label=label,
                        type=model_type) \
-            .order_by(Model.version.desc()) \
+            .order_by(Model.version.desc(), Model.created_at.desc()) \
             .first()

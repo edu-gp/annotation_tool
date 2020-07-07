@@ -1,4 +1,3 @@
-from tests.sqlalchemy_conftest import *
 from ar.data import (
     _majority_label,
     _compute_total_distinct_number_of_annotated_entities_for_label

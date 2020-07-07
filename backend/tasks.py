@@ -1,37 +1,42 @@
+import os
 import logging
-from typing import List, Optional
+import tempfile
+import pandas as pd
 
 from flask import (
-    Blueprint, flash, redirect, render_template, request, url_for
+    Blueprint, flash, redirect, render_template, request, url_for, send_file
 )
+from werkzeug.utils import secure_filename
 
-from db.model import db, Task, Model, AnnotationGuide, LabelPatterns, \
-    delete_requests_for_user_under_task, \
-    delete_requests_for_label_under_task, delete_requests_under_task, \
-    ModelDeploymentConfig, EntityTypeEnum, delete_requests_for_entity_type_under_task
+from db.model import (
+    db, ClassificationAnnotation, User, Task, Model, AnnotationGuide,
+    LabelPatterns, ModelDeploymentConfig, EntityTypeEnum,
+    delete_requests_for_user_under_task, delete_requests_for_label_under_task,
+    delete_requests_under_task, delete_requests_for_entity_type_under_task
+)
 from db.utils import get_all_data_files
-from ar.data import compute_annotation_statistics_db, \
-    compute_annotation_request_statistics
 
+from ar.data import (
+    compute_annotation_statistics_db, compute_annotation_request_statistics
+)
 from ar.ar_celery import generate_annotation_requests
 
 from train.train_celery import (
-    train_model as local_train_model,
-    submit_gcp_training
+    train_model as local_train_model, submit_gcp_training
 )
 from train.no_deps.utils import get_env_bool
 
 from shared.celery_job_status import (
     CeleryJobStatus, create_status, delete_status
 )
-from shared.frontend_path_finder import generate_frontend_user_login_link, \
-    generate_frontend_admin_examine_link, generate_frontend_compare_link
-from shared.utils import (
-    get_env_int, stem, list_to_textarea, textarea_to_list,
+from shared.frontend_path_finder import (
+    generate_frontend_user_login_link, generate_frontend_admin_examine_link,
+    generate_frontend_compare_link
 )
-
-from db.model import ClassificationAnnotation, User, EntityTypeEnum
-import pandas as pd
+from shared.utils import (
+    get_env_int, stem, list_to_textarea, textarea_to_list, get_entropy,
+    get_majority_vote
+)
 
 from .auth import auth
 
@@ -277,14 +282,15 @@ def train(id):
     # CeleryJobStatus(celery_id, f'assign:{id}').save()
     return redirect(url_for('tasks.show', id=id))
 
+
 @bp.route('/download_training_data', methods=['POST'])
 def download_training_data():
     model_id = int(request.form['model_id'])
     model = db.session.query(Model).filter_by(id=model_id).one_or_none()
     fname = model.classification_training_data.path(abs=True)
-    from flask import send_file
     return send_file(fname, mimetype='text/csv', cache_timeout=0,
                      as_attachment=True)
+
 
 @bp.route('/download_prediction', methods=['POST'])
 def download_prediction():
@@ -334,47 +340,12 @@ def download_prediction():
             df = df.merge(_df, on='domain', how='left')
 
         # Compute some statistics of the annotations
-        from collections import Counter
-        import numpy as np
-
-        def _build_counter(annos: List[Optional[int]]):
-            """
-            Input is a list of annotation values \in {-1, 0, 1, nan}.
-            We ignore 0 and nan, and return a Counter of {-1, 1}.
-            """
-            # Ignore all the elements that are 0 or nan.
-            annos = [x for x in annos if x != 0 and not pd.isna(x)]
-            return Counter(annos)
-
-        def _get_entropy(annos: List[Optional[int]], eps=0.0001):
-            """Contentiousness measured by entropy"""
-            cnt = _build_counter(annos)
-
-            total = sum(cnt.values()) + eps
-            probs = [cnt[x]/total for x in cnt]
-            log_probs = [np.log(p + eps) for p in probs]
-            entropy = -sum([p*logp for p, logp in zip(probs, log_probs)])
-            return entropy
-
-        def _get_majority_vote(annos: List[Optional[int]]):
-            cnt = _build_counter(annos)
-
-            if len(cnt):
-                return cnt.most_common(1)[0][0]
-            else:
-                return None
-
         # Only consider the columns with the user annotations
         df_annos = df.iloc[:, n_cols:]
-        df['CONTENTION (ENTROPY)'] = df_annos.apply(_get_entropy, axis=1)
-        df['MAJORITY_VOTE'] = df_annos.apply(_get_majority_vote, axis=1)
+        df['CONTENTION (ENTROPY)'] = df_annos.apply(get_entropy, axis=1)
+        df['MAJORITY_VOTE'] = df_annos.apply(get_majority_vote, axis=1)
 
         # 3. --- Write it to a temp file and send it ---
-        import tempfile
-        import os
-        from werkzeug.utils import secure_filename
-        from flask import send_file
-
         with tempfile.TemporaryDirectory() as tmpdirname:
             name = f"{secure_filename(label)}__{stem(fname)}.csv"
             final_fname = os.path.join(tmpdirname, name)
@@ -473,4 +444,3 @@ def _remove_obsolete_requests_under_task(task, data, annotators,
                              "task {}".format(current_label, task.id))
                 delete_requests_for_label_under_task(db.session,
                                                      current_label, task.id)
-

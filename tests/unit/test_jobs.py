@@ -1,4 +1,3 @@
-from tests.sqlalchemy_conftest import *
 import os
 import pytest
 from db.model import TextClassificationModel

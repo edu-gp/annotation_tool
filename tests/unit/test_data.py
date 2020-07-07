@@ -5,7 +5,6 @@ import pandas as pd
 import numpy as np
 from sqlalchemy import distinct, func
 
-from tests.sqlalchemy_conftest import *
 from ar.data import _compute_kappa_matrix, \
     _compute_number_of_annotations_done_per_user, \
     _exclude_unknowns_for_kappa_calculation, \
@@ -549,7 +548,8 @@ def test_delete_requests_for_label_under_task(dbsession):
         _populate_common_request_data(dbsession)
 
     assert _count_requests(dbsession, task_id=task1.id, label=label) == 2
-    delete_requests_for_label_under_task(dbsession, task_id=task1.id, label=label)
+    delete_requests_for_label_under_task(
+        dbsession, task_id=task1.id, label=label)
     dbsession.commit()
     assert _count_requests(dbsession, task_id=task1.id, label=label) == 0
 
@@ -558,11 +558,13 @@ def test_delete_requests_for_entity_type_under_task(dbsession):
     user1, user2, label, task1, task2, requests = \
         _populate_common_request_data(dbsession)
 
-    assert _count_requests(dbsession, task_id=task1.id, entity_type=ENTITY_TYPE) == 2
+    assert _count_requests(dbsession, task_id=task1.id,
+                           entity_type=ENTITY_TYPE) == 2
     delete_requests_for_entity_type_under_task(
         dbsession, task_id=task1.id, entity_type=ENTITY_TYPE)
     dbsession.commit()
-    assert _count_requests(dbsession, task_id=task1.id, entity_type=ENTITY_TYPE) == 0
+    assert _count_requests(dbsession, task_id=task1.id,
+                           entity_type=ENTITY_TYPE) == 0
 
 
 def test_delete_requests_for_user_under_task(dbsession):
@@ -571,7 +573,8 @@ def test_delete_requests_for_user_under_task(dbsession):
 
     assert _count_requests(dbsession, task_id=task1.id,
                            user_id=user2.id) == 1
-    delete_requests_for_user_under_task(dbsession, task_id=task1.id, username=user2.username)
+    delete_requests_for_user_under_task(
+        dbsession, task_id=task1.id, username=user2.username)
     dbsession.commit()
     assert _count_requests(dbsession, task_id=task1.id, user_id=user2.id) == 0
 
