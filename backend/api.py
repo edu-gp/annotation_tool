@@ -1,9 +1,6 @@
 import os
 from flask import Blueprint, request, abort
 
-# TODO is this needed?
-# from db.utils import get_all_data_files
-
 bp = Blueprint('api', __name__, url_prefix='/api')
 
 
@@ -38,26 +35,28 @@ def healthcheck():
 @bp.route('/trigger_inference', methods=['POST'])
 def trigger_inference():
     """Trigger inference on a dataset."""
-    # Get the data file
-    data_fname = None
+    filename = None
 
-    # request_json = request.get_json()
-    # if request_json:
-    #     data_fname = request_json.get('data_fname')
+    if 'filename' in request.form:
+        filename = request.form.get('filename')
+
+    if filename:
+        run_inference_on_data(filename)
+        return "OK", 200
+    else:
+        return abort(400)
+
+
+def run_inference_on_data(data_fname):
+    # TODO LEFT OFF HERE. Move all of this into a backend job. Adjust the test monkeypatch accordingly.
+    raise Exception("MONKEYPATCH FAILED")
+
+    # TODO is this needed?
+    # from db.utils import get_all_data_files
 
     # TODO
     # Double-check this file exists (rsync it locally?)
 
-    # If it exists...
-    # TODO Async...
-    run_inference_on_new_data(data_fname)
-
-    # TODO
-    # Return True if we're able to find the file, false otherwise.
-    return "OK", 200
-
-
-def run_inference_on_new_data(data_fname):
     # TODO
     # Get all the models are ready to be ran
 
