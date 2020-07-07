@@ -3,17 +3,17 @@
 import logging
 
 from db.config import DevelopmentConfig
-from db.model import Database, Task, EntityTypeEnum
+from db.model import Database, EntityTypeEnum, Model
 
 if __name__ == "__main__":
     logging.root.setLevel(logging.INFO)
 
     db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
-    result = db.session.query(Task).all()
+    result = db.session.query(Model).all()
 
-    for task in result:
-        if task.get_entity_type() is None:
-            task.set_entity_type(EntityTypeEnum.COMPANY)
-            db.session.add(task)
+    for model in result:
+        if model.entity_type is None:
+            model.entity_type = EntityTypeEnum.COMPANY
+            db.session.add(model)
     db.session.commit()
     db.session.close()

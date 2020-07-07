@@ -1,6 +1,6 @@
 import logging
 
-from flask import Blueprint, request, jsonify, redirect
+from flask import Blueprint, request, jsonify, redirect, render_template
 from sqlalchemy.exc import DatabaseError
 import logging
 
@@ -98,3 +98,41 @@ def update_model_deployment_config():
     logging.info(f"Updated model deployment config for label {label}.")
 
     return redirect(request.referrer)
+
+
+@bp.route('/', methods=['GET'])
+def index():
+    pass
+
+
+@bp.route('show/<string:label>', methods=['GET'])
+def show(label):
+    models_per_label = {}
+    deployment_configs_per_model = {}
+    models = db.session.query(Model).filter_by(
+        label=label).order_by(Model.created_at.desc()).limit(10).all()
+    models_per_label[label] = models
+    model_ids = [model.id for model in models]
+    res = db.session.query(
+        ModelDeploymentConfig.model_id,
+        ModelDeploymentConfig.is_approved,
+        ModelDeploymentConfig.is_selected_for_deployment,
+        ModelDeploymentConfig.threshold). \
+        filter(ModelDeploymentConfig.model_id.in_(model_ids)).all()
+    for model_id, is_approved, is_selected_for_deployment, threshold in \
+            res:
+        deployment_configs_per_model[model_id] = {
+            "is_approved": is_approved,
+            "is_selected_for_deployment": is_selected_for_deployment,
+            "threshold": threshold
+        }
+
+    logging.error(models_per_label)
+    logging.error(deployment_configs_per_model)
+
+    return render_template(
+        'models/show.html',
+        models_per_label=models_per_label,
+        deployment_configs_per_model=deployment_configs_per_model,
+        label=label
+    )
