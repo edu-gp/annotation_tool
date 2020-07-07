@@ -1,49 +1,49 @@
-from flask import (
-    Blueprint, flash, redirect, render_template, request, url_for
-)
+import os
+from flask import Blueprint, request, abort
 
-from db.utils import get_all_data_files
-
-# from .auth import auth
+# TODO is this needed?
+# from db.utils import get_all_data_files
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
 
-# TODO to double-check
-# [ ] Authentication (token?)
-# [ ] JSON format?
-# [ ] I need just the filename, if it's _already_ in the gs://alchemy-gp/data folder.
-# [ ] Response is 200 if we're able to find the file. It'll be, like, 400, otherwise.
-# [ ] Finalize the PubSub topic to get data back into Data Platform.
-
-# TODO: What kind of authentication should we provide for the API?
-# @auth.login_required
-# def _before_request():
-#     """ Auth required for all routes in this module """
-#     pass
+def get_bearer_token(headers: dict):
+    token = None
+    if 'Authorization' in headers:
+        auth = headers['Authorization']
+        if auth.startswith('Bearer '):
+            token = auth[len('Bearer '):]
+    return token
 
 
-# bp.before_request(_before_request)
+def _before_request():
+    # Let healthcheck bypass auth
+    if not request.endpoint.endswith('.healthcheck'):
+        # Check token auth
+        target_token = os.environ.get('API_TOKEN')
+        if target_token is None:
+            return abort(500)
+        if get_bearer_token(request.headers) != target_token:
+            return abort(401)
+
+
+bp.before_request(_before_request)
 
 
 @bp.route('/hc', methods=['GET'])
-def index():
+def healthcheck():
     return "OK", 200
 
 
-@bp.route('/data', methods=['POST'])
-def data():
-    """
-    Inform the system that a new data file is present.
-
-    Currently this is tightly coupled with "what happens after we receive a new
-    data file". The logic is simple enough for now, but could use some
-    refactoring at a later time.
-    """
-
-    # TODO json body?
+@bp.route('/trigger_inference', methods=['POST'])
+def trigger_inference():
+    """Trigger inference on a dataset."""
     # Get the data file
-    data_fname = ""
+    data_fname = None
+
+    # request_json = request.get_json()
+    # if request_json:
+    #     data_fname = request_json.get('data_fname')
 
     # TODO
     # Double-check this file exists (rsync it locally?)
