@@ -20,7 +20,7 @@ from db.model import User, ClassificationAnnotation, \
     AnnotationRequest, AnnotationType, AnnotationRequestStatus, Task, \
     update_instance, AnnotationValue, delete_requests_for_user_under_task, \
     delete_requests_for_label_under_task, delete_requests_under_task, \
-    delete_requests_for_entity_type_under_task
+    delete_requests_for_entity_type_under_task, Model
 
 ENTITY_TYPE = 'blah'
 

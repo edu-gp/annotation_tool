@@ -2,6 +2,7 @@ import logging
 from collections import namedtuple
 
 from flask import Blueprint, request, jsonify, redirect, render_template
+from sqlalchemy import func
 from sqlalchemy.exc import DatabaseError
 import logging
 
@@ -11,23 +12,30 @@ from flask import (
 from sqlalchemy.exc import DatabaseError
 
 from bg.jobs import export_new_raw_data as _export_new_raw_data
-from db.model import db, Model, ModelDeploymentConfig, Task
+from db.model import db, Model, ModelDeploymentConfig, Task, \
+    ClassificationAnnotation, User, AnnotationValue
 
 bp = Blueprint('models', __name__, url_prefix='/models')
 
 # TODO API auth
 
-ModelDataRow = namedtuple('ModelDataRow', [
+FIELD_DEFAULT = "--"
+FIELDS = [
     'label',
     'latest_version',
     'deployed_version',
+    'num_of_data_points',
     'roc_auc',
     'pr',
     'rc',
     'f1',
     'threshold',
-    'majority_annotator'
-])
+    'majority_annotator',
+    'has_deployed'
+]
+ModelDataRow = namedtuple('ModelDataRow', FIELDS,
+                          defaults=(FIELD_DEFAULT,) * len(FIELDS))
+
 
 def get_request_data():
     """Returns a dict of request keys and values, from either json or form"""
@@ -114,23 +122,9 @@ def update_model_deployment_config():
 
 @bp.route('/', methods=['GET'])
 def index():
-    models_per_label = {}
-    data_row_per_label = []  # TODO create a named tuple to hold the row.
-
-    tasks = db.session.query(Task).all()
-    labels = []
-    for task in tasks:
-        labels.extend(task.get_labels())
-
-    for label in labels:
-        deployed_model = db.session.query(Model).join(ModelDeploymentConfig).\
-            filter(Model.label == label,
-                   ModelDeploymentConfig.is_selected_for_deployment == True).\
-            one_or_none()
-        latest_model = db.session.query(Model). \
-            filter(Model.label == label).order_by(Model.created_at.desc()).\
-            one_or_none()
-        models_per_label[label] = [deployed_model, latest_model]
+    data_row_per_label = _collect_model_data_rows()
+    return render_template('models/index.html',
+                           data_rows=data_row_per_label)
 
 
 @bp.route('show/<string:label>', methods=['GET'])
@@ -164,3 +158,58 @@ def show(label):
         deployment_configs_per_model=deployment_configs_per_model,
         label=label
     )
+
+
+def _collect_model_data_rows():
+    data_row_per_label = []  # TODO create a named tuple to hold the row.
+
+    tasks = db.session.query(Task).all()
+    labels = []
+    for task in tasks:
+        labels.extend(task.get_labels())
+
+    for label in labels:
+        deployed_model = db.session.query(Model).join(ModelDeploymentConfig). \
+            filter(Model.label == label,
+                   ModelDeploymentConfig.is_selected_for_deployment == True). \
+            one_or_none()
+        latest_model = db.session.query(Model). \
+            filter(Model.label == label).order_by(Model.created_at.desc()). \
+            one_or_none()
+        chosen_model = deployed_model if deployed_model else latest_model
+
+        threshold = FIELD_DEFAULT
+        if chosen_model:
+            deployment_config = db.session.query(ModelDeploymentConfig).\
+                filter(ModelDeploymentConfig.model_id == chosen_model.id).\
+                one_or_none()
+            if deployment_config:
+                threshold = deployment_config.threshold
+
+        res = db.session.query(User.username,
+                               func.count(ClassificationAnnotation.id).label(
+                                   'num')). \
+            join(ClassificationAnnotation). \
+            filter(ClassificationAnnotation.label == label,
+                   ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED). \
+            group_by(User.username).order_by('num DESC').all()
+        majority_annotator = res[0][0]
+
+        row = ModelDataRow(
+            label=label,
+            latest_version=latest_model.version if latest_model else FIELD_DEFAULT,
+            deployed_version=deployed_model.version if deployed_model else FIELD_DEFAULT,
+            num_of_data_points=chosen_model.get_len_data(),
+            threshold=threshold,
+            majority_annotator=majority_annotator,
+            has_deployed=True if deployed_model else False
+        )
+
+        if chosen_model and chosen_model.is_ready():
+            row.roc_auc = chosen_model.get_metrics()['test']['roc_auc']
+            row.pr = chosen_model.get_metrics()['test']['precision']
+            row.rc = chosen_model.get_metrics()['test']['recall']
+            row.f1 = chosen_model.get_metrics()['test']['fscore']
+
+        data_row_per_label.append(row)
+        return data_row_per_label
