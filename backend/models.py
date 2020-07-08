@@ -1,4 +1,5 @@
 import logging
+from collections import namedtuple
 
 from flask import Blueprint, request, jsonify, redirect, render_template
 from sqlalchemy.exc import DatabaseError
@@ -10,12 +11,23 @@ from flask import (
 from sqlalchemy.exc import DatabaseError
 
 from bg.jobs import export_new_raw_data as _export_new_raw_data
-from db.model import db, Model, ModelDeploymentConfig
+from db.model import db, Model, ModelDeploymentConfig, Task
 
 bp = Blueprint('models', __name__, url_prefix='/models')
 
 # TODO API auth
 
+ModelDataRow = namedtuple('ModelDataRow', [
+    'label',
+    'latest_version',
+    'deployed_version',
+    'roc_auc',
+    'pr',
+    'rc',
+    'f1',
+    'threshold',
+    'majority_annotator'
+])
 
 def get_request_data():
     """Returns a dict of request keys and values, from either json or form"""
@@ -102,7 +114,23 @@ def update_model_deployment_config():
 
 @bp.route('/', methods=['GET'])
 def index():
-    pass
+    models_per_label = {}
+    data_row_per_label = []  # TODO create a named tuple to hold the row.
+
+    tasks = db.session.query(Task).all()
+    labels = []
+    for task in tasks:
+        labels.extend(task.get_labels())
+
+    for label in labels:
+        deployed_model = db.session.query(Model).join(ModelDeploymentConfig).\
+            filter(Model.label == label,
+                   ModelDeploymentConfig.is_selected_for_deployment == True).\
+            one_or_none()
+        latest_model = db.session.query(Model). \
+            filter(Model.label == label).order_by(Model.created_at.desc()).\
+            one_or_none()
+        models_per_label[label] = [deployed_model, latest_model]
 
 
 @bp.route('show/<string:label>', methods=['GET'])
