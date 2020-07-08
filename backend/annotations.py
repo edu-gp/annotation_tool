@@ -42,10 +42,6 @@ def bulk():
 
 @bp.route('/bulk', methods=['POST'])
 def bulk_post():
-    import logging
-    logging.error(request.form)
-    logging.error(request.form.get('entities'))
-
     try:
         # Validate Form
 
