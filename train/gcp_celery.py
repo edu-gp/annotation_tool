@@ -1,6 +1,10 @@
 import time
+from typing import Optional
 from celery import Celery
 from train.gcp_job import GoogleAIPlatformJob, download
+from train.bg_utils import (
+    build_results_for_production, DeployedInferenceMetadata
+)
 
 app = Celery(
     # module name
@@ -15,7 +19,13 @@ app = Celery(
 
 
 @app.task
-def poll_status(job_id):
+def poll_status(job_id, metadata_dict: Optional[dict] = None):
+    """
+    Inputs:
+        job_id: GoogleAIPlatformJob job id
+        metadata: Production metadata. If None, then this run shouldn't go into
+            the production bucket.
+    """
     # TODO put this on a queue, rather than just a loop check.
     while True:
         job = GoogleAIPlatformJob.fetch(job_id)
@@ -26,6 +36,10 @@ def poll_status(job_id):
             if job.get_state() == 'SUCCEEDED':
                 for md in job.get_model_defns():
                     download(md)
+                if metadata_dict:
+                    metadata = \
+                        DeployedInferenceMetadata.from_json(metadata_dict)
+                    build_results_for_production(metadata)
                 break
 
         time.sleep(60)

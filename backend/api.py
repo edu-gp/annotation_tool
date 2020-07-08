@@ -1,5 +1,6 @@
 import os
 from flask import Blueprint, request, abort
+from train.train_celery import submit_gcp_inference_on_new_file
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -47,23 +48,7 @@ def trigger_inference():
         return abort(400)
 
 
-def run_inference_on_data(data_fname):
-    # TODO LEFT OFF HERE. Move all of this into a backend job. Adjust the test monkeypatch accordingly.
-    raise Exception("MONKEYPATCH FAILED")
-
-    # TODO is this needed?
-    # from db.utils import get_all_data_files
-
-    # TODO
-    # Double-check this file exists (rsync it locally?)
-
-    # TODO
-    # Get all the models are ready to be ran
-
-    # TODO
-    # submit_gcp_inference on the models on the newest data
-    # TODO if the file already exists remotely, do we still need it locally? (Some ops might depend on it; might need to fetch from cloud as needed)
-
-    # TODO
-    # For all existing models, as they're trained, should we also send a message to push them to the data platform? Or should they be picked up next week?
-    pass
+def run_inference_on_data(filename):
+    # TODO: This function exists so I can mock it in test.
+    #       Can get rid of it once we set up Celery fixtures.
+    submit_gcp_inference_on_new_file.delay(filename)
