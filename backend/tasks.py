@@ -213,18 +213,20 @@ def update(id):
         name = parse_name(form)
         data = parse_data_filename(form)
         labels = parse_labels(form)
+
         annotators = parse_annotators(form)
-        # TODO do we ever need to update the entity_type for a task?
-        #  It doesn't hurt to add it here.
-        entity_type = parse_entity_type(form)
+        entity_type = task.get_entity_type()
+
 
         _remove_obsolete_requests_under_task(task, data,
                                              annotators, labels, entity_type)
+
 
         task.set_data_filenames([data])
         task.set_annotators(annotators)
         task.set_labels(labels)
         task.name = name
+
 
         db.session.add(task)
 
