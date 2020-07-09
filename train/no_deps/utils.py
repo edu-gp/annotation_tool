@@ -137,8 +137,8 @@ def run_cmd(cmd: str):
     try:
         output = subprocess.run(shlex.split(
             cmd), check=True, capture_output=True)
-        # print("stdout:", output.stdout)
-        # print("stderr:", output.stderr)
+        print("stdout:", output.stdout)
+        print("stderr:", output.stderr)
         return output
     except subprocess.CalledProcessError as e:
         print("stdout:", e.stdout)

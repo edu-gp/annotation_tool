@@ -2,9 +2,7 @@ import time
 from typing import Optional
 from celery import Celery
 from train.gcp_job import GoogleAIPlatformJob, download
-from train.bg_utils import (
-    create_deployed_inference, DeployedInferenceMetadata
-)
+from train.gs_utils import create_deployed_inference, DeployedInferenceMetadata
 
 app = Celery(
     # module name

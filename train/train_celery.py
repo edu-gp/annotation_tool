@@ -13,7 +13,7 @@ from train.no_deps.run import (
 from train.gcp_job import ModelDefn, submit_job
 from train.gcp_celery import poll_status as gcp_poll_status
 from train.gs_utils import (
-    ensure_file_exists_locally, model_has_inference, create_deployed_inference,
+    ensure_file_exists_locally, has_model_inference, create_deployed_inference,
     DeployedInferenceMetadata
 )
 
@@ -126,7 +126,7 @@ def submit_gcp_inference_on_new_file(filename):
                 threshold=config.threshold,
                 filename=filename)
 
-            if model_has_inference(model.uuid, model.version, filename):
+            if has_model_inference(model.uuid, model.version, filename):
                 create_deployed_inference(metadata)
             else:
                 # TODO could this mean we have a model already??

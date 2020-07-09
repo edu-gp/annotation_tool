@@ -1,10 +1,12 @@
 import tempfile
+from shared.utils import load_jsonl
 from db.utils import get_all_data_files
 from train.gs_url import (
     build_raw_data_url, build_model_inference_url, build_prod_inference_url,
     build_prod_metadata_url
 )
 from train.no_deps.utils import gs_copy_file, gs_exists
+from train.no_deps.inference_results import InferenceResults
 
 
 class DeployedInferenceMetadata:
@@ -126,10 +128,8 @@ def create_deployed_inference(metadata: DeployedInferenceMetadata) -> None:
 
 
 def build_prod_inference_dataframe(pred_fname, raw_fname, threshold):
-    from train.no_deps.inference_results import InferenceResults
     inf = InferenceResults.load(pred_fname)
 
-    from shared.utils import load_jsonl
     raw = load_jsonl(raw_fname, to_df=True)
 
     if len(inf.probs) != len(raw):
