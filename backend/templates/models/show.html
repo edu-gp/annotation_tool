@@ -178,14 +178,6 @@
           </div>
           <div class="col mt-4">
 
-{#            <form action="{{ url_for('tasks.train', id=task.id) }}" method="POST">#}
-{#              <input type="hidden" name="label" value="{{label}}" />#}
-{#              <button type="submit" class="btn btn-primary click-once">Train new model for "{{label}}"</button>#}
-{#            </form>#}
-{#            <p>#}
-{#              <a href="{{ url_for('admin_view_train_logs') }}" target="_blank">View Train Worker Logs</a>#}
-{#            </p>#}
-
           </div>
         </div>
 
@@ -201,7 +193,7 @@
                   <table class="table">
                     <tbody>
                       {% for mv in models_per_label.get(label, []) %}
-{#                      {% if mv.is_ready() %}#}
+                      {% if mv.is_ready() %}
                       {% set deployment_config = deployment_configs_per_model[mv.id] %}
                       <tr>
                         <td>
@@ -230,19 +222,11 @@
                                       checked="checked" />
                                     <label for="selected_model_id">Selected for deployment</label>
                                   </div>
-{#                                  <div id="{{mv.id}}_div_threshold">#}
-{#                                    <label for="threshold">Threshold</label>#}
-{#                                    <input type="text" name="selected_threshold" value="{{ deployment_config["threshold"] }}" />#}
-{#                                  </div>#}
                               {% else %}
                                   <div id="{{mv.id}}_div_radio">
                                     <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}" />
                                     <label for="selected_model_id">Selected for deployment</label>
                                   </div>
-{#                                  <div id="{{mv.id}}_div_threshold" style="display: none">#}
-{#                                    <label for="threshold">Threshold</label>#}
-{#                                    <input type="text" name="threshold" value="{{ deployment_config["threshold"] }}" />#}
-{#                                  </div>#}
                               {%  endif %}
                           {% else %}
                               <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}"
@@ -251,25 +235,16 @@
                                 <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}" />
                                 <label for="selected_model_id">Selected for deployment</label>
                               </div>
-{#                              <div id="{{mv.id}}_div_threshold" style="display: none">#}
-{#                                <label for="threshold">Threshold</label>#}
-{#                                {% if deployment_config %}#}
-{#                                    <input type="text" name="threshold" value="{{ deployment_config["threshold"] }}" />#}
-{#                                {% else %}#}
-{#                                    <input type="text" name="threshold" value="0.5" />#}
-{#                                {% endif %}#}
-{#                              </div>#}
                           {% endif %}
                         </td>
                       </tr>
-{#                      {% endif %}#}
+                      {% endif %}
                       {% endfor %}
                     </tbody>
                   </table>
 
                   <button type="submit" class="btn btn-primary">Save Deployment Config for "{{ label }}"</button>
                 </form>
-                {# <button type="submit" class="btn btn-primary" name="label" value="{{ label }}" formaction="{{ url_for('models.reset_active_model') }}" formmethod="POST">Reset Active Model for {{ label }}</button> #}
               </div>
             </div>
           </div>
