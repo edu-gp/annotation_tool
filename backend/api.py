@@ -36,19 +36,19 @@ def healthcheck():
 @bp.route('/trigger_inference', methods=['POST'])
 def trigger_inference():
     """Trigger inference on a dataset."""
-    filename = None
+    dataset_name = None
 
-    if 'filename' in request.form:
-        filename = request.form.get('filename')
+    if 'dataset_name' in request.form:
+        dataset_name = request.form.get('dataset_name')
 
-    if filename:
-        run_inference_on_data(filename)
+    if dataset_name:
+        run_inference_on_data(dataset_name)
         return "OK", 200
     else:
         return abort(400)
 
 
-def run_inference_on_data(filename):
+def run_inference_on_data(dataset_name):
     # TODO: This function exists so I can mock it in test.
     #       Can get rid of it once we set up Celery fixtures.
-    submit_gcp_inference_on_new_file.delay(filename)
+    submit_gcp_inference_on_new_file.delay(dataset_name)

@@ -99,11 +99,11 @@ def submit_gcp_inference(label, version, raw_file_path):
 
 
 @app.task
-def submit_gcp_inference_on_new_file(filename):
+def submit_gcp_inference_on_new_file(dataset_name):
     # TODO test
 
     # TODO I think we only need this if we're training a new model.
-    ensure_file_exists_locally(filename)
+    ensure_file_exists_locally(dataset_name)
 
     # Check which models need to be ran, and kick them off.
     timestamp = int(time.time())
@@ -124,14 +124,14 @@ def submit_gcp_inference_on_new_file(filename):
                 model_version=model.version,
                 label=model.label,
                 threshold=config.threshold,
-                filename=filename)
+                dataset_name=dataset_name)
 
-            if has_model_inference(model.uuid, model.version, filename):
+            if has_model_inference(model.uuid, model.version, dataset_name):
                 create_deployed_inference(metadata)
             else:
                 # TODO could this mean we have a model already??
                 # Kick off a new job to run inference, then deploy when done.
-                submit_gcp_job(model, [filename], metadata)
+                submit_gcp_job(model, [dataset_name], metadata)
     finally:
         db.session.close()
 

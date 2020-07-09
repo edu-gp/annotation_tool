@@ -7,11 +7,11 @@ def test_hc(backend_client):
     assert response.status == '200 OK'
 
 
-def make_request(backend_client, auth_token="test123", filename="blah.jsonl"):
+def make_request(backend_client, auth_token="test123", dataset_name="blah.jsonl"):
     url = '/api/trigger_inference'
     data = {}
-    if filename:
-        data['filename'] = filename
+    if dataset_name:
+        data['dataset_name'] = dataset_name
     return backend_client.post(url, headers={
         'Authorization': f'Bearer {auth_token}'
     }, data=data)
@@ -41,15 +41,15 @@ def test_authorized_call(backend_client, monkeypatch):
     assert response.status == '200 OK'
 
 
-def test_request_with_no_filename(backend_client, monkeypatch):
+def test_request_with_no_dataset_name(backend_client, monkeypatch):
     monkeypatch.setenv('API_TOKEN', 'test123')
     monkeypatch.setattr(api, 'run_inference_on_data', lambda x: None)
 
-    response = make_request(backend_client, filename='')
+    response = make_request(backend_client, dataset_name='')
     assert response.status == '400 BAD REQUEST'
 
 
-def test_filename_thru_query_param(backend_client, monkeypatch):
+def test_dataset_name_thru_query_param(backend_client, monkeypatch):
     captured_calls = []
 
     def capture_call(x):
@@ -59,5 +59,5 @@ def test_filename_thru_query_param(backend_client, monkeypatch):
     monkeypatch.setattr(api, 'run_inference_on_data', capture_call)
 
     # With Query Param
-    make_request(backend_client, filename='blah_123.jsonl')
+    make_request(backend_client, dataset_name='blah_123.jsonl')
     assert captured_calls == ['blah_123.jsonl']

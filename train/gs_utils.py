@@ -11,13 +11,13 @@ from train.no_deps.inference_results import InferenceResults
 
 class DeployedInferenceMetadata:
     def __init__(self, timestamp, model_uuid, model_version,
-                 label, threshold, filename):
+                 label, threshold, dataset_name):
         self.timestamp = timestamp
         self.model_uuid = model_uuid
         self.model_version = model_version
         self.label = label
         self.threshold = threshold
-        self.filename = filename
+        self.dataset_name = dataset_name
 
     def to_dict(self):
         return {
@@ -26,7 +26,7 @@ class DeployedInferenceMetadata:
             'model_version': self.model_version,
             'label': self.label,
             'threshold': self.threshold,
-            'filename': self.filename
+            'dataset_name': self.dataset_name
         }
 
     @classmethod
@@ -37,40 +37,41 @@ class DeployedInferenceMetadata:
             model_version=obj.get('model_version'),
             label=obj.get('label'),
             threshold=obj.get('threshold'),
-            filename=obj.get('filename')
+            dataset_name=obj.get('dataset_name')
         )
 
 
-def ensure_file_exists_locally(filename: str) -> None:
-    """Ensure data `filename` from GCS is available locally.
+def ensure_file_exists_locally(dataset_name: str) -> None:
+    """Ensure data `dataset_name` from GCS is available locally.
     Inputs:
-        filename: A data filename e.g. "jan_2020.jsonl"
+        dataset_name: A data dataset_name e.g. "jan_2020.jsonl"
     Raises:
         Exception if the file could not be present locally.
     """
     # TODO test
     # TODO does this belong here?
     # Ensure the file exists locally
-    if filename not in get_all_data_files():
-        # TODO consolidate these filenames
+    if dataset_name not in get_all_data_files():
+        # TODO consolidate these paths
         from db.utils import get_local_data_file_path
-        remote_fname = build_raw_data_url(filename)
-        local_fname = get_local_data_file_path(filename)
+        remote_fname = build_raw_data_url(dataset_name)
+        local_fname = get_local_data_file_path(dataset_name)
         gs_copy_file(remote_fname, local_fname)
 
-    if filename not in get_all_data_files():
-        raise Exception(f"File {filename} either does not exist or is invalid")
+    if dataset_name not in get_all_data_files():
+        raise Exception(
+            f"Dataset {dataset_name} either does not exist or is invalid")
 
 
-def has_model_inference(model_uuid, model_version, filename) -> bool:
-    """Check if `model` already has ran inference on `filename` REMOTELY on GCS.
+def has_model_inference(model_uuid, model_version, dataset_name) -> bool:
+    """Check if `model` already has ran inference on `dataset_name` REMOTELY on GCS.
     Inputs:
         model_uuid: -
         model_version: -
-        filename: A data filename e.g. "jan_2020.jsonl"
+        dataset_name: A dataset name e.g. "jan_2020.jsonl"
     """
     # TODO test
-    url = build_model_inference_url(model_uuid, model_version, filename)
+    url = build_model_inference_url(model_uuid, model_version, dataset_name)
     return gs_exists(url)
 
 
@@ -88,18 +89,18 @@ def create_deployed_inference(metadata: DeployedInferenceMetadata) -> None:
 
     uuid = metadata.model_uuid
     version = metadata.model_version
-    fname = metadata.filename
+    dname = metadata.dataset_name
     ts = metadata.timestamp
 
     # Make sure the model already has the inference ready.
-    if not has_model_inference(uuid, version, fname):
+    if not has_model_inference(uuid, version, dname):
         raise Exception(f"Inference result not present on GCS, "
-                        f"model_uuid={uuid}, model_version={version}, filename={fname}")
+                        f"model_uuid={uuid}, model_version={version}, dataset_name={dname}")
 
-    raw_url = build_raw_data_url(fname)
-    inference_url = build_model_inference_url(uuid, version, fname)
-    prod_inference_url = build_prod_inference_url(uuid, version, fname, ts)
-    prod_metadata_url = build_prod_metadata_url(uuid, version, fname, ts)
+    raw_url = build_raw_data_url(dname)
+    inference_url = build_model_inference_url(uuid, version, dname)
+    prod_inference_url = build_prod_inference_url(uuid, version, dname, ts)
+    prod_metadata_url = build_prod_metadata_url(uuid, version, dname, ts)
 
     # Do everything on a temporary folder, then upload it to GCS.
     with tempfile.TemporaryDirectory() as tmpdirname:
