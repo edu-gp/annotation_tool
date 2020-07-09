@@ -26,27 +26,31 @@
               <div class="card-body">
                 <table class="table">
                     <tbody>
-                      <th>
-                          <td>Label</td>
-                          <td>Latest Version</td>
-                          <td>Deployed Version</td>
-                          <td>Number of useful data points</td>
-                          <td>ROC AUC</td>
-                          <td>Pr</td>
-                          <td>Rc</td>
-                          <td>F1</td>
-                          <td>Threshold</td>
-                          <td>Owner</td>
-                          <td>Majority Annotator</td>
-                          <td>Deployed?</td>
-                          <td>Model Details</td>
-                      </th>
+                      <tr>
+                          <th>Label</th>
+                          <th>Latest Version</th>
+                          <th>Deployed Version</th>
+                          <th>Number of useful data points</th>
+                          <th>ROC AUC</th>
+                          <th>Pr</th>
+                          <th>Rc</th>
+                          <th>F1</th>
+                          <th>Threshold</th>
+                          <th>Owner</th>
+                          <th>Majority Annotator</th>
+                          <th>Deployed?</th>
+                          <th>Model Details</th>
+                      </tr>
                       {% for row in data_rows %}
                       <tr>
                         <td>{{ row.label }}</td>
                         <td>{{ row.latest_version }}</td>
                         <td>{{ row.deployed_version }}</td>
-                        <td>{{ row.num_of_data_points }}</td>
+                        {% if row.num_of_data_points < 200 %}
+                            <td bgcolor="red">{{ row.num_of_data_points }}</td>
+                        {% else %}
+                            <td>{{ row.num_of_data_points }}</td>
+                        {% endif %}
                         <td>{{ row.roc_auc }}</td>
                         <td>{{ row.pr }}</td>
                         <td>{{ row.rc }}</td>
@@ -55,7 +59,7 @@
                         <td>NOT SUPPORTED YET</td>
                         <td>{{ row.majority_annotator }}</td>
                         <td>{{ row.has_deployed }}</td>
-                        <td><a href="{{ url_for('models.show', label=row.label) }} }}" target="_blank">{{ Details }}</a></td>
+                        <td><a href="{{ url_for('models.show', label=row.label) }}" target="_blank">Details</a></td>
                       </tr>
                       {% endfor %}
                     </tbody>

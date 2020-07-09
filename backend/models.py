@@ -1,8 +1,10 @@
 import logging
 from collections import namedtuple
+from dataclasses import dataclass
+from typing import List
 
 from flask import Blueprint, request, jsonify, redirect, render_template
-from sqlalchemy import func
+from sqlalchemy import func, desc
 from sqlalchemy.exc import DatabaseError
 import logging
 
@@ -33,8 +35,21 @@ FIELDS = [
     'majority_annotator',
     'has_deployed'
 ]
-ModelDataRow = namedtuple('ModelDataRow', FIELDS,
-                          defaults=(FIELD_DEFAULT,) * len(FIELDS))
+
+
+@dataclass
+class ModelDataRow:
+    label: str
+    latest_version: str
+    deployed_version: str
+    num_of_data_points: str
+    threshold: str
+    majority_annotator: str
+    has_deployed: bool
+    roc_auc: str = FIELD_DEFAULT
+    pr: str = FIELD_DEFAULT
+    rc: str = FIELD_DEFAULT
+    f1: str = FIELD_DEFAULT
 
 
 def get_request_data():
@@ -123,6 +138,7 @@ def update_model_deployment_config():
 @bp.route('/', methods=['GET'])
 def index():
     data_row_per_label = _collect_model_data_rows()
+    logging.error(data_row_per_label)
     return render_template('models/index.html',
                            data_rows=data_row_per_label)
 
@@ -167,15 +183,20 @@ def _collect_model_data_rows():
     labels = []
     for task in tasks:
         labels.extend(task.get_labels())
-
+    logging.error(labels)
     for label in labels:
-        deployed_model = db.session.query(Model).join(ModelDeploymentConfig). \
+        logging.error(label)
+        deployed_model_query = db.session.query(Model).join(ModelDeploymentConfig). \
             filter(Model.label == label,
-                   ModelDeploymentConfig.is_selected_for_deployment == True). \
-            one_or_none()
+                   ModelDeploymentConfig.is_selected_for_deployment == True,
+                   ModelDeploymentConfig.model_id == Model.id)
+        logging.error(deployed_model_query)
+        deployed_model = deployed_model_query.one_or_none()
+        logging.error(deployed_model)
         latest_model = db.session.query(Model). \
             filter(Model.label == label).order_by(Model.created_at.desc()). \
-            one_or_none()
+            first()
+        logging.error(latest_model)
         chosen_model = deployed_model if deployed_model else latest_model
 
         threshold = FIELD_DEFAULT
@@ -192,7 +213,7 @@ def _collect_model_data_rows():
             join(ClassificationAnnotation). \
             filter(ClassificationAnnotation.label == label,
                    ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED). \
-            group_by(User.username).order_by('num DESC').all()
+            group_by(User.username).order_by(desc('num')).all()
         majority_annotator = res[0][0]
 
         row = ModelDataRow(
@@ -206,10 +227,23 @@ def _collect_model_data_rows():
         )
 
         if chosen_model and chosen_model.is_ready():
-            row.roc_auc = chosen_model.get_metrics()['test']['roc_auc']
-            row.pr = chosen_model.get_metrics()['test']['precision']
-            row.rc = chosen_model.get_metrics()['test']['recall']
-            row.f1 = chosen_model.get_metrics()['test']['fscore']
+            row.roc_auc = _reformat_stats(chosen_model.get_metrics()['test']['roc_auc'])
+            row.pr = _reformat_stats(chosen_model.get_metrics()['test']['precision'])
+            row.rc = _reformat_stats(chosen_model.get_metrics()['test']['recall'])
+            row.f1 = _reformat_stats(chosen_model.get_metrics()['test']['fscore'])
 
         data_row_per_label.append(row)
-        return data_row_per_label
+    return data_row_per_label
+
+
+def _reformat_stats(input: float or List):
+    if isinstance(input, float):
+        input = float("{:10.2f}".format(input))
+    elif isinstance(input, List):
+        for i in range(len(input)):
+            input[i] = float("{:10.2f}".format(input[i]))
+    else:
+        raise ValueError("Invalid input type. "
+                         "Only string of list of strings are accepted. "
+                         "Got {}".format(type(input)))
+    return input
