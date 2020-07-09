@@ -3,7 +3,7 @@ from typing import Optional
 from celery import Celery
 from train.gcp_job import GoogleAIPlatformJob, download
 from train.bg_utils import (
-    build_results_for_production, DeployedInferenceMetadata
+    create_deployed_inference, DeployedInferenceMetadata
 )
 
 app = Celery(
@@ -39,7 +39,7 @@ def poll_status(job_id, metadata_dict: Optional[dict] = None):
                 if metadata_dict:
                     metadata = \
                         DeployedInferenceMetadata.from_json(metadata_dict)
-                    build_results_for_production(metadata)
+                    create_deployed_inference(metadata)
                 break
 
         time.sleep(60)

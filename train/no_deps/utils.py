@@ -137,8 +137,8 @@ def run_cmd(cmd: str):
     try:
         output = subprocess.run(shlex.split(
             cmd), check=True, capture_output=True)
-        print("stdout:", output.stdout)
-        print("stderr:", output.stderr)
+        # print("stdout:", output.stdout)
+        # print("stderr:", output.stderr)
         return output
     except subprocess.CalledProcessError as e:
         print("stdout:", e.stdout)
@@ -158,3 +158,19 @@ def gs_copy_file(fname, dst, no_clobber=True):
     else:
         # Overwrite existing
         run_cmd(f'gsutil cp {fname} {dst}')
+
+
+def gs_exists(gs_url):
+    """Check if gs_url points to a valid file we can access"""
+    # If gs_url is not accessible, the response could be one of:
+    #   1. "You aren't authorized to read ..."
+    #   2. "No URLs matched: ..."
+    # and it would have a non-0 status, which would be raised.
+    #
+    # Otherwise, it would return a bunch of information about the file,
+    # one of them being "Creation time".
+    try:
+        res = run_cmd(f'gsutil stat {gs_url}')
+        return 'Creation time:' in res.stdout.decode('utf-8')
+    except subprocess.CalledProcessError:
+        return False

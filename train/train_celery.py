@@ -1,6 +1,9 @@
+import time
+from typing import List, Optional
 from celery import Celery
-from db.utils import get_all_data_files
-from db.model import Database, TextClassificationModel
+from db.model import (
+    Database, Model, TextClassificationModel, ModelDeploymentConfig
+)
 from db.config import DevelopmentConfig
 from train.prep import prepare_next_model_for_label
 from train.no_deps.run import (
@@ -9,9 +12,9 @@ from train.no_deps.run import (
 )
 from train.gcp_job import ModelDefn, submit_job
 from train.gcp_celery import poll_status as gcp_poll_status
-from train.bg_utils import (
-    download_file, get_selected_deployment_configs, already_has_inference,
-    build_results_for_production, DeployedInferenceMetadata
+from train.gs_utils import (
+    ensure_file_exists_locally, model_has_inference, create_deployed_inference,
+    DeployedInferenceMetadata
 )
 
 app = Celery(
@@ -68,12 +71,7 @@ def submit_gcp_training(label, raw_file_path, entity_type):
             entity_type=entity_type
         )
 
-        model_defn = ModelDefn(model.uuid, model.version)
-
-        job_id = submit_job(model_defns=[model_defn],
-                            files_for_inference=[raw_file_path])
-
-        gcp_poll_status.delay(job_id)
+        submit_gcp_job(model, [raw_file_path])
     finally:
         db.session.close()
 
@@ -95,32 +93,23 @@ def submit_gcp_inference(label, version, raw_file_path):
 
         assert model, f"Model not found - label={label} version={version}"
 
-        model_defn = ModelDefn(model.uuid, model.version)
-
-        job_id = submit_job(model_defns=[model_defn],
-                            files_for_inference=[raw_file_path])
-
-        gcp_poll_status.delay(job_id)
+        submit_gcp_job(model, [raw_file_path])
     finally:
         db.session.close()
 
 
 @app.task
 def submit_gcp_inference_on_new_file(filename):
-    # TODO Tests
+    # TODO test
 
-    # Ensure the file exists
-    if filename not in get_all_data_files():
-        download_file(filename)
-
-    if filename not in get_all_data_files():
-        raise Exception(f"File {filename} either does not exist or is invalid")
+    # TODO I think we only need this if we're training a new model.
+    ensure_file_exists_locally(filename)
 
     # Check which models need to be ran, and kick them off.
+    timestamp = int(time.time())
     db = Database.from_config(DevelopmentConfig)
     try:
-        # TODO get config, model uuid and version in 1 SQL call?
-        configs = get_selected_deployment_configs(db.session)
+        configs = ModelDeploymentConfig.get_selected_deployment(db.session)
 
         for config in configs:
             model = db.session.query(
@@ -130,23 +119,41 @@ def submit_gcp_inference_on_new_file(filename):
             # running, so we want to make a copy of the config and pass it to
             # the training job.
             metadata = DeployedInferenceMetadata(
+                timestamp=timestamp,
                 model_uuid=model.uuid,
                 model_version=model.version,
+                label=model.label,
                 threshold=config.threshold,
                 filename=filename)
 
-            if already_has_inference(model, filename):
-                build_results_for_production(metadata)
+            if model_has_inference(model.uuid, model.version, filename):
+                create_deployed_inference(metadata)
             else:
-                # Kick off a new job to run inference, when it's done, build
-                # the results for production.
-                model_defn = ModelDefn(model.uuid, model.version)
-                job_id = submit_job(model_defns=[model_defn],
-                                    files_for_inference=[filename])
-
-                gcp_poll_status.delay(job_id, metadata_dict=metadata.to_dict())
+                # TODO could this mean we have a model already??
+                # Kick off a new job to run inference, then deploy when done.
+                submit_gcp_job(model, [filename], metadata)
     finally:
         db.session.close()
+
+
+def submit_gcp_job(model: Model, files_for_inference: List[str],
+                   metadata: Optional[DeployedInferenceMetadata]):
+    """Submits a training & inference job onto Google AI Platform.
+
+    Inputs:
+        model: -
+        metadata: If a metadata is not None, it means we intend for the
+            results to be deployed.
+    """
+    model_defn = ModelDefn(model.uuid, model.version)
+
+    job_id = submit_job(model_defns=[model_defn],
+                        files_for_inference=files_for_inference)
+
+    if metadata:
+        gcp_poll_status.delay(job_id, metadata_dict=metadata.to_dict())
+    else:
+        gcp_poll_status.delay(job_id)
 
 
 app.conf.task_routes = {'*.train_celery.*': {'queue': 'train_celery'}}
