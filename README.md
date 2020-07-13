@@ -33,6 +33,7 @@ Descriptions of the env vars:
 - `DB_URL_FOR_MIGRATION`: The link to the database instance when running migration.
 - `BACKEND_LOGGER`: The logger name for the alchemy backend server.
 - `FRONTEND_LOGGER`: The logger name for the alchemy frontend server.
+- `INFERENCE_OUTPUT_PUBSUB_TOPIC`: The PubSub topic name for inference output.
 
 New env vars:
 

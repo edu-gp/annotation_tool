@@ -1,5 +1,7 @@
+import os
 import tempfile
 import json
+
 from shared.utils import load_jsonl
 from train.gs_url import (
     build_raw_data_url, build_model_inference_url, build_prod_inference_url,
@@ -7,6 +9,8 @@ from train.gs_url import (
 )
 from train.no_deps.utils import gs_copy_file, gs_exists
 from train.no_deps.inference_results import InferenceResults
+
+from google.cloud import pubsub
 
 
 class DeployedInferenceMetadata:
@@ -104,7 +108,8 @@ def create_deployed_inference(metadata: DeployedInferenceMetadata) -> None:
         gs_copy_file(csv_fname, prod_inference_url, no_clobber=False)
         gs_copy_file(metadata_fname, prod_metadata_url, no_clobber=False)
 
-    publish_message()
+    message = __construct_message(prod_inference_url, prod_metadata_url, ts)
+    publish_message(topic=__prepare_pubsub_topic_name(), message=message)
 
 
 def build_prod_inference_dataframe(pred_fname, raw_fname, threshold):
@@ -132,6 +137,25 @@ def build_prod_inference_dataframe(pred_fname, raw_fname, threshold):
     return df
 
 
-def publish_message():
-    # TODO pubsub that Data Platform can listen to.
-    pass
+def publish_message(topic, message):
+    publish_client = pubsub.PublisherClient()
+    publish_client.publish(topic, message.encode('utf-8'))
+
+
+def __construct_message(prod_inference_url, prod_meta_url, timestamp):
+    message = {
+        'timestamp': timestamp,
+        'environment': 'prod',  # ideally we should have multiple stages and not harding this here.
+        'dataset': 'taxonomy_b2c',
+        'path': {
+            'inferences': prod_inference_url,
+            'metadata': prod_meta_url
+        }
+    }
+    return json.dumps(message)
+
+
+def __prepare_pubsub_topic_name():
+    project = os.getenv("GCP_PROJECT_ID")
+    topic = os.getenv("INFERENCE_OUTPUT_PUBSUB_TOPIC")
+    return f'projects/{project}/topics/{topic}'
