@@ -39,6 +39,7 @@ New env vars:
 - `ALCHEMY_FILESTORE_DIR`: Local filestore location.
 - `ALCHEMY_DATABASE_URI`: The URI of SQL database.
 - `ALCHEMY_ENV`: The environemnt the server is running in.
+- `API_TOKEN`: API token for /api/* calls.
 
 # Exposing Port on Google Cloud
 
