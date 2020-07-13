@@ -34,9 +34,10 @@ def poll_status(job_id, metadata_dict: Optional[dict] = None):
             if job.get_state() == 'SUCCEEDED':
                 for md in job.get_model_defns():
                     download(md)
+                # TODO poll_status shouldn't have implementation details about callbacks
                 if metadata_dict:
                     metadata = \
-                        DeployedInferenceMetadata.from_json(metadata_dict)
+                        DeployedInferenceMetadata.from_dict(metadata_dict)
                     create_deployed_inference(metadata)
                 break
 

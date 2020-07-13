@@ -13,8 +13,7 @@ from train.no_deps.run import (
 from train.gcp_job import ModelDefn, submit_job
 from train.gcp_celery import poll_status as gcp_poll_status
 from train.gs_utils import (
-    ensure_file_exists_locally, has_model_inference, create_deployed_inference,
-    DeployedInferenceMetadata
+    has_model_inference, create_deployed_inference, DeployedInferenceMetadata
 )
 
 app = Celery(
@@ -76,6 +75,7 @@ def submit_gcp_training(label, raw_file_path, entity_type):
         db.session.close()
 
 
+# TODO deprecate; this is not used anywhere except when debugging.
 @app.task
 def submit_gcp_inference(label, version, raw_file_path):
     '''
@@ -85,7 +85,6 @@ def submit_gcp_inference(label, version, raw_file_path):
     from train.train_celery import submit_gcp_inference
     submit_gcp_inference.delay('Healthcare', 7, 'spring_jan_2020.jsonl')
     '''
-    from db.model import TextClassificationModel
     db = Database.from_config(DevelopmentConfig)
     try:
         model = db.session.query(TextClassificationModel).filter_by(
@@ -102,14 +101,11 @@ def submit_gcp_inference(label, version, raw_file_path):
 def submit_gcp_inference_on_new_file(dataset_name):
     # TODO test
 
-    # TODO I think we only need this if we're training a new model.
-    ensure_file_exists_locally(dataset_name)
-
     # Check which models need to be ran, and kick them off.
     timestamp = int(time.time())
     db = Database.from_config(DevelopmentConfig)
     try:
-        configs = ModelDeploymentConfig.get_selected_deployment(db.session)
+        configs = ModelDeploymentConfig.get_selected_for_deployment(db.session)
 
         for config in configs:
             model = db.session.query(
@@ -129,15 +125,14 @@ def submit_gcp_inference_on_new_file(dataset_name):
             if has_model_inference(model.uuid, model.version, dataset_name):
                 create_deployed_inference(metadata)
             else:
-                # TODO could this mean we have a model already??
                 # Kick off a new job to run inference, then deploy when done.
-                submit_gcp_job(model, [dataset_name], metadata)
+                submit_gcp_job(model, [dataset_name], deploy_metadata=metadata)
     finally:
         db.session.close()
 
 
 def submit_gcp_job(model: Model, files_for_inference: List[str],
-                   metadata: Optional[DeployedInferenceMetadata]):
+                   deploy_metadata: Optional[DeployedInferenceMetadata]):
     """Submits a training & inference job onto Google AI Platform.
 
     Inputs:
@@ -145,15 +140,42 @@ def submit_gcp_job(model: Model, files_for_inference: List[str],
         metadata: If a metadata is not None, it means we intend for the
             results to be deployed.
     """
+    for dataset_name in files_for_inference:
+        ensure_file_exists_locally(dataset_name)
+
     model_defn = ModelDefn(model.uuid, model.version)
 
     job_id = submit_job(model_defns=[model_defn],
                         files_for_inference=files_for_inference)
 
-    if metadata:
-        gcp_poll_status.delay(job_id, metadata_dict=metadata.to_dict())
+    if deploy_metadata:
+        gcp_poll_status.delay(job_id, metadata_dict=deploy_metadata.to_dict())
     else:
         gcp_poll_status.delay(job_id)
+
+
+def ensure_file_exists_locally(dataset_name: str) -> None:
+    """Ensure data `dataset_name` from GCS is available locally.
+    Inputs:
+        dataset_name: A data dataset_name e.g. "jan_2020.jsonl"
+    Raises:
+        Exception if the file could not be present locally.
+    """
+    # TODO test
+    # TODO refactor to another file (but where?)
+    from db.utils import get_all_data_files, get_local_data_file_path
+    from train.gs_url import build_raw_data_url
+    from train.no_deps.utils import gs_copy_file
+
+    # Ensure the file exists locally
+    if dataset_name not in get_all_data_files():
+        remote_fname = build_raw_data_url(dataset_name)
+        local_fname = get_local_data_file_path(dataset_name)
+        gs_copy_file(remote_fname, local_fname)
+
+    if dataset_name not in get_all_data_files():
+        raise Exception(
+            f"Dataset {dataset_name} either does not exist or is invalid")
 
 
 app.conf.task_routes = {'*.train_celery.*': {'queue': 'train_celery'}}

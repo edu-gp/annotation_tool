@@ -1,6 +1,6 @@
 import tempfile
+import json
 from shared.utils import load_jsonl
-from db.utils import get_all_data_files
 from train.gs_url import (
     build_raw_data_url, build_model_inference_url, build_prod_inference_url,
     build_prod_metadata_url
@@ -40,27 +40,8 @@ class DeployedInferenceMetadata:
             dataset_name=obj.get('dataset_name')
         )
 
-
-def ensure_file_exists_locally(dataset_name: str) -> None:
-    """Ensure data `dataset_name` from GCS is available locally.
-    Inputs:
-        dataset_name: A data dataset_name e.g. "jan_2020.jsonl"
-    Raises:
-        Exception if the file could not be present locally.
-    """
-    # TODO test
-    # TODO does this belong here?
-    # Ensure the file exists locally
-    if dataset_name not in get_all_data_files():
-        # TODO consolidate these paths
-        from db.utils import get_local_data_file_path
-        remote_fname = build_raw_data_url(dataset_name)
-        local_fname = get_local_data_file_path(dataset_name)
-        gs_copy_file(remote_fname, local_fname)
-
-    if dataset_name not in get_all_data_files():
-        raise Exception(
-            f"Dataset {dataset_name} either does not exist or is invalid")
+    def __repr__(self):
+        return f"DeployedInferenceMetadata <{json.dumps(self.to_dict())}>"
 
 
 def has_model_inference(model_uuid, model_version, dataset_name) -> bool:
@@ -86,7 +67,6 @@ def create_deployed_inference(metadata: DeployedInferenceMetadata) -> None:
         Exception if the model have not ran inference on this file yet.
     """
     # TODO test
-
     uuid = metadata.model_uuid
     version = metadata.model_version
     dname = metadata.dataset_name
@@ -118,7 +98,6 @@ def create_deployed_inference(metadata: DeployedInferenceMetadata) -> None:
             pred_fname, raw_fname, metadata.threshold)
         df.to_csv(csv_fname, index=False)
 
-        import json
         with open(metadata_fname, 'w') as f:
             f.write(json.dumps(metadata.to_dict()))
 
@@ -129,13 +108,14 @@ def create_deployed_inference(metadata: DeployedInferenceMetadata) -> None:
 
 
 def build_prod_inference_dataframe(pred_fname, raw_fname, threshold):
+    # TODO test
     inf = InferenceResults.load(pred_fname)
 
     raw = load_jsonl(raw_fname, to_df=True)
 
     if len(inf.probs) != len(raw):
-        raise Exception(f"Prediction and raw files are different in length"
-                        f", metadata={metadata}")
+        raise Exception("Prediction and raw files are different in length"
+                        f" pred_fname={pred_fname} raw_fname={raw_fname}")
 
     df = raw
 
