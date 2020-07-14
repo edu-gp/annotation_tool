@@ -38,8 +38,8 @@ def trigger_inference():
     """Trigger inference on a dataset."""
     dataset_name = None
 
-    if 'dataset_name' in request.form:
-        dataset_name = request.form.get('dataset_name')
+    if 'dataset_name' in request.args:
+        dataset_name = request.args.get('dataset_name')
 
     if dataset_name:
         run_inference_on_data(dataset_name)
