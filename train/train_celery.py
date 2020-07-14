@@ -1,3 +1,4 @@
+import logging
 import time
 from typing import List, Optional
 from celery import Celery
@@ -61,6 +62,7 @@ def inference(model_dir, raw_file_path):
 
 @app.task
 def submit_gcp_training(label, raw_file_path, entity_type):
+    logging.info("Raw file for the training is " + raw_file_path)
     db = Database.from_config(DevelopmentConfig)
     try:
         model = prepare_next_model_for_label(
@@ -70,7 +72,7 @@ def submit_gcp_training(label, raw_file_path, entity_type):
             entity_type=entity_type
         )
 
-        submit_gcp_job(model, [raw_file_path])
+        submit_gcp_job(model, [raw_file_path], None)
     finally:
         db.session.close()
 
@@ -141,7 +143,8 @@ def submit_gcp_job(model: Model, files_for_inference: List[str],
             results to be deployed.
     """
     for dataset_name in files_for_inference:
-        ensure_file_exists_locally(dataset_name)
+        filename = dataset_name.split("/")[-1]
+        ensure_file_exists_locally(filename)
 
     model_defn = ModelDefn(model.uuid, model.version)
 
