@@ -668,6 +668,17 @@ class AnnotationGuide(Base):
             return ''
 
 
+class LabelOwner(Base):
+    __tablename__ = 'label_owner'
+
+    id = Column(Integer, primary_key=True)
+
+    label = Column(String, index=True, unique=True, nullable=False)
+
+    owner_id = Column(Integer, ForeignKey('user.id'))
+    owner = relationship("User")
+
+
 class LabelPatterns(Base):
     __tablename__ = 'label_patterns'
 

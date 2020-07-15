@@ -15,26 +15,13 @@ from sqlalchemy.exc import DatabaseError
 
 from bg.jobs import export_new_raw_data as _export_new_raw_data
 from db.model import db, Model, ModelDeploymentConfig, Task, \
-    ClassificationAnnotation, User, AnnotationValue
+    ClassificationAnnotation, User, AnnotationValue, LabelOwner
 
 bp = Blueprint('models', __name__, url_prefix='/models')
 
 # TODO API auth
 
 FIELD_DEFAULT = "--"
-FIELDS = [
-    'label',
-    'latest_version',
-    'deployed_version',
-    'num_of_data_points',
-    'roc_auc',
-    'pr',
-    'rc',
-    'f1',
-    'threshold',
-    'majority_annotator',
-    'has_deployed'
-]
 
 
 @dataclass
@@ -46,6 +33,7 @@ class ModelDataRow:
     threshold: str
     majority_annotator: str
     has_deployed: bool
+    owner_id: int
     roc_auc: str = FIELD_DEFAULT
     pr: str = FIELD_DEFAULT
     rc: str = FIELD_DEFAULT
@@ -138,9 +126,10 @@ def update_model_deployment_config():
 @bp.route('/', methods=['GET'])
 def index():
     data_row_per_label = _collect_model_data_rows()
-    logging.error(data_row_per_label)
+    users = db.session.query(User.id, User.username).all()
     return render_template('models/index.html',
-                           data_rows=data_row_per_label)
+                           data_rows=data_row_per_label,
+                           users=users)
 
 
 @bp.route('show/<string:label>', methods=['GET'])
@@ -177,26 +166,20 @@ def show(label):
 
 
 def _collect_model_data_rows():
-    data_row_per_label = []  # TODO create a named tuple to hold the row.
+    data_row_per_label = []
 
     tasks = db.session.query(Task).all()
     labels = []
     for task in tasks:
         labels.extend(task.get_labels())
-    logging.error(labels)
     for label in labels:
-        logging.error(label)
-        deployed_model_query = db.session.query(Model).join(ModelDeploymentConfig). \
+        deployed_model = db.session.query(Model).join(ModelDeploymentConfig). \
             filter(Model.label == label,
                    ModelDeploymentConfig.is_selected_for_deployment == True,
-                   ModelDeploymentConfig.model_id == Model.id)
-        logging.error(deployed_model_query)
-        deployed_model = deployed_model_query.one_or_none()
-        logging.error(deployed_model)
+                   ModelDeploymentConfig.model_id == Model.id).one_or_none()
         latest_model = db.session.query(Model). \
             filter(Model.label == label).order_by(Model.created_at.desc()). \
             first()
-        logging.error(latest_model)
         chosen_model = deployed_model if deployed_model else latest_model
 
         threshold = FIELD_DEFAULT
@@ -216,6 +199,9 @@ def _collect_model_data_rows():
             group_by(User.username).order_by(desc('num')).all()
         majority_annotator = res[0][0]
 
+        label_owner_id = db.session.query(LabelOwner.owner_id).filter(
+            LabelOwner.label == label).one_or_none()
+
         row = ModelDataRow(
             label=label,
             latest_version=latest_model.version if latest_model else FIELD_DEFAULT,
@@ -223,7 +209,8 @@ def _collect_model_data_rows():
             num_of_data_points=chosen_model.get_len_data(),
             threshold=threshold,
             majority_annotator=majority_annotator,
-            has_deployed=True if deployed_model else False
+            has_deployed=True if deployed_model else False,
+            owner_id=label_owner_id[0] if label_owner_id else -1
         )
 
         if chosen_model and chosen_model.is_ready():

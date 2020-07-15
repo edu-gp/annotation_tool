@@ -21,9 +21,10 @@
       Models Page
     </h4>
       <div class="row">
-          <div class="col-9">
-            <div class="card mt-4">
+          <div>
+            <div class="card">
               <div class="card-body">
+                Note: If a deployed model exists, the stats are for the deployed version. Otherwise, they are for the latest version.
                 <table class="table">
                     <tbody>
                       <tr>
@@ -31,10 +32,10 @@
                           <th>Latest Version</th>
                           <th>Deployed Version</th>
                           <th>Number of useful data points</th>
-                          <th>ROC AUC</th>
-                          <th>Pr</th>
-                          <th>Rc</th>
-                          <th>F1</th>
+                          <th><a href="https://developers.google.com/machine-learning/crash-course/classification/roc-and-auc" target="_blank">ROC AUC</a></th>
+                          <th><a href="https://developers.google.com/machine-learning/crash-course/classification/precision-and-recall" target="_blank">Precision<br/>[N, P]</a></th>
+                          <th><a href="https://developers.google.com/machine-learning/crash-course/classification/precision-and-recall" target="_blank">Recall<br/>[N, P]</a></th>
+                          <th><a href="https://towardsdatascience.com/simplifying-precision-recall-and-other-evaluation-metrics-d066b527c6bb" target="_blank">F1-Score<br/>[N, P]</a></th>
                           <th>Threshold</th>
                           <th>Owner</th>
                           <th>Majority Annotator</th>
@@ -46,17 +47,51 @@
                         <td>{{ row.label }}</td>
                         <td>{{ row.latest_version }}</td>
                         <td>{{ row.deployed_version }}</td>
+
                         {% if row.num_of_data_points < 200 %}
-                            <td bgcolor="red">{{ row.num_of_data_points }}</td>
+                            <td style="color:#FF0000">{{ row.num_of_data_points }}</td>
                         {% else %}
                             <td>{{ row.num_of_data_points }}</td>
                         {% endif %}
-                        <td>{{ row.roc_auc }}</td>
-                        <td>{{ row.pr }}</td>
-                        <td>{{ row.rc }}</td>
-                        <td>{{ row.f1 }}</td>
+                        {% if row.roc_auc < 0.9 %}
+                            <td style="color:#FF0000">{{ row.roc_auc }}</td>
+                        {% else %}
+                            <td>{{ row.roc_auc }}</td>
+                        {% endif %}
+                        {% if row.pr[1] < 0.9 %}
+                            <td>[{{ row.pr[0] }}, <span style="color:#FF0000">{{ row.pr[1] }}</span>]</td>
+                        {% else %}
+                            <td>[{{ row.pr[0] }}, {{ row.pr[1] }}]</td>
+                        {% endif %}
+
+                        {% if row.rc[1] < 0.9 %}
+                            <td>[{{ row.rc[0] }}, <span style="color:#FF0000">{{ row.rc[1] }}</span>]</td>
+                        {% else %}
+                            <td>[{{ row.rc[0] }}, {{ row.rc[1] }}]</td>
+                        {% endif %}
+
+                        {% if row.f1[1] < 0.9 %}
+                            <td>[{{ row.f1[0] }}, <span style="color:#FF0000">{{ row.f1[1] }}</span>]</td>
+                        {% else %}
+                            <td>[{{ row.f1[0] }}, {{ row.f1[1] }}]</td>
+                        {% endif %}
+
                         <td>{{ row.threshold }}</td>
-                        <td>NOT SUPPORTED YET</td>
+                        <td>
+                            <form action="{{ url_for('labels.update_label_owner') }}" method="POST">
+                                <input type="hidden" name="label" value="{{ row.label }}"/>
+                                <select name="owner_id">
+                                    {% for user in users %}
+                                        {% if user[0] == row.owner_id %}
+                                            <option selected="selected" value="{{ user[0] }}">{{ user[1] }}</option>
+                                        {% else %}
+                                            <option value="{{ user[0] }}">{{ user[1] }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="btn btn-primary">Update</button>
+                            </form>
+                        </td>
                         <td>{{ row.majority_annotator }}</td>
                         <td>{{ row.has_deployed }}</td>
                         <td><a href="{{ url_for('models.show', label=row.label) }}" target="_blank">Details</a></td>
