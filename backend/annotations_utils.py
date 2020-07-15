@@ -14,6 +14,10 @@ def _parse_list(form: dict, key: str) -> List:
 def parse_form(form: dict):
     user = form.get('user')
     label = form.get('label')
+
+    golden_annotations = form.get("golden_annotations", None)
+    golden_annotations = True if golden_annotations else False
+
     entity_type = form.get('entity_type')
     if entity_type == 'None':
         entity_type = None
@@ -42,7 +46,7 @@ def parse_form(form: dict):
             f"Annotation {annotations[i]} is not in the list of " \
             f"acceptable annotations {acceptable_annotations}"
 
-    return user, label, entities, annotations, entity_type
+    return user, label, entities, annotations, entity_type, golden_annotations
 
 
 def parse_bulk_upload_v2_form(form: dict):

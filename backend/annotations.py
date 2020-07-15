@@ -111,7 +111,6 @@ def bulk():
 def bulk_post():
     try:
         # Validate Form
-
         redirect_to = request.form['redirect_to'] or '/'
 
         user, label, entities, values, entity_type = \

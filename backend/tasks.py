@@ -307,6 +307,9 @@ def download_prediction():
         label = model.label or "UNK_LABEL"
         df = model.export_inference(fname, include_text=True)
 
+        # TODO need to update the code to get the weight and re-calculate the
+        #  majority vote.
+
         # --- 2. Merge it with the existing annotations from all users ---
         # This makes it easier to QA the model.
         q = db.session.query(

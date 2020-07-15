@@ -150,6 +150,7 @@ class ClassificationAnnotation(Base):
 
     id = Column(Integer, primary_key=True)
     value = Column(Integer, nullable=False)
+    weight = Column(Float, nullable=True, default=1.0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
