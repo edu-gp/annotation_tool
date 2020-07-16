@@ -50,7 +50,8 @@ def poll_status(job_id: str, metadata_dict: Optional[dict] = None, poll_count: i
             try:
                 logging.info(f"Cancel AI Platform job_id={job_id}")
                 job.cancel()
-            except Exception:
+            except Exception as e:
+                logging.error(f"Error in canceling job: {e}")
                 # If an error occurred, we can try again later.
                 pass
 
