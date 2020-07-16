@@ -10,9 +10,9 @@ class GCPPubSubService:
 
     @classmethod
     def publish_message(cls, prod_inference_url, prod_meta_url, timestamp):
-        message = cls.__construct_message(prod_inference_url, prod_meta_url,
+        message = cls._construct_message(prod_inference_url, prod_meta_url,
                                           timestamp)
-        topic = cls.__prepare_pubsub_topic_name()
+        topic = cls._prepare_pubsub_topic_name()
         # according to the documentation,
         # the publish method is automatically retried.
         future = cls.publish_client.publish(topic, message.encode('utf-8'))
@@ -24,7 +24,7 @@ class GCPPubSubService:
             raise e
 
     @classmethod
-    def __construct_message(cls, prod_inference_url, prod_meta_url, timestamp):
+    def _construct_message(cls, prod_inference_url, prod_meta_url, timestamp):
         message = {
             'timestamp': timestamp,
             'environment': 'prod',
@@ -38,7 +38,7 @@ class GCPPubSubService:
         return json.dumps(message)
 
     @classmethod
-    def __prepare_pubsub_topic_name(cls):
+    def _prepare_pubsub_topic_name(cls):
         project = os.getenv("GCP_PROJECT_ID")
         topic = os.getenv("INFERENCE_OUTPUT_PUBSUB_TOPIC")
         return f'projects/{project}/topics/{topic}'
