@@ -135,7 +135,7 @@ def submit_gcp_inference_on_new_file(dataset_name):
 
 
 def submit_gcp_job(model: Model, files_for_inference: List[str],
-                   deploy_metadata: Optional[DeployedInferenceMetadata]):
+                   deploy_metadata: Optional[DeployedInferenceMetadata] = None):
     """Submits a training & inference job onto Google AI Platform.
 
     Inputs:

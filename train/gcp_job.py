@@ -282,11 +282,15 @@ class GoogleAIPlatformJob:
             },
             "trainingOutput": {}
         }
+
+        For all states, see:
+        https://cloud.google.com/ai-platform/training/docs/reference/rest/v1/projects.jobs#State
         """
         self.response = response or {}
 
     @classmethod
     def fetch(cls, job_id: str):
+        """This is the factory method to create GoogleAIPlatformJob objects"""
         cmd = f"gcloud ai-platform jobs describe {job_id} --format json"
 
         # TODO this is not best way to capture real error
@@ -337,6 +341,18 @@ class GoogleAIPlatformJob:
                 model_defns.append(md)
 
             return model_defns
+
+    def cancel(self) -> bool:
+        """Cancel a running job
+        Returns True if the job was cancelled successfully
+        Raises:
+            Exception if job_id is missing
+            Exception if a job has already completed
+        """
+        job_id = self.response.get("jobId")
+        assert job_id, "Cannot cancel job, missing job_id"
+        run_cmd(f'gcloud ai-platform jobs cancel {job_id}')
+        return True
 
 
 if __name__ == '__main__':
