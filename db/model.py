@@ -348,7 +348,8 @@ class Model(Base):
     # Optionally associated with a Label
     label = Column(String, index=True, nullable=True)
 
-    entity_type = Column(String, index=True, nullable=True)
+    entity_type = Column(String, index=True, nullable=True,
+                         default=EntityTypeEnum.COMPANY)
 
     __mapper_args__ = {
         'polymorphic_on': type,
