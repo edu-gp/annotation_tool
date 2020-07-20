@@ -1,8 +1,9 @@
 from flask import (
-    Blueprint, flash, redirect, render_template, request, url_for
+    Blueprint, flash, redirect, render_template, request
 )
 
-from db.model import db, AnnotationGuide, LabelPatterns, get_or_create
+from db.model import db, AnnotationGuide, LabelPatterns, get_or_create, \
+    LabelOwner
 from shared.utils import list_to_textarea, textarea_to_list
 from .auth import auth
 
@@ -76,6 +77,45 @@ def update():
             return render_template('labels/edit.html')
         else:
             redirect_url = request.form.get('redirect_to')
+            if redirect_url:
+                return redirect(redirect_url)
+            else:
+                return redirect('/')
+
+
+@bp.route('/update_label_owner', methods=['POST'])
+def update_label_owner():
+    error = None
+    try:
+        form = request.form
+        label = form['label']
+        owner_id = form['owner_id']
+    except Exception as e:
+        error = str(e)
+    if error is not None:
+        flash(error)
+        return render_template('models/index.html')
+    else:
+        try:
+            label_owner = db.session.query(LabelOwner).filter(
+                LabelOwner.label == label
+            ).one_or_none()
+
+            if label_owner:
+                label_owner.owner_id = owner_id
+            else:
+                label_owner = LabelOwner(
+                    label=label,
+                    owner_id=owner_id
+                )
+            db.session.add(label_owner)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            flash(str(e))
+            return render_template('models/index.html')
+        else:
+            redirect_url = request.referrer
             if redirect_url:
                 return redirect(redirect_url)
             else:

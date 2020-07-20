@@ -1,7 +1,8 @@
-import logging
+from dataclasses import dataclass
+from typing import List
 
-from flask import Blueprint, request, jsonify, redirect
-from sqlalchemy.exc import DatabaseError
+from flask import render_template
+from sqlalchemy import func, desc
 import logging
 
 from flask import (
@@ -10,11 +11,30 @@ from flask import (
 from sqlalchemy.exc import DatabaseError
 
 from bg.jobs import export_new_raw_data as _export_new_raw_data
-from db.model import db, Model, ModelDeploymentConfig
+from db.model import db, Model, ModelDeploymentConfig, Task, \
+    ClassificationAnnotation, User, AnnotationValue, LabelOwner
 
 bp = Blueprint('models', __name__, url_prefix='/models')
 
 # TODO API auth
+
+FIELD_DEFAULT = "--"
+
+
+@dataclass
+class ModelDataRow:
+    label: str
+    latest_version: str
+    deployed_version: str
+    num_of_data_points: str
+    threshold: str
+    majority_annotator: str
+    has_deployed: bool
+    owner_id: int
+    roc_auc: str = FIELD_DEFAULT
+    pr: str = FIELD_DEFAULT
+    rc: str = FIELD_DEFAULT
+    f1: str = FIELD_DEFAULT
 
 
 def get_request_data():
@@ -97,3 +117,113 @@ def update_model_deployment_config():
     logging.info(f"Updated model deployment config for label {label}.")
 
     return redirect(request.referrer)
+
+
+@bp.route('/', methods=['GET'])
+def index():
+    data_row_per_label = _collect_model_data_rows()
+    users = db.session.query(User.id, User.username).all()
+    return render_template('models/index.html',
+                           data_rows=data_row_per_label,
+                           users=users)
+
+
+@bp.route('show/<string:label>', methods=['GET'])
+def show(label):
+    models_per_label = {}
+    deployment_configs_per_model = {}
+    models = db.session.query(Model).filter_by(
+        label=label).order_by(Model.created_at.desc()).limit(10).all()
+    models_per_label[label] = models
+    model_ids = [model.id for model in models]
+    res = db.session.query(
+        ModelDeploymentConfig.model_id,
+        ModelDeploymentConfig.is_approved,
+        ModelDeploymentConfig.is_selected_for_deployment,
+        ModelDeploymentConfig.threshold). \
+        filter(ModelDeploymentConfig.model_id.in_(model_ids)).all()
+    for model_id, is_approved, is_selected_for_deployment, threshold in \
+            res:
+        deployment_configs_per_model[model_id] = {
+            "is_approved": is_approved,
+            "is_selected_for_deployment": is_selected_for_deployment,
+            "threshold": threshold
+        }
+
+    return render_template(
+        'models/show.html',
+        models_per_label=models_per_label,
+        deployment_configs_per_model=deployment_configs_per_model,
+        label=label
+    )
+
+
+def _collect_model_data_rows():
+    data_row_per_label = []
+
+    tasks = db.session.query(Task).all()
+    labels = []
+    for task in tasks:
+        labels.extend(task.get_labels())
+    for label in labels:
+        deployed_model = db.session.query(Model).join(ModelDeploymentConfig). \
+            filter(Model.label == label,
+                   ModelDeploymentConfig.is_selected_for_deployment == True,
+                   ModelDeploymentConfig.model_id == Model.id).one_or_none()
+        latest_model = db.session.query(Model). \
+            filter(Model.label == label).order_by(Model.created_at.desc()). \
+            first()
+        chosen_model = deployed_model if deployed_model else latest_model
+
+        threshold = FIELD_DEFAULT
+        if chosen_model:
+            deployment_config = db.session.query(ModelDeploymentConfig).\
+                filter(ModelDeploymentConfig.model_id == chosen_model.id).\
+                one_or_none()
+            if deployment_config:
+                threshold = deployment_config.threshold
+
+        res = db.session.query(User.username,
+                               func.count(ClassificationAnnotation.id).label(
+                                   'num')). \
+            join(ClassificationAnnotation). \
+            filter(ClassificationAnnotation.label == label,
+                   ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED). \
+            group_by(User.username).order_by(desc('num')).all()
+        majority_annotator = res[0][0]
+
+        label_owner_id = db.session.query(LabelOwner.owner_id).filter(
+            LabelOwner.label == label).one_or_none()
+
+        row = ModelDataRow(
+            label=label,
+            latest_version=latest_model.version if latest_model else FIELD_DEFAULT,
+            deployed_version=deployed_model.version if deployed_model else FIELD_DEFAULT,
+            num_of_data_points=chosen_model.get_len_data(),
+            threshold=threshold,
+            majority_annotator=majority_annotator,
+            has_deployed=True if deployed_model else False,
+            owner_id=label_owner_id[0] if label_owner_id else -1
+        )
+
+        if chosen_model and chosen_model.is_ready():
+            row.roc_auc = _reformat_stats(chosen_model.get_metrics()['test']['roc_auc'])
+            row.pr = _reformat_stats(chosen_model.get_metrics()['test']['precision'])
+            row.rc = _reformat_stats(chosen_model.get_metrics()['test']['recall'])
+            row.f1 = _reformat_stats(chosen_model.get_metrics()['test']['fscore'])
+
+        data_row_per_label.append(row)
+    return data_row_per_label
+
+
+def _reformat_stats(input: float or List):
+    if isinstance(input, float):
+        input = float("{:10.2f}".format(input))
+    elif isinstance(input, List):
+        for i in range(len(input)):
+            input[i] = float("{:10.2f}".format(input[i]))
+    else:
+        raise ValueError("Invalid input type. "
+                         "Only string of list of strings are accepted. "
+                         "Got {}".format(type(input)))
+    return input

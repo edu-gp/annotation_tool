@@ -348,6 +348,9 @@ class Model(Base):
     # Optionally associated with a Label
     label = Column(String, index=True, nullable=True)
 
+    entity_type = Column(String, index=True, nullable=True,
+                         default=EntityTypeEnum.COMPANY)
+
     __mapper_args__ = {
         'polymorphic_on': type,
         'polymorphic_identity': 'model'
@@ -664,6 +667,17 @@ class AnnotationGuide(Base):
             return self.data.get('html')
         else:
             return ''
+
+
+class LabelOwner(Base):
+    __tablename__ = 'label_owner'
+
+    id = Column(Integer, primary_key=True)
+
+    label = Column(String, index=True, unique=True, nullable=False)
+
+    owner_id = Column(Integer, ForeignKey('user.id'))
+    owner = relationship("User")
 
 
 class LabelPatterns(Base):
