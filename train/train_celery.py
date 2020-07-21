@@ -16,7 +16,6 @@ from train.gcp_celery import poll_status as gcp_poll_status
 from train.gs_utils import (
     has_model_inference, create_deployed_inference, DeployedInferenceMetadata
 )
-from pathlib import Path
 
 app = Celery(
     # module name
@@ -143,10 +142,8 @@ def submit_gcp_job(model: Model, files_for_inference: List[str],
         metadata: If a metadata is not None, it means we intend for the
             results to be deployed.
     """
-    for filepath in files_for_inference:
-        filename = Path(filepath).name
-        ensure_file_exists_locally(filename)
-
+    for dataset_name in files_for_inference:
+        ensure_file_exists_locally(dataset_name)
     model_defn = ModelDefn(model.uuid, model.version)
 
     job_id = submit_job(model_defns=[model_defn],
@@ -176,10 +173,6 @@ def ensure_file_exists_locally(dataset_name: str) -> None:
         remote_fname = build_raw_data_url(dataset_name)
         local_fname = get_local_data_file_path(dataset_name)
         gs_copy_file(remote_fname, local_fname)
-
-    if dataset_name not in get_all_data_files():
-        raise Exception(
-            f"Dataset {dataset_name} either does not exist or is invalid")
 
 
 app.conf.task_routes = {'*.train_celery.*': {'queue': 'train_celery'}}

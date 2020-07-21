@@ -27,7 +27,7 @@ trainingInput:
     imageUri: gcr.io/_REDACTED_
 '''
 """
-
+import logging
 import os
 import json
 import tempfile
@@ -44,8 +44,8 @@ from .no_deps.paths import (
 )
 from .no_deps.utils import (
     gs_copy_file,
-    run_cmd
-)
+    run_cmd,
+    gs_exists)
 
 ModelDefn = namedtuple("ModelDefn", ("uuid", "version"))
 
@@ -149,13 +149,16 @@ def build_remote_data_fname(data_filename):
     """
     bucket = os.environ.get('GOOGLE_AI_PLATFORM_BUCKET')
     assert bucket
-    return f'gs://{bucket}/data/{get_name(data_filename)}'
+    return f'gs://{bucket}/data/{data_filename}'
 
 
 def sync_data_file(fname):
     local_fname = get_local_data_file_path(fname)
     remote_fname = build_remote_data_fname(fname)
-    gs_copy_file(local_fname, remote_fname, no_clobber=True)
+    if not gs_exists(remote_fname):
+        gs_copy_file(local_fname, remote_fname, no_clobber=True)
+    else:
+        logging.info("Remote file {remote_fname} already exists.")
     return remote_fname
 
 
@@ -222,7 +225,7 @@ def submit_job(model_defns: List[ModelDefn],
 
     # Make sure the filenames are _names_, not _paths_
     files_for_inference = files_for_inference or []
-    files_for_inference = [get_name(f) for f in files_for_inference]
+    # files_for_inference = [get_name(f) for f in files_for_inference]
 
     print("Upload data for inference, if needed")
     for fname in files_for_inference:
