@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 
 from google.cloud import storage
 
@@ -26,7 +27,8 @@ def hello_pubsub(event, context):
         source_blob = source_bucket.blob(source_blob_name)
 
         destination_bucket_name = 'alchemy-gp'
-        destination_blob_name = source_blob_name
+        destination_blob_name = os.path.join(
+            'data', "_".join(source_blob_name.split("/")[1:]))
 
         destination_bucket = storage_client.bucket(destination_bucket_name)
         blob_copy = source_bucket.copy_blob(

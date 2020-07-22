@@ -2,8 +2,7 @@ from flask import (
     Blueprint, flash, redirect, render_template, request, url_for
 )
 
-from db.utils import get_all_data_files, \
-    get_data_filename_without_raw_data_dir_prefix
+from db.utils import get_all_data_files
 
 from .auth import auth
 
