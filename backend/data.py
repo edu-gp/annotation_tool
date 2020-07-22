@@ -4,7 +4,8 @@ from flask import (
     Blueprint, flash, redirect, render_template, request, url_for
 )
 
-from db.utils import get_all_data_files
+from db.utils import get_all_data_files, \
+    get_data_filename_without_raw_data_dir_prefix
 
 from .auth import auth
 
@@ -22,8 +23,7 @@ bp.before_request(_before_request)
 
 @bp.route('/', methods=['GET'])
 def index():
-    raw_data_file_paths = get_all_data_files()
-    data_fnames = [
-        Path(path).name for path in raw_data_file_paths
-    ]
+    data_fnames = get_data_filename_without_raw_data_dir_prefix(
+        get_all_data_files()
+    )
     return render_template('data/index.html', data_fnames=data_fnames)

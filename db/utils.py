@@ -2,7 +2,7 @@ import glob
 import os
 import json
 from db.fs import filestore_base_dir, RAW_DATA_DIR
-
+from pathlib import Path
 
 def is_data_file(fname):
     with open(fname) as f:
@@ -39,3 +39,20 @@ def get_all_pattern_files():
 
 def get_local_data_file_path(fname):
     return os.path.join(filestore_base_dir(), RAW_DATA_DIR, fname)
+
+
+def retrieve_dataset_name_stem(dataset_name):
+    dataset_name_suffix = Path(dataset_name).suffix
+    dataset_name_stem = dataset_name[:-len(dataset_name_suffix)]
+    return dataset_name_stem
+
+
+def get_data_filename_without_raw_data_dir_prefix(raw_datafiles):
+    pruned_data_fnames = []
+    d = os.path.join(filestore_base_dir(), RAW_DATA_DIR)
+    for path in raw_datafiles:
+        if d in path:
+            pruned_data_fnames.append(path[len(d)+1:])
+        else:
+            pruned_data_fnames.append(path)
+    return pruned_data_fnames
