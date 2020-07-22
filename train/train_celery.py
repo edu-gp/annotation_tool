@@ -177,6 +177,10 @@ def ensure_file_exists_locally(dataset_name: str) -> None:
         local_fname = get_local_data_file_path(dataset_name)
         gs_copy_file(remote_fname, local_fname)
 
+    if dataset_name not in get_all_data_files():
+        raise Exception(
+            f"Dataset {dataset_name} either does not exist or is invalid")
+
 
 app.conf.task_routes = {'*.train_celery.*': {'queue': 'train_celery'}}
 
