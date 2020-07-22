@@ -1,8 +1,6 @@
 import os
 import logging
 import tempfile
-from pathlib import Path
-
 import pandas as pd
 
 from flask import (
@@ -10,15 +8,13 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 
-from db.fs import filestore_base_dir, RAW_DATA_DIR
 from db.model import (
     db, ClassificationAnnotation, User, Task, Model, AnnotationGuide,
     LabelPatterns, ModelDeploymentConfig, EntityTypeEnum,
     delete_requests_for_user_under_task, delete_requests_for_label_under_task,
     delete_requests_under_task, delete_requests_for_entity_type_under_task
 )
-from db.utils import get_all_data_files, \
-    get_data_filename_without_raw_data_dir_prefix
+from db.utils import get_all_data_files
 
 from ar.data import (
     compute_annotation_statistics_db, compute_annotation_request_statistics
@@ -64,9 +60,7 @@ def index():
 
 @bp.route('/new', methods=['GET'])
 def new():
-    data_fnames = get_data_filename_without_raw_data_dir_prefix(
-        get_all_data_files())
-    return render_template('tasks/new.html', data_fnames=data_fnames,
+    return render_template('tasks/new.html', data_fnames=get_all_data_files(),
                            entity_types=EntityTypeEnum.get_all_entity_types())
 
 
@@ -186,12 +180,9 @@ def show(id):
                 "threshold": threshold
             }
 
-    task_data_fnames = get_data_filename_without_raw_data_dir_prefix(
-        task.get_data_filenames())
     return render_template(
         'tasks/show.html',
         task=task,
-        filenames=task_data_fnames,
         annotation_statistics_per_label=annotation_statistics_per_label,
         annotation_request_statistics=annotation_request_statistics,
         status_assign_jobs=status_assign_jobs_active,
