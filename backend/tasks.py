@@ -1,6 +1,8 @@
 import os
 import logging
 import tempfile
+from pathlib import Path
+
 import pandas as pd
 
 from flask import (
@@ -60,7 +62,10 @@ def index():
 
 @bp.route('/new', methods=['GET'])
 def new():
-    return render_template('tasks/new.html', data_fnames=get_all_data_files(),
+    data_fnames = [
+        Path(path).name for path in get_all_data_files()
+    ]
+    return render_template('tasks/new.html', data_fnames=data_fnames,
                            entity_types=EntityTypeEnum.get_all_entity_types())
 
 
@@ -180,9 +185,13 @@ def show(id):
                 "threshold": threshold
             }
 
+    filenames = [
+        Path(file).name for file in task.get_data_filenames()
+    ]
     return render_template(
         'tasks/show.html',
         task=task,
+        filenames=filenames,
         annotation_statistics_per_label=annotation_statistics_per_label,
         annotation_request_statistics=annotation_request_statistics,
         status_assign_jobs=status_assign_jobs_active,

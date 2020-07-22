@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from flask import (
     Blueprint, flash, redirect, render_template, request, url_for
 )
@@ -20,4 +22,8 @@ bp.before_request(_before_request)
 
 @bp.route('/', methods=['GET'])
 def index():
-    return render_template('data/index.html', data_fnames=get_all_data_files())
+    raw_data_file_paths = get_all_data_files()
+    data_fnames = [
+        Path(path).name for path in raw_data_file_paths
+    ]
+    return render_template('data/index.html', data_fnames=data_fnames)
