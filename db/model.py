@@ -319,6 +319,13 @@ class ModelDeploymentConfig(Base):
         Boolean(name='is_selected_for_deployment'), default=False)
     threshold = Column(Float, default=0.5)
 
+    @staticmethod
+    def get_selected_for_deployment(dbsession) -> List['ModelDeploymentConfig']:
+        """Return all ModelDeploymentConfig's that are selected for deployment.
+        """
+        return dbsession.query(ModelDeploymentConfig).filter_by(
+            is_selected_for_deployment=True).all()
+
 
 class Model(Base):
     __tablename__ = 'model'
@@ -340,6 +347,9 @@ class Model(Base):
 
     # Optionally associated with a Label
     label = Column(String, index=True, nullable=True)
+
+    entity_type = Column(String, index=True, nullable=True,
+                         default=EntityTypeEnum.COMPANY)
 
     __mapper_args__ = {
         'polymorphic_on': type,
@@ -659,6 +669,17 @@ class AnnotationGuide(Base):
             return ''
 
 
+class LabelOwner(Base):
+    __tablename__ = 'label_owner'
+
+    id = Column(Integer, primary_key=True)
+
+    label = Column(String, index=True, unique=True, nullable=False)
+
+    owner_id = Column(Integer, ForeignKey('user.id'))
+    owner = relationship("User")
+
+
 class LabelPatterns(Base):
     __tablename__ = 'label_patterns'
 
@@ -775,17 +796,17 @@ def _raw_data_file_path(fname):
 def fetch_annotation_entity_and_ids_done_by_user_under_labels(
         dbsession, username, labels):
     res = dbsession.query(
-            ClassificationAnnotation.entity,
-            ClassificationAnnotation.id,
-            ClassificationAnnotation.created_at,
-            ClassificationAnnotation.label,
-            ClassificationAnnotation.value).join(User). \
-            filter(
-                User.username == username,
-                ClassificationAnnotation.label.in_(labels),
-                ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED). \
-            order_by(ClassificationAnnotation.created_at.desc()). \
-            all()
+        ClassificationAnnotation.entity,
+        ClassificationAnnotation.id,
+        ClassificationAnnotation.created_at,
+        ClassificationAnnotation.label,
+        ClassificationAnnotation.value).join(User). \
+        filter(
+        User.username == username,
+        ClassificationAnnotation.label.in_(labels),
+        ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED). \
+        order_by(ClassificationAnnotation.created_at.desc()). \
+        all()
     return res
 
 
@@ -810,7 +831,8 @@ def delete_requests_under_task_with_condition(dbsession, task_id,
 
 
 def delete_requests_for_user_under_task(dbsession, username, task_id):
-    user = dbsession.query(User).filter(User.username == username).one_or_none()
+    user = dbsession.query(User).filter(
+        User.username == username).one_or_none()
     if not user:
         logging.info("No such user {} exists. Ignored.".format(username))
         return None
@@ -841,7 +863,7 @@ def get_latest_model_for_label(dbsession, label,
                                model_type="text_classification_model"):
 
     return dbsession.query(Model) \
-            .filter_by(label=label,
-                       type=model_type) \
-            .order_by(Model.version.desc(), Model.created_at.desc()) \
-            .first()
+        .filter_by(label=label,
+                   type=model_type) \
+        .order_by(Model.version.desc(), Model.created_at.desc()) \
+        .first()

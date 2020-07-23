@@ -63,7 +63,8 @@ def prepare_next_model_for_label(
     model = TextClassificationModel(uuid=model_id, version=version,
                                     label=label,
                                     classification_training_data=data,
-                                    config=config)
+                                    config=config,
+                                    entity_type=entity_type)
     dbsession.add(model)
     dbsession.commit()
 
