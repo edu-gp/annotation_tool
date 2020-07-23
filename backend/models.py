@@ -18,7 +18,7 @@ bp = Blueprint('models', __name__, url_prefix='/models')
 
 # TODO API auth
 
-FIELD_DEFAULT = "--"
+FIELD_DEFAULT = 0.0 # "--"
 
 
 @dataclass
@@ -26,15 +26,17 @@ class ModelDataRow:
     label: str
     latest_version: str
     deployed_version: str
-    num_of_data_points: str
+    # TODO should this be str?
+    num_of_data_points: float
     threshold: str
     majority_annotator: str
     has_deployed: bool
     owner_id: int
-    roc_auc: str = FIELD_DEFAULT
-    pr: str = FIELD_DEFAULT
-    rc: str = FIELD_DEFAULT
-    f1: str = FIELD_DEFAULT
+    # TODO should these be strings?
+    roc_auc: float = FIELD_DEFAULT
+    pr: float = FIELD_DEFAULT
+    rc: float = FIELD_DEFAULT
+    f1: float = FIELD_DEFAULT
 
 
 def get_request_data():
@@ -190,7 +192,10 @@ def _collect_model_data_rows():
             filter(ClassificationAnnotation.label == label,
                    ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED). \
             group_by(User.username).order_by(desc('num')).all()
-        majority_annotator = res[0][0]
+        try:
+            majority_annotator = res[0][0]
+        except:
+            majority_annotator = None
 
         label_owner_id = db.session.query(LabelOwner.owner_id).filter(
             LabelOwner.label == label).one_or_none()
@@ -199,7 +204,7 @@ def _collect_model_data_rows():
             label=label,
             latest_version=latest_model.version if latest_model else FIELD_DEFAULT,
             deployed_version=deployed_model.version if deployed_model else FIELD_DEFAULT,
-            num_of_data_points=chosen_model.get_len_data(),
+            num_of_data_points=chosen_model.get_len_data() if chosen_model else FIELD_DEFAULT,
             threshold=threshold,
             majority_annotator=majority_annotator,
             has_deployed=True if deployed_model else False,
@@ -207,10 +212,13 @@ def _collect_model_data_rows():
         )
 
         if chosen_model and chosen_model.is_ready():
-            row.roc_auc = _reformat_stats(chosen_model.get_metrics()['test']['roc_auc'])
-            row.pr = _reformat_stats(chosen_model.get_metrics()['test']['precision'])
-            row.rc = _reformat_stats(chosen_model.get_metrics()['test']['recall'])
-            row.f1 = _reformat_stats(chosen_model.get_metrics()['test']['fscore'])
+            try:
+                row.roc_auc = _reformat_stats(chosen_model.get_metrics()['test']['roc_auc'])
+                row.pr = _reformat_stats(chosen_model.get_metrics()['test']['precision'])
+                row.rc = _reformat_stats(chosen_model.get_metrics()['test']['recall'])
+                row.f1 = _reformat_stats(chosen_model.get_metrics()['test']['fscore'])
+            except:
+                raise Exception(chosen_model.get_metrics())
 
         data_row_per_label.append(row)
     return data_row_per_label

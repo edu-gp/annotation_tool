@@ -403,7 +403,27 @@ class Model(Base):
         return self.get_metrics() is not None
 
     def get_metrics(self):
-        return self._load_json(_get_metrics_fname)
+        # TODO hacky fix
+        ret = {
+            'test': {
+                'roc_auc': 0.0,
+                'precision': [0.0, 0.0],
+                'recall': [0.0, 0.0],
+                'fscore': [0.0, 0.0],
+            },
+            'train': {
+                'roc_auc': 0.0,
+                'precision': [0.0, 0.0],
+                'recall': [0.0, 0.0],
+                'fscore': [0.0, 0.0],
+            }
+        }
+        real = self._load_json(_get_metrics_fname) or {}
+        if real.get('test'):
+            ret['test'].update(real['test'])
+        if real.get('train'):
+            ret['train'].update(real['train'])
+        return ret
 
     def get_config(self):
         return self._load_json(_get_config_fname)
