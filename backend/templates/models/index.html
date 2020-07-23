@@ -50,8 +50,10 @@
 
                         {% if row.num_of_data_points is none %}
                             <td>{{ row.num_of_data_points }}</td>
-                        {% elif row.num_of_data_points < 200 %}
+                        {% elif 0 < row.num_of_data_points < 200 %}
                             <td style="color:#FF0000">{{ row.num_of_data_points }}</td>
+                        {% elif row.num_of_data_points < 0 %}
+                            <td> No data file existed. </td>
                         {% else %}
                             <td>{{ row.num_of_data_points }}</td>
                         {% endif %}
