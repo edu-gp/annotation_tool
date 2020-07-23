@@ -18,23 +18,21 @@ bp = Blueprint('models', __name__, url_prefix='/models')
 
 # TODO API auth
 
-FIELD_DEFAULT = "--"
-
 
 @dataclass
 class ModelDataRow:
     label: str
-    latest_version: str
-    deployed_version: str
-    num_of_data_points: str
-    threshold: str
+    latest_version: int
+    deployed_version: int
+    num_of_data_points: int
+    threshold: float
     majority_annotator: str
     has_deployed: bool
     owner_id: int
-    roc_auc: str = FIELD_DEFAULT
-    pr: str = FIELD_DEFAULT
-    rc: str = FIELD_DEFAULT
-    f1: str = FIELD_DEFAULT
+    roc_auc: float = None
+    pr: list = None
+    rc: list = None
+    f1: list = None
 
 
 def get_request_data():
@@ -175,7 +173,7 @@ def _collect_model_data_rows():
             first()
         chosen_model = deployed_model if deployed_model else latest_model
 
-        threshold = FIELD_DEFAULT
+        threshold = None
         if chosen_model:
             deployment_config = db.session.query(ModelDeploymentConfig).\
                 filter(ModelDeploymentConfig.model_id == chosen_model.id).\
@@ -183,23 +181,26 @@ def _collect_model_data_rows():
             if deployment_config:
                 threshold = deployment_config.threshold
 
-        res = db.session.query(User.username,
+        annotators_sorted = db.session.query(User.username,
                                func.count(ClassificationAnnotation.id).label(
                                    'num')). \
             join(ClassificationAnnotation). \
             filter(ClassificationAnnotation.label == label,
                    ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED). \
             group_by(User.username).order_by(desc('num')).all()
-        majority_annotator = res[0][0]
+        if annotators_sorted and len(annotators_sorted) > 0:
+            majority_annotator = annotators_sorted[0][0]
+        else:
+            majority_annotator = None
 
         label_owner_id = db.session.query(LabelOwner.owner_id).filter(
             LabelOwner.label == label).one_or_none()
 
         row = ModelDataRow(
             label=label,
-            latest_version=latest_model.version if latest_model else FIELD_DEFAULT,
-            deployed_version=deployed_model.version if deployed_model else FIELD_DEFAULT,
-            num_of_data_points=chosen_model.get_len_data(),
+            latest_version=latest_model.version if latest_model else None,
+            deployed_version=deployed_model.version if deployed_model else None,
+            num_of_data_points=chosen_model.get_len_data() if chosen_model else None,
             threshold=threshold,
             majority_annotator=majority_annotator,
             has_deployed=True if deployed_model else False,
@@ -207,23 +208,12 @@ def _collect_model_data_rows():
         )
 
         if chosen_model and chosen_model.is_ready():
-            row.roc_auc = _reformat_stats(chosen_model.get_metrics()['test']['roc_auc'])
-            row.pr = _reformat_stats(chosen_model.get_metrics()['test']['precision'])
-            row.rc = _reformat_stats(chosen_model.get_metrics()['test']['recall'])
-            row.f1 = _reformat_stats(chosen_model.get_metrics()['test']['fscore'])
+            test_metrics = chosen_model.get_metrics().get('test', {})
+
+            row.roc_auc = test_metrics.get('roc_auc', None)
+            row.pr = test_metrics.get('precision', None)
+            row.rc = test_metrics.get('recall', None)
+            row.f1 = test_metrics.get('fscore', None)
 
         data_row_per_label.append(row)
     return data_row_per_label
-
-
-def _reformat_stats(input: float or List):
-    if isinstance(input, float):
-        input = float("{:10.2f}".format(input))
-    elif isinstance(input, List):
-        for i in range(len(input)):
-            input[i] = float("{:10.2f}".format(input[i]))
-    else:
-        raise ValueError("Invalid input type. "
-                         "Only string of list of strings are accepted. "
-                         "Got {}".format(type(input)))
-    return input
