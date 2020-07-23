@@ -210,10 +210,19 @@ def _collect_model_data_rows():
         if chosen_model and chosen_model.is_ready():
             test_metrics = chosen_model.get_metrics().get('test', {})
 
-            row.roc_auc = test_metrics.get('roc_auc', None)
-            row.pr = test_metrics.get('precision', None)
-            row.rc = test_metrics.get('recall', None)
-            row.f1 = test_metrics.get('fscore', None)
+            row.roc_auc = _reformat_stats(test_metrics.get('roc_auc', None))
+            row.pr = _reformat_stats(test_metrics.get('precision', None))
+            row.rc = _reformat_stats(test_metrics.get('recall', None))
+            row.f1 = _reformat_stats(test_metrics.get('fscore', None))
 
         data_row_per_label.append(row)
     return data_row_per_label
+
+
+def _reformat_stats(stat: float or List):
+    if isinstance(stat, float):
+        stat = float("{:10.2f}".format(stat))
+    elif isinstance(stat, List):
+        for i in range(len(stat)):
+            stat[i] = float("{:10.2f}".format(stat[i]))
+    return stat
