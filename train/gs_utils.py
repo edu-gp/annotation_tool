@@ -1,5 +1,9 @@
+import logging
+import os
 import tempfile
 import json
+
+from backend.external_services import GCPPubSubService
 from shared.utils import load_jsonl
 from train.gs_url import (
     build_raw_data_url, build_model_inference_url, build_prod_inference_url,
@@ -104,7 +108,30 @@ def create_deployed_inference(metadata: DeployedInferenceMetadata) -> None:
         gs_copy_file(csv_fname, prod_inference_url, no_clobber=False)
         gs_copy_file(metadata_fname, prod_metadata_url, no_clobber=False)
 
-    publish_message()
+    GCPPubSubService.publish_message(
+        project_id=os.getenv("GCP_PROJECT_ID"),
+        topic_name=os.getenv("INFERENCE_OUTPUT_PUBSUB_TOPIC"),
+        message_constructor=_message_constructor_alchemy_to_gdp,
+        dataset=dname,
+        prod_inference_url=prod_inference_url,
+        prod_metadata_url=prod_metadata_url,
+        timestamp=ts
+    )
+
+
+def _message_constructor_alchemy_to_gdp(
+        dataset, prod_inference_url, prod_metadata_url, timestamp):
+    message_dict = {
+        'timestamp': timestamp,
+        # ideally we should have multiple stages and not harding this here.
+        'environment': 'prod',
+        'dataset': dataset,
+        'path': {
+            'inferences': prod_inference_url,
+            'metadata': prod_metadata_url
+        }
+    }
+    return json.dumps(message_dict)
 
 
 def build_prod_inference_dataframe(pred_fname, raw_fname, threshold):
@@ -130,8 +157,3 @@ def build_prod_inference_dataframe(pred_fname, raw_fname, threshold):
     df['pred'] = df['prob'] > threshold
 
     return df
-
-
-def publish_message():
-    # TODO pubsub that Data Platform can listen to.
-    pass

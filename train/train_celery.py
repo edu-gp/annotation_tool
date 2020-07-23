@@ -73,7 +73,7 @@ def submit_gcp_training(label, raw_file_path, entity_type):
             entity_type=entity_type
         )
 
-        submit_gcp_job(model, [raw_file_path], None)
+        submit_gcp_job(model, [raw_file_path])
     finally:
         db.session.close()
 
