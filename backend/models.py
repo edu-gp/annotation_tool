@@ -163,7 +163,7 @@ def _collect_model_data_rows():
     labels = []
     for task in tasks:
         labels.extend(task.get_labels())
-    for label in labels:
+    for label in set(labels):
         deployed_model = db.session.query(Model).join(ModelDeploymentConfig). \
             filter(Model.label == label,
                    ModelDeploymentConfig.is_selected_for_deployment == True,
