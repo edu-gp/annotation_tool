@@ -238,12 +238,54 @@ def majority_vote_annotations_query(dbsession, label):
     ).group_by(q1.c.entity)
 
     q2 = q2.cte('max_query')
-
+    
     query = dbsession.query(
         q1.c.entity,
         q1.c.value,
         q1.c.count
     ).join(q2, (q1.c.entity == q2.c.entity) & (q1.c.count == q2.c.count))
+
+    return query
+
+
+def majority_vote_annotations_query_v2(dbsession, label):
+    """
+    Returns a query that fetches a list of 3-tuples
+    [(entity_name, anno_value, count), ...]
+    where the annotation value is the most common for that entity name
+    associated with the given label.
+
+    For example, if we have 3 annotations for the entity X with values
+    [1, -1, -1], then one of the elements this query would return would be
+    (X, -1, 2)
+
+    Note: This query ignores annotation values of 0 - they are "Unknown"s.
+    """
+
+    q1 = dbsession.query(
+        ClassificationAnnotation.entity,
+        ClassificationAnnotation.value,
+        func.sum(ClassificationAnnotation.weight).label('weight')
+    ) \
+        .filter_by(label=label) \
+        .filter(ClassificationAnnotation.value != AnnotationValue.UNSURE) \
+        .filter(ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED) \
+        .group_by(ClassificationAnnotation.entity, ClassificationAnnotation.value)
+
+    q1 = q1.cte('weight_query')
+
+    q2 = dbsession.query(
+        q1.c.entity,
+        func.max(q1.c.weight).label('weight')
+    ).group_by(q1.c.entity)
+
+    q2 = q2.cte('max_query')
+
+    query = dbsession.query(
+        q1.c.entity,
+        q1.c.value,
+        q1.c.weight
+    ).join(q2, (q1.c.entity == q2.c.entity) & (q1.c.weight == q2.c.weight))
 
     return query
 
@@ -275,10 +317,11 @@ class ClassificationTrainingData(Base):
                 about the entity that we can use for training.
             batch_size: Database query batch size.
         """
-        query = majority_vote_annotations_query(dbsession, label)
+        # query = majority_vote_annotations_query(dbsession, label)
+        query = majority_vote_annotations_query_v2(dbsession, label)
 
         final = []
-        for entity, anno_value, count in query.yield_per(batch_size):
+        for entity, anno_value, _ in query.yield_per(batch_size):
             final.append({
                 'text': entity_text_lookup_fn(entity_type, entity),
                 'labels': {label: anno_value}

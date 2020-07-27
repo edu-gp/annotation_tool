@@ -35,8 +35,8 @@ from shared.frontend_path_finder import (
 )
 from shared.utils import (
     get_env_int, stem, list_to_textarea, textarea_to_list, get_entropy,
-    get_majority_vote
-)
+    get_majority_vote,
+    get_majority_vote_v2)
 
 from .auth import auth
 
@@ -315,7 +315,8 @@ def download_prediction():
         q = db.session.query(
             User.username,
             ClassificationAnnotation.entity,
-            ClassificationAnnotation.value
+            ClassificationAnnotation.value * ClassificationAnnotation.weight,
+            ClassificationAnnotation.weight
         ).join(User).filter(
             ClassificationAnnotation.label == label,
             ClassificationAnnotation.entity_type == entity_type)
@@ -323,9 +324,9 @@ def download_prediction():
 
         # Convert query result into a dataframe
         df_all_annos = pd.DataFrame(
-            all_annos, columns=['username', 'entity', 'value'])
+            all_annos, columns=['username', 'entity', 'weighted_value', 'weight'])
 
-        # Make sure the annotations are uniquer on (user, entity)
+        # Make sure the annotations are unique on (user, entity)
         df_all_annos = df_all_annos.drop_duplicates(
             ['username', 'entity'], keep='first')
 
@@ -333,22 +334,30 @@ def download_prediction():
         # (otherwise this will result in extra rows when merging)
         df_all_annos = df_all_annos.dropna(subset=['entity'])
 
+        logging.error(df_all_annos)
         # Merge it with the existing annotation one by one
         n_cols = len(df.columns)
-        for username in df_all_annos['username'].drop_duplicates():
+        usernames = df_all_annos['username'].drop_duplicates().values
+        logging.error(usernames)
+        for username in usernames:
             # Get just this user's annotations.
             _df = df_all_annos[df_all_annos['username'] == username]
             # Rename the "value" column to the username.
             _df = _df.drop(columns=['username'])
-            _df = _df.rename(columns={'value': username, 'entity': 'domain'})
+            _df = _df.rename(columns={'weighted_value': username,
+                                      'entity': 'domain',
+                                      'weight': username+"_vote_weight"})
             # Merge it with the main dataframe.
             df = df.merge(_df, on='domain', how='left')
 
         # Compute some statistics of the annotations
         # Only consider the columns with the user annotations
-        df_annos = df.iloc[:, n_cols:]
+        logging.error(df)
+        # df_annos = df.iloc[:, n_cols:]
+        df_annos = df[usernames]
+        logging.error(df_annos)
         df['CONTENTION (ENTROPY)'] = df_annos.apply(get_entropy, axis=1)
-        df['MAJORITY_VOTE'] = df_annos.apply(get_majority_vote, axis=1)
+        df['MAJORITY_VOTE'] = df_annos.apply(get_majority_vote_v2, axis=1)
 
         # 3. --- Write it to a temp file and send it ---
         with tempfile.TemporaryDirectory() as tmpdirname:
