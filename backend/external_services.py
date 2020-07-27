@@ -1,6 +1,6 @@
 import logging
 
-from google.cloud import pubsub
+from google.cloud import pubsub, secretmanager
 
 
 class GCPPubSubService:
@@ -18,3 +18,13 @@ class GCPPubSubService:
             logging.error(f"Publishing to topic {topic_path} has failed with "
                           f"message {message} with exception: {e}")
             raise e
+
+
+class SecretManagerService:
+    client = secretmanager.SecretManagerServiceClient()
+
+    @classmethod
+    def get_secret(cls, project_id, secret_id, version_id='latest'):
+        name = cls.client.secret_version_path(project_id, secret_id, version_id)
+        response = cls.client.access_secret_version(name)
+        return response.payload.data.decode('UTF-8')
