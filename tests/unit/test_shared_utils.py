@@ -4,8 +4,8 @@ from shared.utils import (
     json_lookup,
     build_counter,
     get_entropy,
-    get_majority_vote
-)
+    get_majority_vote,
+    get_majority_vote_v2)
 
 
 def test_stem():
@@ -67,12 +67,21 @@ def test_get_entropy():
     assert e > a, "[-1, 1, 1, 1] has higher entropy than [1, 1, 1, 1]"
 
 
-def test_get_majority_vote():
-    res = get_majority_vote([1, 1, 1, 1, -1, -1, None, float('nan')])
+def test_get_majority_vote_v2():
+    res = get_majority_vote_v2([1, 1, 1, 1, -1, -1, None, float('nan')])
     assert res == 1
 
-    res = get_majority_vote([1, 1, -1, -1, -1, -1, None, float('nan')])
+    res = get_majority_vote_v2([1, 1, -1, -1, -1, -1, None, float('nan')])
     assert res == -1
 
-    res = get_majority_vote([1, 1, 1, -1, -1, -1, None, float('nan')])
+    res = get_majority_vote_v2([10, -1, -1, -1, -1, -1, None, float('nan')])
+    assert res == 1
+
+    res = get_majority_vote_v2([1, 1, 1, 1, 1, -10, None, float('nan')])
+    assert res == -1
+
+    res = get_majority_vote_v2([1, 1, 1, -1, -1, -1, None, float('nan')])
     assert res in [1, -1], "could be either 1 or -1"
+
+    res = get_majority_vote_v2([0, 0, 0, None, float('nan')])
+    assert res is None, "No valid votes present"
