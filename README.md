@@ -34,6 +34,7 @@ Descriptions of the env vars:
 - `BACKEND_LOGGER`: The logger name for the alchemy backend server.
 - `FRONTEND_LOGGER`: The logger name for the alchemy frontend server.
 - `INFERENCE_OUTPUT_PUBSUB_TOPIC`: The PubSub topic name for inference output.
+- `API_TOKEN_NAME`: The secret name for the inference API token.
 
 New env vars:
 
