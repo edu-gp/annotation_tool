@@ -1,5 +1,8 @@
+import logging
 import os
 from flask import Blueprint, request, abort
+
+from backend.external_services import SecretManagerService
 from train.train_celery import submit_gcp_inference_on_new_file
 
 bp = Blueprint('api', __name__, url_prefix='/api')
@@ -18,7 +21,14 @@ def _before_request():
     # Let healthcheck bypass auth
     if not request.endpoint.endswith('.healthcheck'):
         # Check token auth
-        target_token = os.environ.get('API_TOKEN')
+        try:
+            target_token = os.environ.get('API_TOKEN', None) or \
+                           SecretManagerService.get_secret(project_id=os.environ.get("GCP_PROJECT_ID"),
+                                                           secret_id=os.environ.get("API_TOKEN_NAME"))
+        except Exception as e:
+            logging.error(e)
+            target_token = None
+
         if target_token is None:
             return abort(500)
         if get_bearer_token(request.headers) != target_token:

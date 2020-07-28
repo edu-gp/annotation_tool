@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import os
 from collections import defaultdict, Counter
 import numpy as np
@@ -107,7 +108,8 @@ def file_len(fname):
             for i, l in enumerate(f):
                 pass
         return i + 1
-    except:
+    except Exception as e:
+        logging.error(e)
         return -1
 
 

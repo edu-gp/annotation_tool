@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'base-fluid.html' %}
 
 {% block header %}
 <nav aria-label="breadcrumb">
@@ -48,29 +48,40 @@
                         <td>{{ row.latest_version }}</td>
                         <td>{{ row.deployed_version }}</td>
 
-                        {% if row.num_of_data_points < 200 %}
+                        {% if row.num_of_data_points is none %}
+                            <td>{{ row.num_of_data_points }}</td>
+                        {% elif 0 < row.num_of_data_points < 200 %}
                             <td style="color:#FF0000">{{ row.num_of_data_points }}</td>
+                        {% elif row.num_of_data_points < 0 %}
+                            <td> No data file existed. </td>
                         {% else %}
                             <td>{{ row.num_of_data_points }}</td>
                         {% endif %}
-                        {% if row.roc_auc < 0.9 %}
+
+                        {% if row.roc_auc is none %}
+                            <td>{{ row.roc_auc }}</td>
+                        {% elif row.roc_auc < 0.9 %}
                             <td style="color:#FF0000">{{ row.roc_auc }}</td>
                         {% else %}
                             <td>{{ row.roc_auc }}</td>
                         {% endif %}
-                        {% if row.pr[1] < 0.9 %}
+                        {% if row.pr is none %}
+                            <td>[None, None]</td>
+                        {% elif row.pr[1] < 0.9 %}
                             <td>[{{ row.pr[0] }}, <span style="color:#FF0000">{{ row.pr[1] }}</span>]</td>
                         {% else %}
                             <td>[{{ row.pr[0] }}, {{ row.pr[1] }}]</td>
                         {% endif %}
-
-                        {% if row.rc[1] < 0.9 %}
+                        {% if row.rc is none %}
+                            <td>[None, None]</td>
+                        {% elif row.rc[1] < 0.9 %}
                             <td>[{{ row.rc[0] }}, <span style="color:#FF0000">{{ row.rc[1] }}</span>]</td>
                         {% else %}
                             <td>[{{ row.rc[0] }}, {{ row.rc[1] }}]</td>
                         {% endif %}
-
-                        {% if row.f1[1] < 0.9 %}
+                        {% if row.f1 is none %}
+                            <td>[None, None]</td>
+                        {% elif row.f1[1] < 0.9 %}
                             <td>[{{ row.f1[0] }}, <span style="color:#FF0000">{{ row.f1[1] }}</span>]</td>
                         {% else %}
                             <td>[{{ row.f1[0] }}, {{ row.f1[1] }}]</td>
