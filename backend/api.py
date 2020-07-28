@@ -28,7 +28,6 @@ def _before_request():
         except Exception as e:
             logging.error(e)
             target_token = None
-
         if target_token is None:
             return abort(500)
         if get_bearer_token(request.headers) != target_token:

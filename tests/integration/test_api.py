@@ -1,3 +1,4 @@
+from backend.external_services import SecretManagerService
 from tests.fixtures import *
 from backend import api
 
@@ -19,6 +20,8 @@ def make_request(backend_client, auth_token="test123", dataset_name="blah.jsonl"
 
 def test_authorized_call_token_not_set(backend_client, monkeypatch):
     # Here, API_TOKEN env var is not set.
+    monkeypatch.delenv('API_TOKEN', raising=False)
+    monkeypatch.setattr(SecretManagerService, 'get_secret', None)
     monkeypatch.setattr(api, 'run_inference_on_data', lambda x: None)
 
     response = make_request(backend_client)
