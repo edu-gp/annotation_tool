@@ -315,7 +315,7 @@ def download_prediction():
         q = db.session.query(
             User.username,
             ClassificationAnnotation.entity,
-            ClassificationAnnotation.value * ClassificationAnnotation.weight,
+            ClassificationAnnotation.value,
             ClassificationAnnotation.weight
         ).join(User).filter(
             ClassificationAnnotation.label == label,
@@ -324,7 +324,7 @@ def download_prediction():
 
         # Convert query result into a dataframe
         df_all_annos = pd.DataFrame(
-            all_annos, columns=['username', 'entity', 'weighted_value', 'weight'])
+            all_annos, columns=['username', 'entity', 'value', 'weight'])
 
         # Make sure the annotations are unique on (user, entity)
         df_all_annos = df_all_annos.drop_duplicates(
@@ -333,18 +333,15 @@ def download_prediction():
         # Make sure none of the entities are missing
         # (otherwise this will result in extra rows when merging)
         df_all_annos = df_all_annos.dropna(subset=['entity'])
-
-        logging.error(df_all_annos)
         # Merge it with the existing annotation one by one
         n_cols = len(df.columns)
         usernames = df_all_annos['username'].drop_duplicates().values
-        logging.error(usernames)
         for username in usernames:
             # Get just this user's annotations.
             _df = df_all_annos[df_all_annos['username'] == username]
             # Rename the "value" column to the username.
             _df = _df.drop(columns=['username'])
-            _df = _df.rename(columns={'weighted_value': username,
+            _df = _df.rename(columns={'value': username,
                                       'entity': 'domain',
                                       'weight': username+"_vote_weight"})
             # Merge it with the main dataframe.
@@ -352,10 +349,8 @@ def download_prediction():
 
         # Compute some statistics of the annotations
         # Only consider the columns with the user annotations
-        logging.error(df)
         # df_annos = df.iloc[:, n_cols:]
         df_annos = df[usernames]
-        logging.error(df_annos)
         df['CONTENTION (ENTROPY)'] = df_annos.apply(get_entropy, axis=1)
         df['MAJORITY_VOTE'] = df_annos.apply(get_majority_vote_v2, axis=1)
 
