@@ -22,8 +22,9 @@ from inference.nlp_model import (
 from .data import fetch_all_ar_ids
 from .utils import get_ar_id, timeit
 
-Example = namedtuple('Example', ['score', 'entity', 'fname', 'line_number'])
+Example = namedtuple('Example', ['score', 'entity', 'fname', 'line_number', 'label'], defaults=(None, None, None, None, None))
 EntityUserTuple = namedtuple('EntityUserTuple', ['entity', 'user'])
+EntityUserLabelTuple = namedtuple('EntityUserLabelTuple', ['entity', 'user', 'label'])
 
 
 def get_pattern_model_for_label(dbsession, label):
@@ -107,6 +108,16 @@ def get_ranked_examples_for_label(dbession, task, label, data_filenames) -> List
     ranked_examples = _shuffle_together_examples(
         examples, proportions=proportions)
 
+    new_ranked_examples = []
+    for x in ranked_examples:
+        new_ranked_examples.append(Example(
+            score = x.score,
+            entity = x.entity,
+            fname = x.fname,
+            line_number = x.line_number,
+            label = label))
+    ranked_examples = new_ranked_examples
+
     return ranked_examples
 
 
@@ -114,7 +125,7 @@ def consolidate_ranked_examples_per_label(
         ranked_examples_per_label: List[List[Example]]) -> List[Example]:
     """
     Inputs:
-        ranked_examples_per_label: Each element in this list, List[Example], 
+        ranked_examples_per_label: Each element in this list, List[Example],
             represents the ranked examples according to a label.
     """
     # A naive way to consolidate is just to round-robin preferences across all
@@ -174,7 +185,9 @@ def generate_annotation_requests(dbsession, task_id: int,
     # be able to find if there are exisiting requests for this user and
     # entity under this task. If so, skip those.
     logging.info("Constructing blacklisting criteria...")
-    lookup_dict = _build_blacklisting_lookup_dict(dbsession=dbsession)
+    # TODO also include entity_type, and specific labels
+    #lookup_dict = _build_blacklisting_lookup_dict(dbsession=dbsession)
+    lookup_dict = _build_blacklisting_lookup_dict_2(dbsession=dbsession)
     blacklist_fn = _build_blacklist_fn(lookup_dict=lookup_dict)
 
     logging.info("Assigning to annotators...")
@@ -327,6 +340,24 @@ def _build_blacklisting_lookup_dict(dbsession):
     }
     return lookup_dict
 
+def _build_blacklisting_lookup_dict_2(dbsession):
+    all_annotations = \
+        dbsession.query(
+            func.count(ClassificationAnnotation.id),
+            ClassificationAnnotation.entity,
+            User.username,
+            ClassificationAnnotation.label
+        ). \
+        join(User). \
+        filter(ClassificationAnnotation.value !=
+               AnnotationValue.NOT_ANNOTATED). \
+        group_by(ClassificationAnnotation.entity, User.username, ClassificationAnnotation.label).all()
+    lookup_dict = {
+        EntityUserLabelTuple(item[1], item[2], item[3]): item[0]
+        for item in all_annotations
+    }
+    return lookup_dict
+
 
 def _get_decorated_example(pred: Example,
                            pattern_decor: List,
@@ -354,10 +385,14 @@ def _build_blacklist_fn(lookup_dict: dict):
 
     def blacklist_fn(pred: Example, annotator: str):
         entity = pred.entity
-        lookup_key = EntityUserTuple(entity, annotator)
+        label = pred.label
+        #lookup_key = EntityUserTuple(entity, annotator)
+        lookup_key = EntityUserLabelTuple(entity, annotator, label)
         if lookup_key not in lookup_dict:
             lookup_dict[lookup_key] = 0
-        return lookup_dict[lookup_key] > 0
+        is_blacklist = lookup_dict[lookup_key] > 0
+        print("Blacklist", lookup_key, is_blacklist)
+        return is_blacklist
 
     return blacklist_fn
 
