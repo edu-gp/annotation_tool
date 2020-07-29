@@ -66,7 +66,7 @@ def test_get_entropy():
     assert e > a, "[-1, 1, 1, 1] has higher entropy than [1, 1, 1, 1]"
 
 
-def test_get_majority_vote_v2():
+def test_get_majority_vote():
     res = get_majority_vote([1, 1, 1, 1, -1, -1, None, float('nan')])
     assert res == 1
 

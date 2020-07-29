@@ -275,7 +275,6 @@ class ClassificationTrainingData(Base):
                 about the entity that we can use for training.
             batch_size: Database query batch size.
         """
-        # query = majority_vote_annotations_query(dbsession, label)
         query = majority_vote_annotations_query(dbsession, label)
 
         final = []
