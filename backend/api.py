@@ -47,13 +47,18 @@ def trigger_inference():
     """Trigger inference on a dataset."""
     dataset_name = None
 
-    if 'dataset_name' in request.form:
-        dataset_name = request.form.get('dataset_name')
+    json_data = request.get_json()
+
+    if json_data:
+        request_id = json_data.get('request_id')
+        logging.info("Handling request " + request_id)
+        dataset_name = json_data.get('dataset_name', None)
 
     if dataset_name:
         run_inference_on_data(dataset_name)
         return "OK", 200
     else:
+        logging.error(f"[{request_id}] Missing dataset name. Abort...")
         return abort(400)
 
 

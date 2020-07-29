@@ -1,16 +1,20 @@
 import base64
 import json
 import os
+import uuid
 
 import requests
 from google.cloud import storage, secretmanager
 
 
 def handler(request):
-    """Triggered from a message on a Cloud Pub/Sub topic.
+    """Responds to any HTTP request.
     Args:
-         event (dict): Event payload.
-         context (google.cloud.functions.Context): Metadata for the event.
+        request (flask.Request): HTTP request object.
+    Returns:
+        The response text or any set of values that can be turned into a
+        Response object using
+        `make_response <http://flask.pocoo.org/docs/1.0/api/#flask.Flask.make_response>`.
     """
     request_json = request.get_json()
     message = None
@@ -56,6 +60,7 @@ def handler(request):
         url = os.environ.get('INFERENCE_API')
         print(f"URL to call is: {url}")
         payload = {
+            "request_id": str(uuid.uuid1()),
             "dataset_name": destination_file_name
         }
         print(f"Payload to the inference api: {payload}")
@@ -67,11 +72,13 @@ def handler(request):
             secret_id=os.environ.get('API_TOKEN_NAME')
         )
         headers = {
-            'Authorization': 'Bearer ' + api_token
+            'Authorization': 'Bearer ' + api_token,
+            'Content-Type': 'application/json'
         }
-        r = requests.post(url, data=json.dumps(payload), headers=headers)
+        print(json.dumps(payload))
+        r = requests.post(url, json=payload, headers=headers)
     except Exception as e:
-        # print(e)
+        print(e)
         raise e
 
 
