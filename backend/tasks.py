@@ -312,7 +312,8 @@ def download_prediction():
             User.username,
             ClassificationAnnotation.entity,
             ClassificationAnnotation.value,
-            ClassificationAnnotation.weight
+            ClassificationAnnotation.weight,
+            ClassificationAnnotation.value * ClassificationAnnotation.weight
         ).join(User).filter(
             ClassificationAnnotation.label == label,
             ClassificationAnnotation.entity_type == entity_type)
@@ -320,7 +321,8 @@ def download_prediction():
 
         # Convert query result into a dataframe
         df_all_annos = pd.DataFrame(
-            all_annos, columns=['username', 'entity', 'value', 'weight'])
+            all_annos, columns=['username', 'entity', 'value', 'weight',
+                                'weighted_value'])
 
         # Make sure the annotations are unique on (user, entity)
         df_all_annos = df_all_annos.drop_duplicates(
@@ -339,7 +341,9 @@ def download_prediction():
             _df = _df.drop(columns=['username'])
             _df = _df.rename(columns={'value': username,
                                       'entity': 'domain',
-                                      'weight': username+"_vote_weight"})
+                                      'weight': username+"_vote_weight",
+                                      "weighted_value": username+"_weighted_value"
+                                      })
             # Merge it with the main dataframe.
             df = df.merge(_df, on='domain', how='left')
 
@@ -347,7 +351,13 @@ def download_prediction():
         # Only consider the columns with the user annotations
         df_annos = df[usernames]
         df['CONTENTION (ENTROPY)'] = df_annos.apply(get_entropy, axis=1)
-        df['MAJORITY_VOTE'] = df_annos.apply(get_majority_vote, axis=1)
+
+        user_weighted_value_columns = [username + "_weighted_value"
+                                       for username in usernames]
+        df_annos_with_weights = df[user_weighted_value_columns]
+        df['MAJORITY_VOTE'] = df_annos_with_weights.apply(get_majority_vote,
+                                                          axis=1)
+        df = df.drop(columns=user_weighted_value_columns)
 
         # 3. --- Write it to a temp file and send it ---
         with tempfile.TemporaryDirectory() as tmpdirname:
