@@ -59,9 +59,7 @@ def get_nlp_models_for_label(dbsession, label):
 
 
 def get_ranked_examples_for_label(dbession, label, data_filenames) -> List[Example]:
-    """Get the ranking for each datapoint in data_filenames for this label.
-    (We're also passing in the task, but in the future I hope to remove this
-    dependency)
+    """Get examples in data_filenames for this label in ranked order.
     A lower ranking means higher desire to be labeled.
     """
     logging.info(f"Get prediction from label={label}")
@@ -356,10 +354,10 @@ def _get_decorated_example(pred: Example,
     return res
 
 
-def _build_blacklist_fn(lookup_set: set):
+def _build_blacklist_fn(lookup: set):
 
     def blacklist_fn(e: Example, user: str):
-        return LookupKey(e.entity_type, e.entity, e.label, user) in lookup_set
+        return LookupKey(e.entity_type, e.entity, e.label, user) in lookup
 
     return blacklist_fn
 
