@@ -174,15 +174,6 @@ def get_entropy(annos: List[Optional[int]], eps=0.0001):
 
 
 def get_majority_vote(annos: List[Optional[int]]):
-    cnt = build_counter(annos)
-
-    if len(cnt):
-        return cnt.most_common(1)[0][0]
-    else:
-        return None
-
-
-def get_majority_vote_v2(annos: List[Optional[int]]):
     valid_votes = [x for x in annos if x != 0 and not pd.isna(x)]
     if len(valid_votes) > 0:
         total = sum(valid_votes)

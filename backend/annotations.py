@@ -113,7 +113,7 @@ def bulk_post():
         # Validate Form
         redirect_to = request.form['redirect_to'] or '/'
 
-        user, label, entities, values, entity_type = \
+        user, label, entities, values, entity_type, is_golden = \
             parse_form(request.form)
 
         # TODO should we add check on the User and Label?

@@ -4,8 +4,7 @@ import numpy as np
 
 from db.model import (
     Task, ClassificationAnnotation, User, EntityTypeEnum,
-    majority_vote_annotations_query,
-    majority_vote_annotations_query_v2)
+    majority_vote_annotations_query)
 from db.fs import RAW_DATA_DIR
 
 from train.no_deps.run import (
@@ -120,7 +119,7 @@ def test_train_flow_simple(dbsession, monkeypatch, tmp_path):
     monkeypatch.setenv('ALCHEMY_FILESTORE_DIR', str(tmp_path))
     N = 2
     _populate_db_and_fs(dbsession, tmp_path, N, weight=100)
-    query = majority_vote_annotations_query_v2(dbsession, LABEL)
+    query = majority_vote_annotations_query(dbsession, LABEL)
     res = query.all()
     assert sorted(res) == [('0.com', -1, 100), ('1.com', 1, 101)]
 

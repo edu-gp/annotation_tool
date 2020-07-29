@@ -35,8 +35,7 @@ from shared.frontend_path_finder import (
 )
 from shared.utils import (
     get_env_int, stem, list_to_textarea, textarea_to_list, get_entropy,
-    get_majority_vote,
-    get_majority_vote_v2)
+    get_majority_vote)
 
 from .auth import auth
 
@@ -349,10 +348,9 @@ def download_prediction():
 
         # Compute some statistics of the annotations
         # Only consider the columns with the user annotations
-        # df_annos = df.iloc[:, n_cols:]
         df_annos = df[usernames]
         df['CONTENTION (ENTROPY)'] = df_annos.apply(get_entropy, axis=1)
-        df['MAJORITY_VOTE'] = df_annos.apply(get_majority_vote_v2, axis=1)
+        df['MAJORITY_VOTE'] = df_annos.apply(get_majority_vote, axis=1)
 
         # 3. --- Write it to a temp file and send it ---
         with tempfile.TemporaryDirectory() as tmpdirname:

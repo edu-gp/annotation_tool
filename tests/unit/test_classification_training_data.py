@@ -1,8 +1,7 @@
 from db.model import (
     User, ClassificationAnnotation,
     ClassificationTrainingData,
-    majority_vote_annotations_query
-)
+    majority_vote_annotations_query)
 import os
 from db.fs import filestore_base_dir
 from shared.utils import load_jsonl
@@ -21,13 +20,15 @@ def test_path(dbsession):
     assert data.path().endswith('.jsonl')
 
 
-def _populate_db_manual(dbsession):
+def _populate_db_manual(dbsession, weight=1):
     user = User(username=f'someuser')
     dbsession.add(user)
     dbsession.commit()
 
-    def _create_anno(ent, v): return ClassificationAnnotation(
-        entity_type=ENTITY_TYPE, entity=ent, user=user, label=LABEL, value=v)
+    def _create_anno(ent, v, weight=1): return ClassificationAnnotation(
+        entity_type=ENTITY_TYPE, entity=ent, user=user, label=LABEL, value=v,
+        weight=weight
+    )
 
     ents = ['A', 'B']
 
@@ -35,14 +36,14 @@ def _populate_db_manual(dbsession):
         _create_anno(ents[0], 1),
         _create_anno(ents[0], 1),
         _create_anno(ents[0], 1),
-        _create_anno(ents[0], -1),
+        _create_anno(ents[0], -1, weight=weight),
         _create_anno(ents[0], 0),
         _create_anno(ents[0], 0),
         _create_anno(ents[0], 0),
         _create_anno(ents[0], 0),
 
         _create_anno(ents[1], 1),
-        _create_anno(ents[1], 1),
+        _create_anno(ents[1], 1, weight=weight),
         _create_anno(ents[1], -1),
         _create_anno(ents[1], -1),
         _create_anno(ents[1], -1),
@@ -55,10 +56,10 @@ def _populate_db_manual(dbsession):
     dbsession.commit()
 
 
-def test_majority_vote_annotations_query(dbsession):
-    _populate_db_manual(dbsession)
+def test_majority_vote_annotations_query_v2(dbsession):
+    _populate_db_manual(dbsession, weight=100)
     query = majority_vote_annotations_query(dbsession, LABEL)
-    assert set(query.all()) == set([('A', 1, 3), ('B', -1, 4)])
+    assert set(query.all()) == set([('A', -1, 100), ('B', 1, 101)])
 
 
 def test_create_for_label(dbsession, monkeypatch, tmp_path):
