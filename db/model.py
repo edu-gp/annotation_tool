@@ -6,7 +6,7 @@ from typing import List
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine, inspect, UniqueConstraint, MetaData, \
-    Boolean
+    Boolean, distinct
 from sqlalchemy.schema import ForeignKey, Column
 from sqlalchemy.types import Integer, Float, String, JSON, DateTime, Text
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
@@ -234,16 +234,19 @@ def majority_vote_annotations_query(dbsession, label):
 
     q2 = dbsession.query(
         q1.c.entity,
+        q1.c.value,
         func.max(q1.c.weight).label('weight')
     ).group_by(q1.c.entity)
 
     q2 = q2.cte('max_query')
 
-    query = dbsession.query(
-        q1.c.entity,
+    # in case the weights are for the positive and negative classess, we need
+    # select only one
+    query = dbsession.query(distinct(
+        q1.c.entity),
         q1.c.value,
         q1.c.weight
-    ).join(q2, (q1.c.entity == q2.c.entity) & (q1.c.weight == q2.c.weight))
+    ).join(q2, (q1.c.entity == q2.c.entity) & (q1.c.value == q2.c.value))
 
     return query
 

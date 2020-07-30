@@ -124,6 +124,23 @@ def test_train_flow_simple(dbsession, monkeypatch, tmp_path):
     assert sorted(res) == [('0.com', -1, 100), ('1.com', 1, 101)]
 
 
+def test_train_flow_simple_equal_weight(dbsession, monkeypatch, tmp_path):
+    monkeypatch.setenv('ALCHEMY_FILESTORE_DIR', str(tmp_path))
+    N = 2
+    _populate_db_and_fs(dbsession, tmp_path, N, weight=3)
+    query = majority_vote_annotations_query(dbsession, LABEL)
+    res = query.all()
+    assert len(res) == N
+    res = sorted(res)
+    for i in range(N):
+        assert res[i][0] == str(i) + ".com"
+        assert res[i][1] in [-1, 1]
+        if i == 0:
+            assert res[i][2] == 3
+        elif i == 1:
+            assert res[i][2] == 4
+
+
 def test_train_flow(dbsession, monkeypatch, tmp_path):
     monkeypatch.setenv('ALCHEMY_FILESTORE_DIR', str(tmp_path))
     N = 20
