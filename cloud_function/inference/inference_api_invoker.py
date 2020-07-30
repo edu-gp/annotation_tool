@@ -8,13 +8,10 @@ from google.cloud import storage, secretmanager
 
 
 def handler(request):
-    """Responds to any HTTP request.
+    """Responds to an HTTP request from a pubsub owned by GDP.
+
     Args:
         request (flask.Request): HTTP request object.
-    Returns:
-        The response text or any set of values that can be turned into a
-        Response object using
-        `make_response <http://flask.pocoo.org/docs/1.0/api/#flask.Flask.make_response>`.
     """
     request_json = request.get_json()
     message = None
