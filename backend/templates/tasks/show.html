@@ -469,39 +469,141 @@
                   </div>
                 </div>
 
-                {% set metrics = mv.get_metrics() %}
+                <p>Trained on <b>{{ mv.get_len_data() }}</b> datapoints.</p>
 
-                <div class="row" style="font-size: 0.8em">
-                  <div class="col-lg-3 col-md-6 col-sm-6">
+                {% set metrics = mv.compute_metrics() %}
+
+                {% if metrics['not_found'] %}
+                <div class="alert alert-warning">
+                  <div>
+                    <b>{{metrics['not_found'] | length}}</b> data points were not found when computing metrics.
+                    <button class="btn btn-sm btn-warning" type="button" data-toggle="collapse"
+                      data-target="#metrics-not-found-{{mv.id}}" aria-expanded="false" aria-controls="collapseExample">
+                      Show Samples
+                    </button>
+                  </div>
+                  <div class="collapse" id="metrics-not-found-{{mv.id}}">
+                    <pre>{% for el in metrics['not_found'][:100] %}
+"{{el}}"{% endfor %}</pre>
+                  </div>
+                </div>
+                {% endif %}
+
+                <table class="table table-sm table-bordered text-center">
+                  <tr class="font-weight-bold">
+                    <td rowspan="2"></td>
+                    <td colspan="5">Train</td>
+                    <td colspan="5">Test</td>
+                  </tr>
+                  <tr class="font-weight-bold">
+                    <td>N</td>
+                    <td>Pr</td>
+                    <td>Re</td>
+                    <td>F1</td>
+                    <td>ROC AUC</td>
+                    <td>N</td>
+                    <td>Pr</td>
+                    <td>Re</td>
+                    <td>F1</td>
+                    <td>ROC AUC</td>
+                  </tr>
+                  <tr>
+                    <td>Negative Class</td>
+
+                    <td>{{metrics['train']['su'][0]}}</td>
+                    <td>{{metrics['train']['pr'][0] | round(2)}}</td>
+                    <td>{{metrics['train']['re'][0] | round(2)}}</td>
+                    <td>{{metrics['train']['f1'][0] | round(2)}}</td>
+                    <td>-</td>
+
+                    <td>{{metrics['test']['su'][0]}}</td>
+                    <td>{{metrics['test']['pr'][0] | round(2)}}</td>
+                    <td>{{metrics['test']['re'][0] | round(2)}}</td>
+                    <td>{{metrics['test']['f1'][0] | round(2)}}</td>
+                    <td>-</td>
+                  </tr>
+                  <tr>
+                    <td>Positive Class</td>
+
+                    <td>{{metrics['train']['su'][1]}}</td>
+                    <td>{{metrics['train']['pr'][1] | round(2)}}</td>
+                    <td>{{metrics['train']['re'][1] | round(2)}}</td>
+                    <td>{{metrics['train']['f1'][1] | round(2)}}</td>
+                    <td>{{metrics['train']['ro'] | round(2)}}</td>
+
+                    <td>{{metrics['test']['su'][1]}}</td>
+                    <td>{{metrics['test']['pr'][1] | round(2)}}</td>
+                    <td>{{metrics['test']['re'][1] | round(2)}}</td>
+                    <td>{{metrics['test']['f1'][1] | round(2)}}</td>
+                    <td>{{metrics['test']['ro'] | round(2)}}</td>
+                  </tr>
+                </table>
+
+                <div class="row">
+                  <div class="col-6">
                     <h6>Train</h6>
-                    <pre>
-                      {{- metrics['train']|to_pretty_json -}}
-                    </pre>
+                    <table class="table table-sm table-bordered text-center">
+                      <tr class="font-weight-bold">
+                        <td></td>
+                        <td>Predicted: No</td>
+                        <td>Predicted: Yes</td>
+                      </tr>
+                      <tr>
+                        <td class="font-weight-bold">Actual: No</td>
+                        <td>{{metrics['train']['tn']}}</td>
+                        <td>{{metrics['train']['fp']}}</td>
+                      </tr>
+                      <tr>
+                        <td class="font-weight-bold">Actual: Yes</td>
+                        <td>{{metrics['train']['fn']}}</td>
+                        <td>{{metrics['train']['tp']}}</td>
+                      </tr>
+                    </table>
                   </div>
-                  <div class="col-lg-3 col-md-6 col-sm-6">
+                  <div class="col-6">
                     <h6>Test</h6>
-                    <pre>
-                      {{- metrics['test']|to_pretty_json -}}
-                    </pre>
-                  </div>
-                  <div class="col-lg-3 col-md-6 col-sm-6">
-                    <h6>Stats</h6>
-                    Trained on {{ mv.get_len_data() }} datapoints.
+                    <table class="table table-sm table-bordered text-center">
+                      <tr class="font-weight-bold">
+                        <td></td>
+                        <td>Predicted: No</td>
+                        <td>Predicted: Yes</td>
+                      </tr>
+                      <tr>
+                        <td class="font-weight-bold">Actual: No</td>
+                        <td>{{metrics['test']['tn']}}</td>
+                        <td>{{metrics['test']['fp']}}</td>
+                      </tr>
+                      <tr>
+                        <td class="font-weight-bold">Actual: Yes</td>
+                        <td>{{metrics['test']['fn']}}</td>
+                        <td>{{metrics['test']['tp']}}</td>
+                      </tr>
+                    </table>
                   </div>
                 </div>
 
-                <div class="row" style="font-size: 0.2em">
-                  <div class="col">
-                    Config:
-                    <pre>
-                      {{- mv.get_config()|to_pretty_json -}}
-                    </pre>
-                  </div>
-                  <div class="col">
-                    Data Parser:
-                    <pre>
-                      {{- mv.get_data_parser()|to_pretty_json -}}
-                    </pre>
+                <!-- Extra info hidden by default -->
+
+                <p>
+                  <button class="btn btn-secondary" type="button" data-toggle="collapse"
+                    data-target="#extra-info-{{mv.id}}" aria-expanded="false" aria-controls="collapseExample">
+                    More Details
+                  </button>
+                </p>
+                <div class="collapse" id="extra-info-{{mv.id}}">
+                  <div class="row" style="font-size: 0.2em">
+                    <div class="col">
+                      Config:
+                      <pre>
+                        {{- mv.get_config()|to_pretty_json -}}
+                      </pre>
+                    </div>
+                    <div class="col">
+                      Data Parser:
+                      <pre>
+                        {{- mv.get_data_parser()|to_pretty_json -}}
+                      </pre>
+                    </div>
                   </div>
                 </div>
 
@@ -539,52 +641,53 @@
                   <table class="table">
                     <tbody>
                       {% for mv in models_per_label.get(label, []) %}
-                          {% if mv.is_ready() %}
-                          {% set deployment_config = deployment_configs_per_model[mv.id] %}
-                          <tr>
-                            <td>
-                              Version {{mv.version}} ({{mv.created_at.strftime('%Y-%m-%d')}})
+                      {% if mv.is_ready() %}
+                      {% set deployment_config = deployment_configs_per_model[mv.id] %}
+                      <tr>
+                        <td>
+                          Version {{mv.version}} ({{mv.created_at.strftime('%Y-%m-%d')}})
 
-                              {% if deployment_config %}
-                                  <div id="{{mv.id}}_div_threshold">
-                                    <label for="threshold">Threshold</label>
-                                    <input type="text" id="{{mv.id}}_input_threshold" name="{{mv.id}}_threshold" value="{{ deployment_config["threshold"] }}" />
-                                  </div>
-                              {% else %}
-                                  <div id="{{mv.id}}_div_threshold">
-                                    <label for="threshold">Threshold</label>
-                                    <input type="text" id="{{mv.id}}_input_threshold" name="{{mv.id}}_threshold" value="0.5" />
-                                  </div>
-                              {% endif %}
-                            </td>
-                            <td>
-                              {% if deployment_config and deployment_config["is_approved"] %}
-                              <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}"
-                                checked="checked" onclick="displayRadioButton(this.id)" /> Approved
-
-                                  {% if deployment_config["is_selected_for_deployment"] %}
-                                      <div id="{{mv.id}}_div_radio">
-                                        <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}"
-                                          checked="checked" />
-                                        <label for="selected_model_id">Selected for deployment</label>
-                                      </div>
-                                  {% else %}
-                                      <div id="{{mv.id}}_div_radio">
-                                        <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}" />
-                                        <label for="selected_model_id">Selected for deployment</label>
-                                      </div>
-                                  {%  endif %}
-                              {% else %}
-                                  <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}"
-                                    onclick="displayRadioButton(this.id)" /> Approved
-                                  <div id="{{mv.id}}_div_radio" style="display: none">
-                                    <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}" />
-                                    <label for="selected_model_id">Selected for deployment</label>
-                                  </div>
-                              {% endif %}
-                            </td>
-                          </tr>
+                          {% if deployment_config %}
+                          <div id="{{mv.id}}_div_threshold">
+                            <label for="threshold">Threshold</label>
+                            <input type="text" id="{{mv.id}}_input_threshold" name="{{mv.id}}_threshold"
+                              value="{{ deployment_config["threshold"] }}" />
+                          </div>
+                          {% else %}
+                          <div id="{{mv.id}}_div_threshold">
+                            <label for="threshold">Threshold</label>
+                            <input type="text" id="{{mv.id}}_input_threshold" name="{{mv.id}}_threshold" value="0.5" />
+                          </div>
                           {% endif %}
+                        </td>
+                        <td>
+                          {% if deployment_config and deployment_config["is_approved"] %}
+                          <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}"
+                            checked="checked" onclick="displayRadioButton(this.id)" /> Approved
+
+                          {% if deployment_config["is_selected_for_deployment"] %}
+                          <div id="{{mv.id}}_div_radio">
+                            <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}"
+                              checked="checked" />
+                            <label for="selected_model_id">Selected for deployment</label>
+                          </div>
+                          {% else %}
+                          <div id="{{mv.id}}_div_radio">
+                            <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}" />
+                            <label for="selected_model_id">Selected for deployment</label>
+                          </div>
+                          {%  endif %}
+                          {% else %}
+                          <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}"
+                            onclick="displayRadioButton(this.id)" /> Approved
+                          <div id="{{mv.id}}_div_radio" style="display: none">
+                            <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}" />
+                            <label for="selected_model_id">Selected for deployment</label>
+                          </div>
+                          {% endif %}
+                        </td>
+                      </tr>
+                      {% endif %}
                       {% endfor %}
                     </tbody>
                   </table>
@@ -604,22 +707,22 @@
 
 <script>
   document.querySelectorAll('input[id$="_input_threshold"]').forEach(
-      function (a) {
-          a.addEventListener("change", thresholdChange);
-          a.addEventListener("keyup", thresholdChange);
-          a.addEventListener("paste", thresholdChange);
-          a.addEventListener("input", thresholdChange);
-      }
+    function (a) {
+      a.addEventListener("change", thresholdChange);
+      a.addEventListener("keyup", thresholdChange);
+      a.addEventListener("paste", thresholdChange);
+      a.addEventListener("input", thresholdChange);
+    }
   )
 
   function thresholdChange() {
-      let model_id = this.id.split("_")[0];
-      let checkbox = document.getElementById(model_id + "_checkbox");
-      let radio_button = document.getElementById(model_id + "_radio");
-      let div_radio = document.getElementById(model_id + "_div_radio");
-      checkbox.checked = false;
-      radio_button.checked = false;
-      div_radio.style.display = 'none';
+    let model_id = this.id.split("_")[0];
+    let checkbox = document.getElementById(model_id + "_checkbox");
+    let radio_button = document.getElementById(model_id + "_radio");
+    let div_radio = document.getElementById(model_id + "_div_radio");
+    checkbox.checked = false;
+    radio_button.checked = false;
+    div_radio.style.display = 'none';
   }
 
   function displayRadioButton(id) {

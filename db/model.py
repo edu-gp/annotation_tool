@@ -7,7 +7,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine, inspect, UniqueConstraint, MetaData, \
     Boolean
 from sqlalchemy.schema import ForeignKey, Column
-from sqlalchemy.types import Integer, Float, String, JSON, DateTime, Text
+from sqlalchemy.types import Integer, Float, String, JSON, DateTime
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.ext.declarative import declarative_base
@@ -391,8 +391,7 @@ class Model(Base):
         return os.path.join(self.dir(), "inference")
 
     def _load_json(self, fname_fn):
-        model_dir = os.path.join(filestore_base_dir(), self.dir())
-        fname = fname_fn(model_dir)
+        fname = fname_fn(self.dir(abs=True))
         if os.path.isfile(fname):
             return load_json(fname)
         else:
@@ -402,6 +401,7 @@ class Model(Base):
         # Model is ready when it has a metrics file.
         return self.get_metrics() is not None
 
+    # TODO deprecate in favor of compute_metrics
     def get_metrics(self):
         return self._load_json(_get_metrics_fname)
 
@@ -413,17 +413,12 @@ class Model(Base):
 
     def get_plots(self):
         """Return a list of urls for plots"""
-        model_dir = os.path.join(filestore_base_dir(), self.dir())
-        return _get_all_plots(model_dir)
-
-    def get_inference_fname_paths(self):
-        model_dir = os.path.join(filestore_base_dir(), self.dir())
-        return _get_all_inference_fnames(model_dir)
+        return _get_all_plots(self.dir(abs=True))
 
     def get_inference_fnames(self):
         """Get the original filenames of the raw data for inference"""
         return [stem(path) + '.jsonl'
-                for path in self.get_inference_fname_paths()]
+                for path in _get_all_inference_fnames(self.dir(abs=True))]
 
     def export_inference(self, data_fname, include_text=False):
         """Exports the given inferenced file data_fname as a dataframe.
@@ -460,9 +455,28 @@ class Model(Base):
         We measure the size of the file in the model directory, not to be
         confused with the file from a ClassificationTrainingData instance!
         """
-        model_dir = os.path.join(filestore_base_dir(), self.dir())
-        fname = _get_exported_data_fname(model_dir)
-        return file_len(fname)
+        return file_len(_get_exported_data_fname(self.dir(abs=True)))
+
+    def compute_metrics(self, threshold: float = 0.5):
+        """See train.no_deps.compute_metrics"""
+
+        # TODO this code is temporarily here; will refactor it later when I
+        # refactor the code for export_inference as well.
+        import pandas as pd
+        df = []
+        for fname in self.get_inference_fnames():
+            df.append(self.export_inference(fname, include_text=True))
+
+        if df:
+            df = pd.concat(df, axis=0)
+        else:
+            # Make a dummy dataframe, in case no inference data is found.
+            df = pd.DataFrame(columns=['text', 'probs'])
+
+        version_dir = self.dir(abs=True)
+
+        from train.no_deps.metrics import compute_metrics as _compute_metrics
+        return _compute_metrics(version_dir, df, threshold=threshold)
 
 
 class TextClassificationModel(Model):
