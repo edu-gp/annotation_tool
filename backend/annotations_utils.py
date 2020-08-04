@@ -33,11 +33,8 @@ def parse_form(form: dict):
     assert len(set(entities)) == len(entities), \
         "There are duplicates in entities"
 
-    acceptable_annotations = set([
-        AnnotationValue.POSITIVE,
-        AnnotationValue.NEGTIVE,
-        AnnotationValue.UNSURE,
-    ])
+    acceptable_annotations = {AnnotationValue.POSITIVE,
+                              AnnotationValue.NEGTIVE, AnnotationValue.UNSURE}
 
     for i in range(len(annotations)):
         annotations[i] = int(annotations[i])
@@ -46,3 +43,27 @@ def parse_form(form: dict):
             f"acceptable annotations {acceptable_annotations}"
 
     return user, label, entities, annotations, entity_type
+
+
+def parse_bulk_upload_v2_form(form: dict):
+    user = form.get('user')
+    entity_type = form.get('entity_type')
+    if entity_type == 'None':
+        entity_type = None
+
+    value = int(form.get('value'))
+
+    entities = _parse_list(form, 'entities')
+    labels = _parse_list(form, 'labels')
+
+    assert user, 'User is required'
+    assert entity_type, 'Entity type is required'
+
+    acceptable_annotations = {AnnotationValue.POSITIVE,
+                              AnnotationValue.NEGTIVE, AnnotationValue.UNSURE}
+    assert value in acceptable_annotations
+    assert len(entities) == len(labels), \
+        f'Number of entities ({len(entities)}) does not match ' \
+        f'with number of labels ({len(labels)})'
+
+    return user, entities, labels, entity_type, value
