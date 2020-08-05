@@ -112,7 +112,7 @@ def create_deployed_inference(metadata: DeployedInferenceMetadata) -> None:
         project_id=os.getenv("GCP_PROJECT_ID"),
         topic_name=_get_topic_name_on_stage(os.getenv("ENV_STAGE", "dev")),
         message_constructor=_message_constructor_alchemy_to_gdp,
-        dataset=dname,
+        dataset='alchemy-inference',
         prod_inference_url=prod_inference_url,
         prod_metadata_url=prod_metadata_url,
         timestamp=ts
