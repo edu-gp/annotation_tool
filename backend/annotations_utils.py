@@ -51,17 +51,21 @@ def parse_bulk_upload_v2_form(form: dict):
     if entity_type == 'None':
         entity_type = None
 
-    value = int(form.get('value'))
+    value = form.get('value')
 
     entities = _parse_list(form, 'entities')
     labels = _parse_list(form, 'labels')
 
     assert user, 'User is required'
     assert entity_type, 'Entity type is required'
+    assert value, 'Annotation value is required'
+
+    value = int(value)
 
     acceptable_annotations = {AnnotationValue.POSITIVE,
                               AnnotationValue.NEGTIVE, AnnotationValue.UNSURE}
-    assert value in acceptable_annotations
+    assert value in acceptable_annotations, f"Value {value} is not in the list of " \
+                                            f"acceptable annotations {acceptable_annotations}"
     assert len(entities) == len(labels), \
         f'Number of entities ({len(entities)}) does not match ' \
         f'with number of labels ({len(labels)})'

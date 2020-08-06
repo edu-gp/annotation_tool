@@ -1,4 +1,5 @@
-from backend.annotations_utils import _parse_list, parse_form
+from backend.annotations_utils import _parse_list, parse_form, \
+    parse_bulk_upload_v2_form
 import pytest
 
 
@@ -57,3 +58,55 @@ def test_parse_form():
             'entities': 'a.com\nb.com', 'annotations': '1\n5', 'entity_type': 'company'}
     with pytest.raises(Exception, match=r"Annotation 5 is not in the list of acceptable annotations .*"):
         parse_form(form)
+
+
+def test_parse_bulk_upload_v2_form():
+    form = {}
+    with pytest.raises(Exception, match="User is required"):
+        parse_bulk_upload_v2_form(form)
+
+    form = {'user': 'a'}
+    with pytest.raises(Exception, match="Entity type is required"):
+        parse_bulk_upload_v2_form(form)
+
+    form = {'user': 'a', 'entity_type': 'company'}
+    with pytest.raises(Exception, match="Annotation value is required"):
+        parse_bulk_upload_v2_form(form)
+
+    form = {'user': 'a', 'entity_type': 'company', 'value': '1'}
+    user, entities, labels, entity_type, value = parse_bulk_upload_v2_form(form)
+    assert user == 'a'
+    assert value == 1
+    assert len(labels) == 0
+    assert len(entities) == 0
+    assert entity_type == 'company'
+
+    form = {'user': 'a', 'value': '1', 'entities': 'a.com',
+            'entity_type': 'company'}
+    with pytest.raises(Exception,
+                       match=r"Number of entities .* does not match .* number of labels .*"):
+        parse_bulk_upload_v2_form(form)
+
+    form = {'user': 'a', 'value': '1',
+            'entities': 'a.com', 'labels': 'b2c\nhotdog',
+            'entity_type': 'company'}
+    with pytest.raises(Exception,
+                       match=r"Number of entities .* does not match .* number of labels .*"):
+        parse_bulk_upload_v2_form(form)
+
+    form = {'user': 'a', 'value': '-1',
+            'entities': 'a.com\nb.com', 'labels': 'b2c\nhotdog',
+            'entity_type': 'company'}
+    user, entities, labels, entity_type, value = parse_bulk_upload_v2_form(form)
+    assert user == 'a'
+    assert value == -1
+    assert len(entities) == 2
+    assert len(labels) == 2
+    assert entity_type == 'company'
+
+    form = {'user': 'a', 'value': '-2',
+            'entities': 'a.com\nb.com', 'labels': 'b2c\nhotdog',
+            'entity_type': 'company'}
+    with pytest.raises(Exception,
+                       match=r"Value -2 is not in the list of acceptable annotations .*"):
+        parse_bulk_upload_v2_form(form)
