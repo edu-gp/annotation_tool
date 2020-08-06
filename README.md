@@ -29,11 +29,14 @@ Descriptions of the env vars:
 - `GOOGLE_AI_PLATFORM_BUCKET`: Distributed Training - bucket to store data.
 - `GOOGLE_AI_PLATFORM_DOCKER_IMAGE_URI`: Distributed Training - pre-built training image URI.
 - `CLOUDSDK_COMPUTE_REGION`: The GCP region, e.g. "us-central1". You must set this in order for Google AI Platform to work.
-- `GCP_PROJECT_ID`: The id of the current project on GCP
+- `GCP_PROJECT_ID`: The id of the current project on GCP.
 - `DB_URL_FOR_MIGRATION`: The link to the database instance when running migration.
 - `BACKEND_LOGGER`: The logger name for the alchemy backend server.
 - `FRONTEND_LOGGER`: The logger name for the alchemy frontend server.
-- `INFERENCE_OUTPUT_PUBSUB_TOPIC`: The PubSub topic name for inference output.
+- `INFERENCE_OUTPUT_PUBSUB_TOPIC_DEV`: The PubSub topic name for inference output on the dev stage.
+- `INFERENCE_OUTPUT_PUBSUB_TOPIC_BETA`: The PubSub topic name for inference output on the beta stage.
+- `INFERENCE_OUTPUT_PUBSUB_TOPIC_PROD`: The PubSub topic name for inference output on the prod stage.
+- `ENV_STAGE`: Environment stage name.
 - `API_TOKEN_NAME`: The secret name for the inference API token.
 
 New env vars:
