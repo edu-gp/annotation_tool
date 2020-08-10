@@ -110,13 +110,23 @@ def create_deployed_inference(metadata: DeployedInferenceMetadata) -> None:
 
     GCPPubSubService.publish_message(
         project_id=os.getenv("GCP_PROJECT_ID"),
-        topic_name=os.getenv("INFERENCE_OUTPUT_PUBSUB_TOPIC"),
+        topic_name=_get_topic_name_on_stage(os.getenv("ENV_STAGE", "dev")),
         message_constructor=_message_constructor_alchemy_to_gdp,
         dataset=dname,
         prod_inference_url=prod_inference_url,
         prod_metadata_url=prod_metadata_url,
         timestamp=ts
     )
+
+
+def _get_topic_name_on_stage(stage):
+    if stage == 'dev':
+        topic_name = os.getenv("INFERENCE_OUTPUT_PUBSUB_TOPIC_DEV")
+    elif stage == 'beta':
+        topic_name = os.getenv("INFERENCE_OUTPUT_PUBSUB_TOPIC_BETA")
+    else:
+        topic_name = os.getenv("INFERENCE_OUTPUT_PUBSUB_TOPIC_PROD")
+    return topic_name
 
 
 def _message_constructor_alchemy_to_gdp(
