@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block header %}
-<h1>Bulk Upload Annotations</h1>
+<h1>Bulk Upload Positive Annotations</h1>
 {% endblock %}
 
 {% block content %}
@@ -12,8 +12,12 @@
         <p>
             Note: Everything is <b>Case Sensitive</b>!
         </p>
+        <p>
+            This is to upload <b>ONLY POSITIVE ANNOTATIONS</b>.
+            One the left side put in the entities (like abc.com) and one the right side put in the labels (like Healthcare).
+        </p>
 
-        <form action="{{ url_for('annotations.bulk_post_v2') }}" method="POST">
+        <form action="{{ url_for('annotations.bulk_post_positive_annotations') }}" method="POST">
             <input type="hidden" name="redirect_to" value="{{ request.form['redirect_to'] | default(redirect_to) }}" />
 
             <div class="form-group">

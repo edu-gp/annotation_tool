@@ -28,8 +28,8 @@ def index():
     return render_template('annotations/index.html')
 
 
-@bp.route('/bulk_v2', methods=['GET'])
-def bulk_v2():
+@bp.route('/bulk_upload_positive_annotations', methods=['GET'])
+def bulk_upload_positive_annotations():
     # TODO The user should be the current user but we don't have that in
     #  the session yet.
     request.form = {
@@ -42,14 +42,14 @@ def bulk_v2():
         AnnotationValue.UNSURE
     ]
 
-    return render_template('annotations/bulk_v2.html',
+    return render_template('annotations/bulk_upload_positive_annotations.html',
                            annotation_values=acceptable_values,
                            redirect_to=request.referrer,
                            entity_types=EntityTypeEnum.get_all_entity_types())
 
 
-@bp.route('/bulk_v2', methods=['POST'])
-def bulk_post_v2():
+@bp.route('/bulk_upload_positive_annotations', methods=['POST'])
+def bulk_post_positive_annotations():
     try:
         # Validate Form
         logging.error(request.form)
@@ -64,11 +64,12 @@ def bulk_post_v2():
         user = get_or_create(db.session, User, username=user)
 
         for entity, label in zip(entities, labels):
-            anno = __upsert_annotations(
+            anno = _upsert_annotations(
+                dbsession=db.session,
                 entity_type=entity_type,
                 entity=entity,
                 label=label,
-                user=user,
+                user_id=user.id,
                 value=value
             )
 
@@ -86,7 +87,8 @@ def bulk_post_v2():
     except Exception as e:
         logging.error(e)
         flash(str(e))
-        return render_template('annotations/bulk_v2.html')
+        return render_template(
+            'annotations/bulk_upload_positive_annotations.html')
     else:
         return redirect(redirect_to)
 
@@ -129,11 +131,12 @@ def bulk_post():
         # Note: We can't use `get_or_create` since 'value' is a required field.
 
         for entity, value in zip(entities, values):
-            anno = __upsert_annotations(
+            anno = _upsert_annotations(
+                dbsession=db.session,
                 entity_type=entity_type,
                 entity=entity,
                 label=label,
-                user=user,
+                user_id=user.id,
                 value=value
             )
 
@@ -156,17 +159,17 @@ def bulk_post():
         return redirect(redirect_to)
 
 
-def __upsert_annotations(entity_type, entity, label, user, value):
-    annotation = db.session.query(ClassificationAnnotation).filter_by(
+def _upsert_annotations(dbsession, entity_type, entity, label, user_id, value):
+    annotation = dbsession.query(ClassificationAnnotation).filter_by(
         entity_type=entity_type, entity=entity,
-        user=user, label=label
+        user_id=user_id, label=label
     ).one_or_none()
 
     if annotation is None:
         context = __construct_context(entity_type, entity)
         annotation = ClassificationAnnotation(
             entity_type=entity_type, entity=entity,
-            user=user, label=label,
+            user_id=user_id, label=label,
             value=value,
             context=context
         )

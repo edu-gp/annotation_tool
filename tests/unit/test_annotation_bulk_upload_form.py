@@ -1,6 +1,9 @@
+from backend.annotations import _upsert_annotations
 from backend.annotations_utils import _parse_list, parse_form, \
     parse_bulk_upload_v2_form
 import pytest
+
+from db.model import ClassificationAnnotation
 
 
 def test__parse_list():
@@ -110,3 +113,53 @@ def test_parse_bulk_upload_v2_form():
     with pytest.raises(Exception,
                        match=r"Value -2 is not in the list of acceptable annotations .*"):
         parse_bulk_upload_v2_form(form)
+
+
+def test__upsert_annotations(dbsession):
+    entity_type = "company"
+    entity = "123.com"
+    user_id = 1
+    label = "hotdog"
+    value = 1
+    context = {'text': 'whatever'}
+    annotation = ClassificationAnnotation(
+        entity_type=entity_type,
+        entity=entity,
+        user_id=user_id,
+        label=label,
+        value=value,
+        context=context
+    )
+    dbsession.add(annotation)
+
+    annotation_new = _upsert_annotations(
+        dbsession=dbsession,
+        entity_type=entity_type,
+        entity=entity,
+        label=label,
+        user_id=user_id+1,
+        value=value
+    )
+    dbsession.add(annotation_new)
+
+    dbsession.commit()
+    assert annotation_new.id != annotation.id
+    assert annotation_new.user_id != annotation.user_id
+    assert annotation_new.entity_type == annotation.entity_type
+    assert annotation_new.entity == annotation.entity
+    assert annotation_new.label == annotation.label
+    assert annotation_new.value == annotation.value
+
+    annotation_updated = _upsert_annotations(
+        dbsession=dbsession,
+        entity_type=entity_type,
+        entity=entity,
+        label=label,
+        user_id=user_id,
+        value=value * -1
+    )
+    dbsession.add(annotation_new)
+    dbsession.commit()
+    assert annotation_updated.id == annotation.id
+    assert annotation_updated.value == -1 * value
+
