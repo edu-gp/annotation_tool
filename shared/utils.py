@@ -5,11 +5,13 @@ import os
 import random
 import uuid
 from collections import defaultdict, Counter
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
 import numpy as np
 import pandas as pd
+import typing
 
 
 def load_json(fname):
@@ -173,13 +175,45 @@ def get_entropy(annos: List[Optional[int]], eps=0.0001):
     return entropy
 
 
-def get_majority_vote(annos: List[Optional[int]]):
-    valid_votes = [x for x in annos if x != 0 and not pd.isna(x)]
+@dataclass
+class WeightedVote:
+    value: 'typing.Any'
+    weight: float
+
+
+def get_weighted_majority_vote(annos: List[WeightedVote],
+                               invalid_values: Optional[typing.Tuple] = (0, -2, None)):
+    """Calculate the weighted majority votes.
+
+    :param annos: a list of WeightedVote(value, weight) objects
+    :param invalid_values: a list of invalid vote values to exclude
+    :return: the value with the highest weight
+    """
+    max_weight = -1
+    max_weight_vote = None
+
+    valid_votes = []
+    for anno in annos:
+        if __is_valid(anno, invalid_values):
+            valid_votes.append(anno)
+
     if len(valid_votes) > 0:
-        total = sum(valid_votes)
-        if total != 0:
-            return 1 if total > 0 else -1
-        else:
-            return random.choice([-1, 1])
-    else:
-        return None
+        votes_count = defaultdict(float)
+
+        for vote in valid_votes:
+            votes_count[vote.value] += vote.weight
+            if votes_count[vote.value] > max_weight:
+                max_weight = votes_count[vote.value]
+                max_weight_vote = vote.value
+
+    return max_weight_vote
+
+
+def __is_valid(anno, invalid_values):
+    if anno is None:
+        return False
+    if pd.isna(anno):
+        return False
+    if anno.value in invalid_values and not pd.isna(anno.weight):
+        return False
+    return True

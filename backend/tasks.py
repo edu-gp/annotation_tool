@@ -2,6 +2,7 @@ import os
 import logging
 import tempfile
 import pandas as pd
+import typing
 
 from flask import (
     Blueprint, flash, redirect, render_template, request, url_for, send_file
@@ -35,7 +36,7 @@ from shared.frontend_path_finder import (
 )
 from shared.utils import (
     get_env_int, stem, list_to_textarea, textarea_to_list, get_entropy,
-    get_majority_vote)
+    get_weighted_majority_vote, WeightedVote)
 
 from .auth import auth
 
@@ -313,16 +314,21 @@ def download_prediction():
             ClassificationAnnotation.entity,
             ClassificationAnnotation.value,
             ClassificationAnnotation.weight,
-            ClassificationAnnotation.value * ClassificationAnnotation.weight
         ).join(User).filter(
             ClassificationAnnotation.label == label,
             ClassificationAnnotation.entity_type == entity_type)
-        all_annos = q.all()
+        res = q.all()
+
+        all_annos = []
+        for anno in res:
+            # we want a column to group the value and weight together.
+            anno = anno + (WeightedVote(value=anno[2], weight=anno[3]), )
+            all_annos.append(anno)
 
         # Convert query result into a dataframe
         df_all_annos = pd.DataFrame(
             all_annos, columns=['username', 'entity', 'value', 'weight',
-                                'weighted_value'])
+                                'value_weight_tuple'])
 
         # Make sure the annotations are unique on (user, entity)
         df_all_annos = df_all_annos.drop_duplicates(
@@ -342,7 +348,7 @@ def download_prediction():
             _df = _df.rename(columns={'value': username,
                                       'entity': 'domain',
                                       'weight': username+"_vote_weight",
-                                      "weighted_value": username+"_weighted_value"
+                                      "value_weight_tuple": username+"_value_weight_tuple"
                                       })
             # Merge it with the main dataframe.
             df = df.merge(_df, on='domain', how='left')
@@ -352,11 +358,13 @@ def download_prediction():
         df_annos = df[usernames]
         df['CONTENTION (ENTROPY)'] = df_annos.apply(get_entropy, axis=1)
 
-        user_weighted_value_columns = [username + "_weighted_value"
+        user_weighted_value_columns = [username + "_value_weight_tuple"
                                        for username in usernames]
+
         df_annos_with_weights = df[user_weighted_value_columns]
-        df['MAJORITY_VOTE'] = df_annos_with_weights.apply(get_majority_vote,
-                                                          axis=1)
+
+        df['MAJORITY_VOTE'] = df_annos_with_weights.apply(
+            get_weighted_majority_vote, axis=1)  # get_majority_vote,
         df = df.drop(columns=user_weighted_value_columns)
 
         # 3. --- Write it to a temp file and send it ---
@@ -368,6 +376,9 @@ def download_prediction():
                              as_attachment=True)
     else:
         return "Inference file not found", 404
+
+
+# def _extract_prediction_data_for_model(model):
 
 
 # ----- FORM PARSING -----

@@ -231,6 +231,15 @@ def majority_vote_annotations_query(dbsession, label):
         .group_by(ClassificationAnnotation.entity, ClassificationAnnotation.value)
 
     q1 = q1.cte('weight_query')
+    """
+    q1 gives us this:
+    Entity | Value | Weight
+    a.com  |   1   |   50
+    a.com  |   -1  |   20
+    b.com  |   1   |   15
+    b.com  |   -1  |   20
+    c.com  |   1   |   10
+    """
 
     q2 = dbsession.query(
         q1.c.entity,
@@ -239,11 +248,18 @@ def majority_vote_annotations_query(dbsession, label):
     ).group_by(q1.c.entity)
 
     q2 = q2.cte('max_query')
+    """
+    q2 gives us this:
+    Entity | Value | Weight
+    a.com  |   1   |   50  (Could the value on this line be -1?)
+    b.com  |  -1   |   20
+    c.com  |   1   |   10
+    """
 
     # in case the weights are for the positive and negative classess, we need
     # select only one
-    query = dbsession.query(distinct(
-        q1.c.entity),
+    query = dbsession.query(
+        distinct(q1.c.entity),
         q1.c.value,
         q1.c.weight
     ).join(q2, (q1.c.entity == q2.c.entity) & (q1.c.value == q2.c.value))

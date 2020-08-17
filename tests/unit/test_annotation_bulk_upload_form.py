@@ -51,7 +51,7 @@ def test_parse_form():
 
     form = {'user': 'a', 'label': 'b',
             'entities': 'a.com\nb.com', 'annotations': '1\n-1', 'entity_type': 'company',
-            'golden_annotations': 'true'}
+            'is_golden': 'true'}
     user, label, domains, annotations, entity_type, is_golden = parse_form(form)
     assert user == 'a'
     assert label == 'b'

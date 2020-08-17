@@ -15,7 +15,7 @@ def parse_form(form: dict):
     user = form.get('user')
     label = form.get('label')
 
-    is_golden = form.get("golden_annotations", None)
+    is_golden = form.get("is_golden", None)
     is_golden = True if is_golden else False
 
     entity_type = form.get('entity_type')

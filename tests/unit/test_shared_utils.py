@@ -1,10 +1,12 @@
+from pandas import np
+
 from shared.utils import (
     stem,
     list_to_textarea, textarea_to_list,
     json_lookup,
     build_counter,
     get_entropy,
-    get_majority_vote)
+    get_weighted_majority_vote, WeightedVote)
 
 
 def test_stem():
@@ -66,21 +68,57 @@ def test_get_entropy():
     assert e > a, "[-1, 1, 1, 1] has higher entropy than [1, 1, 1, 1]"
 
 
-def test_get_majority_vote():
-    res = get_majority_vote([1, 1, 1, 1, -1, -1, None, float('nan')])
-    assert res == 1
-
-    res = get_majority_vote([1, 1, -1, -1, -1, -1, None, float('nan')])
+def test_get_weighted_majority_vote():
+    weighted_votes = [
+        WeightedVote(1, 1),
+        WeightedVote(1, 2),
+        WeightedVote(-1, 1),
+        WeightedVote(-1, 10),
+        WeightedVote(0, 1),
+        WeightedVote(None, 100),
+    ]
+    res = get_weighted_majority_vote(weighted_votes)
     assert res == -1
 
-    res = get_majority_vote([10, -1, -1, -1, -1, -1, None, float('nan')])
+    weighted_votes = [
+        WeightedVote(1, 20),
+        WeightedVote(1, 2),
+        WeightedVote(-1, 1),
+        WeightedVote(-1, 10),
+        WeightedVote(0, 1),
+        WeightedVote(None, 100),
+    ]
+    res = get_weighted_majority_vote(weighted_votes)
     assert res == 1
 
-    res = get_majority_vote([1, 1, 1, 1, 1, -10, None, float('nan')])
-    assert res == -1
+    weighted_votes = [
+        WeightedVote(2, 20),
+        WeightedVote(1, 2),
+        WeightedVote(-1, 1),
+        WeightedVote(-1, 10),
+        WeightedVote(0, 1),
+        WeightedVote(None, 100),
+    ]
+    res = get_weighted_majority_vote(weighted_votes)
+    assert res == 2
 
-    res = get_majority_vote([1, 1, 1, -1, -1, -1, None, float('nan')])
-    assert res in [1, -1], "could be either 1 or -1"
+    weighted_votes = [
+        WeightedVote(1, 1),
+        WeightedVote(1, 2),
+        WeightedVote(-1, 3),
+        WeightedVote(-2, 3),
+        WeightedVote(0, 1),
+        WeightedVote(None, 100),
+    ]
+    res = get_weighted_majority_vote(weighted_votes)
+    assert res in [1, -1, -2], "could be either 1, -1, -2"
 
-    res = get_majority_vote([0, 0, 0, None, float('nan')])
+    weighted_votes = [
+        WeightedVote(0, 1),
+        WeightedVote(-3, 100),
+        WeightedVote(None, 100),
+        WeightedVote(1, np.nan),
+    ]
+    res = get_weighted_majority_vote(weighted_votes,
+                                     invalid_values=(0, -3, None))
     assert res is None, "No valid votes present"
