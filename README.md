@@ -38,6 +38,7 @@ Descriptions of the env vars:
 - `INFERENCE_OUTPUT_PUBSUB_TOPIC_PROD`: The PubSub topic name for inference output on the prod stage.
 - `ENV_STAGE`: Environment stage name.
 - `API_TOKEN_NAME`: The secret name for the inference API token.
+- `INFERENCE_OUTPUT_DATA_SOURCE_NAME_FOR_PUBSUB`: The inference output dataset source name for pubsub.
 
 New env vars:
 

@@ -112,7 +112,9 @@ def create_deployed_inference(metadata: DeployedInferenceMetadata) -> None:
         project_id=os.getenv("GCP_PROJECT_ID"),
         topic_name=_get_topic_name_on_stage(os.getenv("ENV_STAGE", "dev")),
         message_constructor=_message_constructor_alchemy_to_gdp,
-        dataset=dname,
+        # dataset_name is used by the GDP team as a data source category, like
+        # Alchemy, SF or some other systems. It's not the filename.
+        dataset_name=os.getenv("INFERENCE_OUTPUT_DATA_SOURCE_NAME_FOR_PUBSUB"),
         prod_inference_url=prod_inference_url,
         prod_metadata_url=prod_metadata_url,
         timestamp=ts
@@ -130,12 +132,10 @@ def _get_topic_name_on_stage(stage):
 
 
 def _message_constructor_alchemy_to_gdp(
-        dataset, prod_inference_url, prod_metadata_url, timestamp):
+        dataset_name, prod_inference_url, prod_metadata_url, timestamp):
     message_dict = {
         'timestamp': timestamp,
-        # ideally we should have multiple stages and not harding this here.
-        'environment': 'prod',
-        'dataset': dataset,
+        'dataset_name': dataset_name,
         'path': {
             'inferences': prod_inference_url,
             'metadata': prod_metadata_url
