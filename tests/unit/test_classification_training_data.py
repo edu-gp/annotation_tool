@@ -56,12 +56,6 @@ def _populate_db_manual(dbsession, weight=1):
     dbsession.commit()
 
 
-def test_majority_vote_annotations_query(dbsession):
-    _populate_db_manual(dbsession, weight=100)
-    query = majority_vote_annotations_query(dbsession, LABEL)
-    assert set(query.all()) == set([('A', -1, 100), ('B', 1, 101)])
-
-
 def test_create_for_label(dbsession, monkeypatch, tmp_path):
     monkeypatch.setenv('ALCHEMY_FILESTORE_DIR', str(tmp_path))
 

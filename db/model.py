@@ -6,7 +6,7 @@ from typing import List
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine, inspect, UniqueConstraint, MetaData, \
-    Boolean, distinct
+    Boolean, distinct, desc
 from sqlalchemy.schema import ForeignKey, Column
 from sqlalchemy.types import Integer, Float, String, JSON, DateTime, Text
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
@@ -235,7 +235,7 @@ def majority_vote_annotations_query(dbsession, label):
     q1 gives us this:
     Entity | Value | Weight
     a.com  |   1   |   50
-    a.com  |   -1  |   20
+    a.com  |   -1  |   50
     b.com  |   1   |   15
     b.com  |   -1  |   20
     c.com  |   1   |   10
@@ -244,25 +244,24 @@ def majority_vote_annotations_query(dbsession, label):
     q2 = dbsession.query(
         q1.c.entity,
         q1.c.value,
-        func.max(q1.c.weight).label('weight')
-    ).group_by(q1.c.entity)
-
-    q2 = q2.cte('max_query')
+        q1.c.weight,
+        func.row_number().over(partition_by=q1.c.entity,
+                               order_by=desc(q1.c.weight)).label("row_number")
+    )
+    q2 = q2.cte('weight_query_with_row_number')
     """
     q2 gives us this:
-    Entity | Value | Weight
-    a.com  |   1   |   50  (Could the value on this line be -1?)
-    b.com  |  -1   |   20
-    c.com  |   1   |   10
+    Entity | Value | Weight | ROW Number
+    a.com  |   1   |   50   |     1
+    a.com  |   -1  |   50   |     2
+    b.com  |   -1  |   20   |     1
+    b.com  |   1   |   15   |     2
+    c.com  |   1   |   10   1     1
     """
 
-    # in case the weights are for the positive and negative classess, we need
-    # select only one
     query = dbsession.query(
-        distinct(q1.c.entity),
-        q1.c.value,
-        q1.c.weight
-    ).join(q2, (q1.c.entity == q2.c.entity) & (q1.c.value == q2.c.value))
+        q2.c.entity, q2.c.value, q2.c.weight
+    ).filter(q2.c.row_number == 1)
 
     return query
 
