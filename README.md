@@ -46,6 +46,7 @@ New env vars:
 - `ALCHEMY_DATABASE_URI`: The URI of SQL database.
 - `ALCHEMY_ENV`: The environemnt the server is running in.
 - `API_TOKEN`: API token for /api/* calls.
+- `FLOWER_BASIC_AUTH`: Basic auth for the Celery monitoring UI, Flower. Set to `foo:bar` so foo is the username and bar is the password.
 
 # Exposing Port on Google Cloud
 
