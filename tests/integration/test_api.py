@@ -1,3 +1,4 @@
+from backend.external_services import SecretManagerService
 from tests.fixtures import *
 from backend import api
 
@@ -7,18 +8,22 @@ def test_hc(backend_client):
     assert response.status == '200 OK'
 
 
-def make_request(backend_client, auth_token="test123", dataset_name="blah.jsonl"):
+def make_request(backend_client, auth_token="test123", dataset_name="blah.jsonl", request_id="R2D2"):
     url = '/api/trigger_inference'
     data = {}
     if dataset_name:
         data['dataset_name'] = dataset_name
+    if request_id:
+        data['request_id'] = request_id
     return backend_client.post(url, headers={
         'Authorization': f'Bearer {auth_token}'
-    }, data=data)
+    }, json=data)
 
 
 def test_authorized_call_token_not_set(backend_client, monkeypatch):
     # Here, API_TOKEN env var is not set.
+    monkeypatch.delenv('API_TOKEN', raising=False)
+    monkeypatch.setattr(SecretManagerService, 'get_secret', None)
     monkeypatch.setattr(api, 'run_inference_on_data', lambda x: None)
 
     response = make_request(backend_client)

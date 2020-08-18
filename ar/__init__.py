@@ -19,11 +19,10 @@ from inference.nlp_model import (
     NLPModel, NLPModelTopResults, NLPModelBottomResults
 )
 
-from .data import fetch_all_ar_ids
-from .utils import get_ar_id, timeit
-
-Example = namedtuple('Example', ['score', 'entity', 'fname', 'line_number'])
-EntityUserTuple = namedtuple('EntityUserTuple', ['entity', 'user'])
+Example = namedtuple(
+    'Example', ['score', 'entity_type', 'entity', 'label', 'fname', 'line_number'])
+LookupKey = namedtuple(
+    'LookupKey', ['entity_type', 'entity', 'label', 'user'])
 
 
 def get_pattern_model_for_label(dbsession, label):
@@ -59,10 +58,8 @@ def get_nlp_models_for_label(dbsession, label):
     return highest_entropy_model, top_prob_model, bottom_prob_model
 
 
-def get_ranked_examples_for_label(dbession, task, label, data_filenames) -> List[Example]:
-    """Get the ranking for each datapoint in data_filenames for this label.
-    (We're also passing in the task, but in the future I hope to remove this
-    dependency)
+def get_ranked_examples_for_label(dbession, label, data_filenames) -> List[Example]:
+    """Get examples in data_filenames for this label in ranked order.
     A lower ranking means higher desire to be labeled.
     """
     logging.info(f"Get prediction from label={label}")
@@ -70,42 +67,47 @@ def get_ranked_examples_for_label(dbession, task, label, data_filenames) -> List
     examples: List[List[Example]] = []
     proportions: List[int] = []
 
+    # TODO do not hard-code
+    from db.model import EntityTypeEnum
+    entity_type = EntityTypeEnum.COMPANY
+
+    def get_examples_for_model(model: ITextCatModel):
+        return _get_examples(data_filenames, model, entity_type, label)
+
     # Random Examples
-    examples.append(_get_predictions(data_filenames, [RandomModel()]))
+    examples.append(get_examples_for_model(RandomModel()))
     proportions.append(1)
-    logging.info("Prediction from random model finished...")
+    logging.info("Prediction from random model finished")
 
     # Pattern-driven Examples
     _patterns_model = get_pattern_model_for_label(dbession, label)
     if _patterns_model:
-        examples.append(_get_predictions(data_filenames, [_patterns_model]))
+        examples.append(get_examples_for_model(_patterns_model))
         proportions.append(3)  # [1,3] -> [0.25, 0.75]
-        logging.info("Prediction from pattern model finished...")
+        logging.info("Prediction from pattern model finished")
 
     # NLP-driven Examples
     highest_entropy_model, top_prob_model, bottom_prob_model = \
         get_nlp_models_for_label(dbession, label)
+
     if highest_entropy_model:
-        examples.append(_get_predictions(
-            data_filenames, [highest_entropy_model]))
+        examples.append(get_examples_for_model(highest_entropy_model))
         proportions.append(12)  # [1,3,12] -> [0.0625, 0.1875, 0.75]
-        logging.info("Prediction from highest entropy nlp model finished...")
+        logging.info("Prediction from highest entropy nlp model finished")
 
     if top_prob_model:
-        examples.append(_get_predictions(
-            data_filenames, [top_prob_model]))
+        examples.append(get_examples_for_model(top_prob_model))
         proportions.append(6)  # [1,3,12,6] -> [0.05, 0.14, 0.55, 0.27]
-        logging.info("Prediction from top prob nlp model finished...")
+        logging.info("Prediction from top prob nlp model finished")
 
     if bottom_prob_model:
-        examples.append(_get_predictions(
-            data_filenames, [bottom_prob_model]))
+        examples.append(get_examples_for_model(bottom_prob_model))
         proportions.append(6)  # [1,3,12,6,6] -> [0.04, 0.11, 0.43, 0.21, 0.21]
-        logging.info("Prediction from bottom prob nlp model finished...")
+        logging.info("Prediction from bottom prob nlp model finished")
 
-    logging.error("Shuffling together examples...")
     ranked_examples = _shuffle_together_examples(
         examples, proportions=proportions)
+    logging.info("Shuffle together examples finished")
 
     return ranked_examples
 
@@ -162,8 +164,7 @@ def generate_annotation_requests(dbsession, task_id: int,
 
     ranked_examples_per_label = []
     for label in task.get_labels():
-        _res = get_ranked_examples_for_label(
-            dbsession, task, label, data_filenames)
+        _res = get_ranked_examples_for_label(dbsession, label, data_filenames)
         ranked_examples_per_label.append(_res)
 
     ranked_examples = consolidate_ranked_examples_per_label(
@@ -174,8 +175,8 @@ def generate_annotation_requests(dbsession, task_id: int,
     # be able to find if there are exisiting requests for this user and
     # entity under this task. If so, skip those.
     logging.info("Constructing blacklisting criteria...")
-    lookup_dict = _build_blacklisting_lookup_dict(dbsession=dbsession)
-    blacklist_fn = _build_blacklist_fn(lookup_dict=lookup_dict)
+    lookup = _build_blacklist_lookup(dbsession, task.get_labels())
+    blacklist_fn = _build_blacklist_fn(lookup)
 
     logging.info("Assigning to annotators...")
     assignments = _assign(ranked_examples,
@@ -310,22 +311,25 @@ def _merge_two_pattern_decors(pattern_decor1: List, pattern_decor2: List):
     return res
 
 
-def _build_blacklisting_lookup_dict(dbsession):
-    num_of_annotations_by_entity_and_user_within_task = \
+def _build_blacklist_lookup(dbsession, labels: List[str] = []) -> set:
+    existing_annotations_for_labels = \
         dbsession.query(
-            func.count(ClassificationAnnotation.id),
+            ClassificationAnnotation.entity_type,
             ClassificationAnnotation.entity,
+            ClassificationAnnotation.label,
             User.username
         ). \
         join(User). \
-        filter(ClassificationAnnotation.value !=
-               AnnotationValue.NOT_ANNOTATED). \
-        group_by(ClassificationAnnotation.entity, User.username).all()
-    lookup_dict = {
-        EntityUserTuple(item[1], item[2]): item[0]
-        for item in num_of_annotations_by_entity_and_user_within_task
-    }
-    return lookup_dict
+        filter(
+            ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED,
+            ClassificationAnnotation.label.in_(labels)
+        ). \
+        distinct().all()
+    lookup = set([
+        LookupKey(item[0], item[1], item[2], item[3])
+        for item in existing_annotations_for_labels
+    ])
+    return lookup
 
 
 def _get_decorated_example(pred: Example,
@@ -350,52 +354,34 @@ def _get_decorated_example(pred: Example,
     return res
 
 
-def _build_blacklist_fn(lookup_dict: dict):
+def _build_blacklist_fn(lookup: set):
 
-    def blacklist_fn(pred: Example, annotator: str):
-        entity = pred.entity
-        lookup_key = EntityUserTuple(entity, annotator)
-        if lookup_key not in lookup_dict:
-            lookup_dict[lookup_key] = 0
-        return lookup_dict[lookup_key] > 0
+    def blacklist_fn(e: Example, user: str):
+        return LookupKey(e.entity_type, e.entity, e.label, user) in lookup
 
     return blacklist_fn
 
 
-def _get_predictions(data_filenames: List[str],
-                     models: List[ITextCatModel],
-                     cache=True) -> List[Example]:
-    '''
-    Return the aggregated score from all models for all lines in each
-    data_filenames
-
-    Return Example namedtuple (score, entity, fname, line_number)
-    '''
-    result = []
+def _get_examples(data_filenames: List[str], model: ITextCatModel,
+                  entity_type: str, label: str,
+                  cache=True) -> List[Example]:
+    '''Construct an Example based on the prediction of `model` on each of the
+    datasets.'''
+    examples = []
 
     for fname in data_filenames:
-        preds = []
-        metas = []
+        res = get_predicted(fname, model, cache=cache)
+        # TODO remove dependency on (fname,line_number)
+        for line_number, row in enumerate(res):
+            examples.append(Example(score=row['score'],
+                                    entity_type=entity_type,
+                                    # TODO remove dependency on meta.domain
+                                    entity=row['meta']['domain'],
+                                    label=label,
+                                    fname=fname,
+                                    line_number=line_number))
 
-        # TODO how can we obtain just one meta from res? If we have 3
-        #  models, we get 3 identical copy of entities right now.
-        for model in models:
-            res = get_predicted(fname, model, cache=cache)
-            preds.append([x['score'] for x in res])
-            metas.append([x['meta'] for x in res])
-
-        if len(preds) > 0:
-            # Get total score from all models.
-            total_scores = np.sum(preds, axis=0)
-            print(total_scores)
-
-            for line_number, score in enumerate(total_scores):
-                result.append(Example(score=score,
-                                      entity=metas[0][line_number]['domain'],
-                                      fname=fname,
-                                      line_number=line_number))
-
-    return result
+    return examples
 
 
 def _assign(datapoints: List, annotators: List,
@@ -472,8 +458,6 @@ def _assign(datapoints: List, annotators: List,
                 per_dp_queue[dp].append(anno)
                 per_anno_queue[anno].append(dp)
                 anno_q.put((len(per_anno_queue[anno]), anno))
-
-    # TODO insert random jobs to trade explore/exploit?
 
     return per_anno_queue
 

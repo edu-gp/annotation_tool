@@ -23,7 +23,7 @@ def test_publish_message(monkeypatch):
         project_id="test_project",
         topic_name="test_topic",
         message_constructor=_message_constructor_alchemy_to_gdp,
-        dataset='taxonomy_test_label',
+        dataset_name='taxonomy',
         prod_inference_url="test_123",
         prod_metadata_url="test_234",
         timestamp=datetime.now().timestamp()
@@ -50,7 +50,7 @@ def test_publish_message_exception(monkeypatch):
             project_id="test_project",
             topic_name="test_topic",
             message_constructor=_message_constructor_alchemy_to_gdp,
-            dataset='taxonomy_test_label',
+            dataset_name='taxonomy',
             prod_inference_url="test_123",
             prod_metadata_url="test_234",
             timestamp=datetime.now().timestamp()

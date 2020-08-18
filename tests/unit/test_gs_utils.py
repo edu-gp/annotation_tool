@@ -1,4 +1,7 @@
-from train.gs_utils import build_prod_inference_dataframe
+import os
+
+from train.gs_utils import build_prod_inference_dataframe, \
+    _get_topic_name_on_stage
 from train.no_deps.inference_results import InferenceResults
 from shared.utils import save_jsonl
 
@@ -27,3 +30,20 @@ def test_build_prod_inference_dataframe(tmp_path):
     assert df.iloc[1]['meta_name'] == 'Entity Z'
     assert abs(df.iloc[1]['prob'] - 1.0) < 0.0001
     assert df.iloc[1]['pred'] == True
+
+
+def test___get_topic_name_on_stage(monkeypatch):
+    monkeypatch.setenv('ENV_STAGE', 'dev')
+    monkeypatch.setenv('INFERENCE_OUTPUT_PUBSUB_TOPIC_DEV', 'dev_topic')
+
+    assert _get_topic_name_on_stage(os.getenv("ENV_STAGE")) == 'dev_topic'
+
+    monkeypatch.setenv('ENV_STAGE', 'beta')
+    monkeypatch.setenv('INFERENCE_OUTPUT_PUBSUB_TOPIC_BETA', 'beta_topic')
+
+    assert _get_topic_name_on_stage(os.getenv("ENV_STAGE")) == 'beta_topic'
+
+    monkeypatch.setenv('ENV_STAGE', 'prod')
+    monkeypatch.setenv('INFERENCE_OUTPUT_PUBSUB_TOPIC_PROD', 'prod_topic')
+
+    assert _get_topic_name_on_stage(os.getenv("ENV_STAGE")) == 'prod_topic'

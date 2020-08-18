@@ -1,6 +1,7 @@
 import logging
 import copy
 import os
+import urllib.parse
 from typing import List
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
@@ -411,10 +412,12 @@ class Model(Base):
     def get_data_parser(self):
         return self._load_json(_get_data_parser_fname)
 
-    def get_plots(self):
+    def get_url_encoded_plot_paths(self):
         """Return a list of urls for plots"""
         model_dir = os.path.join(filestore_base_dir(), self.dir())
-        return _get_all_plots(model_dir)
+        paths = _get_all_plots(model_dir)
+        paths = [urllib.parse.quote(x) for x in paths]
+        return paths
 
     def get_inference_fname_paths(self):
         model_dir = os.path.join(filestore_base_dir(), self.dir())

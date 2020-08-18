@@ -1,21 +1,27 @@
 import base64
 import json
 import os
+import uuid
 
 import requests
 from google.cloud import storage, secretmanager
 
 
-def handler(event, context):
-    """Triggered from a message on a Cloud Pub/Sub topic.
+def handler(request):
+    """Responds to an HTTP request from a pubsub owned by GDP.
+
     Args:
-         event (dict): Event payload.
-         context (google.cloud.functions.Context): Metadata for the event.
+        request (flask.Request): HTTP request object.
     """
-    pubsub_message = base64.b64decode(event['data']).decode('utf-8')
-    print(pubsub_message)
+    request_json = request.get_json()
+    message = None
+    if request.args and 'message' in request.args:
+        message = request.args.get('message')
+    elif request_json and 'message' in request_json:
+        message = request_json['message']
     try:
-        data_dict = json.loads(pubsub_message)
+        raw_data_str = base64.b64decode(message['data']).decode('utf-8')
+        data_dict = json.loads(raw_data_str)
         path = data_dict['path']
         print(path)
 
@@ -31,7 +37,7 @@ def handler(event, context):
         destination_bucket_name = os.environ.get('ALCHEMY_BUCKET')
         print("Destination bucket is " + destination_bucket_name)
         destination_file_name = "_".join(source_blob_name.split("/")[1:])
-        destination_blob_name = destination_blob_name = os.path.join(
+        destination_blob_name = os.path.join(
             'data', destination_file_name)
 
         destination_bucket = storage_client.bucket(destination_bucket_name)
@@ -51,6 +57,7 @@ def handler(event, context):
         url = os.environ.get('INFERENCE_API')
         print(f"URL to call is: {url}")
         payload = {
+            "request_id": str(uuid.uuid1()),
             "dataset_name": destination_file_name
         }
         print(f"Payload to the inference api: {payload}")
@@ -62,11 +69,13 @@ def handler(event, context):
             secret_id=os.environ.get('API_TOKEN_NAME')
         )
         headers = {
-            'Authorization': 'Bearer ' + api_token
+            'Authorization': 'Bearer ' + api_token,
+            'Content-Type': 'application/json'
         }
-        r = requests.post(url, data=json.dumps(payload), headers=headers)
+        print(json.dumps(payload))
+        r = requests.post(url, json=payload, headers=headers)
     except Exception as e:
-        # print(e)
+        print(e)
         raise e
 
 
