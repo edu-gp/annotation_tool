@@ -41,22 +41,21 @@ def _model_exists(version_dir):
     return os.path.isfile(metrics_fname)
 
 
-def train_model(version_dir, train_fn=None, force_retrain=False):
-    """Train model and store model assets and evaluation metrics.
-    See: prep.py:prepare_next_model_for_label to see what is in version_dir.
-    """
-
-    if not force_retrain and _model_exists(version_dir):
-        print("Model already exists; Skip training.")
-        return
-
-    config_fname = _get_config_fname(version_dir)
-    data_fname = _get_exported_data_fname(version_dir)
-    data_parser_fname = _get_data_parser_fname(version_dir)
-    metrics_fname = _get_metrics_fname(version_dir)
-
+def _load_config(config_fname):
+    config = None
     with open(config_fname) as f:
         config = json.loads(f.read())
+    assert config, "Missing config"
+    return config
+
+
+def _prepare_data(config_fname, data_fname):
+    """
+    Inputs:
+        config_name: Full path to the config json
+        data_fname: Full path to the data jsonl
+    """
+    config = _load_config(config_fname)
 
     data = []
     with open(data_fname) as f:
@@ -65,19 +64,8 @@ def train_model(version_dir, train_fn=None, force_retrain=False):
             if line:
                 data.append(json.loads(line))
 
-    # TODO what if config is missing? or data is empty?
-
     X = [x['text'] for x in data]
     y, problem_type, class_order = _parse_labels(data)
-    print(f"Detected problem type: {problem_type}")
-    print(f"Detected classes: {class_order}")
-
-    save_json(data_parser_fname, {
-        'problem_type': problem_type,
-        'class_order': class_order
-    })
-
-    assert problem_type == BINARY_CLASSIFICATION, 'Currently Only Supporting Binary Classification'
 
     # Train test split
     if config.get('test_size', 0) > 0:
@@ -93,11 +81,42 @@ def train_model(version_dir, train_fn=None, force_retrain=False):
         X_test = None
         y_test = None
 
+    return problem_type, class_order, X_train, y_train, X_test, y_test
+
+
+def train_model(version_dir, train_fn=None, force_retrain=False):
+    """Train model and store model assets and evaluation metrics.
+    See: prep.py:prepare_next_model_for_label to see what is in version_dir.
+    """
+
+    if not force_retrain and _model_exists(version_dir):
+        print("Model already exists; Skip training.")
+        return
+
+    config_fname = _get_config_fname(version_dir)
+    data_fname = _get_exported_data_fname(version_dir)
+    data_parser_fname = _get_data_parser_fname(version_dir)
+    metrics_fname = _get_metrics_fname(version_dir)
+
+    problem_type, class_order, X_train, y_train, X_test, y_test = \
+        _prepare_data(config_fname, data_fname)
+
+    print(f"Detected problem type: {problem_type}")
+    print(f"Detected classes: {class_order}")
+
+    save_json(data_parser_fname, {
+        'problem_type': problem_type,
+        'class_order': class_order
+    })
+
+    assert problem_type == BINARY_CLASSIFICATION, 'Currently Only Supporting Binary Classification'
+
     # Train
     print("Train model...")
     if train_fn is None:
         train_fn = train
 
+    config = _load_config(config_fname)
     train_config = config['train_config']
     # Depending on where we're training the model,
     # the output is relative to the version_dir.
