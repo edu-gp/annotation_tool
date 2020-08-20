@@ -22,6 +22,7 @@ from train.no_deps.paths import (
     _get_all_plots, _get_exported_data_fname, _get_all_inference_fnames,
     _get_inference_fname
 )
+from train.no_deps.metrics import compute_metrics as _compute_metrics
 from train.paths import _get_version_dir
 
 meta = MetaData(naming_convention={
@@ -475,7 +476,6 @@ class Model(Base):
 
         version_dir = self.dir(abs=True)
 
-        from train.no_deps.metrics import compute_metrics as _compute_metrics
         return _compute_metrics(version_dir, df, threshold=threshold)
 
 

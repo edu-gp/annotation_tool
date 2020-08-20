@@ -6,6 +6,80 @@ from .paths import _get_config_fname, _get_exported_data_fname
 from .run import _prepare_data
 
 
+class InferenceMetrics:
+    def __init__(self, df):
+        """
+        Inputs:
+            df: A dataframe with at least columns ['text', 'probs'],
+                representing the inference outputs from a model.
+        """
+        assert 'text' in df.columns
+        assert 'probs' in df.columns
+        df = df[['text', 'probs']].drop_duplicates(
+            subset=['text'], keep='first')
+        self.df = df
+
+    def compute_metrics(self, X, y, threshold):
+        """
+        Inputs:
+            X: A list of text
+            y: A list of ground truth binary labels \in {0,1}
+            threshold: The cutoff threshold for this binary classifier \in [0,1]
+        Returns:
+            stats: A dictionary of stats
+            not_found: A list of strings that were in `X` but not in `self.df`.
+        """
+        not_found = []
+
+        res = pd.DataFrame(zip(X, y), columns=['text', 'y'])
+        res = res.merge(self.df, on='text', how='left')
+
+        not_found += list(res[res['probs'].isna()]['text'])
+
+        res = res.dropna(subset=['probs'])
+
+        res['preds'] = (res['probs'] > threshold).astype(int)
+
+        pr, re, f1, su = \
+            precision_recall_fscore_support(res['y'], res['preds'])
+        pr = list(pr)
+        re = list(re)
+        f1 = list(f1)
+        su = list(su)
+        if not pr:
+            pr = [float('nan'), float('nan')]
+        if not re:
+            re = [float('nan'), float('nan')]
+        if not f1:
+            f1 = [float('nan'), float('nan')]
+        if not su:
+            su = [float('nan'), float('nan')]
+
+        try:
+            ro = roc_auc_score(res['y'], res['probs'])
+        except ValueError:
+            ro = float('nan')
+
+        try:
+            tn, fp, fn, tp = confusion_matrix(res['y'], res['preds']).ravel()
+        except ValueError:
+            tn = fp = fn = tp = float('nan')
+
+        stats = {
+            'pr': pr,
+            're': re,
+            'f1': f1,
+            'su': su,
+            'ro': ro,
+            'tn': tn,
+            'fp': fp,
+            'fn': fn,
+            'tp': tp,
+        }
+
+        return stats, not_found
+
+
 def compute_metrics(version_dir, inference_lookup_df, threshold: float = 0.5):
     """
     Inputs:
@@ -54,76 +128,21 @@ def compute_metrics(version_dir, inference_lookup_df, threshold: float = 0.5):
     # TODO cache this function or parts of it (especially inference_lookup_df).
     # Unless we change the UI, performance will be an issue.
 
-    # Make sure inference_lookup_df is valid and there are no duplicate rows.
-    assert 'text' in inference_lookup_df.columns
-    assert 'probs' in inference_lookup_df.columns
-    inference_lookup_df = inference_lookup_df[['text', 'probs']] \
-        .drop_duplicates(subset=['text'], keep='first')
-
     config_fname = _get_config_fname(version_dir)
     data_fname = _get_exported_data_fname(version_dir)
 
     _, _, X_train, y_train, X_test, y_test = \
         _prepare_data(config_fname, data_fname)
 
-    not_found = []
+    im = InferenceMetrics(inference_lookup_df)
 
-    def _get_pred_result(X, y, df):
-        nonlocal not_found
-
-        res = pd.DataFrame(zip(X, y), columns=['text', 'y'])
-        res = res.merge(df, on='text', how='left')
-
-        not_found += list(res[res['probs'].isna()]['text'])
-
-        res = res.dropna(subset=['probs'])
-
-        return res
-
-    def _get_stats(res, threshold):
-        res['preds'] = (res['probs'] > threshold).astype(int)
-
-        pr, re, f1, su = \
-            precision_recall_fscore_support(res['y'], res['preds'])
-        pr = list(pr)
-        re = list(re)
-        f1 = list(f1)
-        su = list(su)
-        if not pr:
-            pr = [float('nan'), float('nan')]
-        if not re:
-            re = [float('nan'), float('nan')]
-        if not f1:
-            f1 = [float('nan'), float('nan')]
-        if not su:
-            su = [float('nan'), float('nan')]
-
-        try:
-            ro = roc_auc_score(res['y'], res['probs'])
-        except ValueError:
-            ro = float('nan')
-
-        try:
-            tn, fp, fn, tp = confusion_matrix(res['y'], res['preds']).ravel()
-        except ValueError:
-            tn = fp = fn = tp = float('nan')
-
-        return {
-            'pr': pr,
-            're': re,
-            'f1': f1,
-            'su': su,
-            'ro': ro,
-            'tn': tn,
-            'fp': fp,
-            'fn': fn,
-            'tp': tp,
-        }
+    tr_stats, tr_not_found = im.compute_metrics(X_train, y_train, threshold)
+    ts_stats, ts_not_found = im.compute_metrics(X_test, y_test, threshold)
 
     stats = {
-        'train': _get_stats(_get_pred_result(X_train, y_train, inference_lookup_df), threshold),
-        'test': _get_stats(_get_pred_result(X_test, y_test, inference_lookup_df), threshold),
-        'not_found': not_found
+        'train': tr_stats,
+        'test': ts_stats,
+        'not_found': tr_not_found + ts_not_found
     }
 
     return stats
