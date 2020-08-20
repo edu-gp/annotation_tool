@@ -3,7 +3,7 @@ FROM sjeddie/ed_base
 RUN apt-get update
 RUN apt-get install -y redis-server vim
 
-RUN pip install redis pytest Flask supervisor Celery seaborn simpletransformers python-dotenv Flask-HTTPAuth
+RUN pip install redis pytest Flask supervisor Celery seaborn simpletransformers python-dotenv Flask-HTTPAuth flower
 RUN pip install mockito flask-sqlalchemy alembic Flask-Testing psycopg2-binary
 
 # Salesforce feedback loop related packages.

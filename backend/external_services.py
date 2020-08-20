@@ -13,6 +13,8 @@ class GCPPubSubService:
         message = message_constructor(**kwargs)
         future = cls.publish_client.publish(topic_path, message.encode('utf-8'))
         try:
+            logging.info(f"Published a message to topic {topic_path}: "
+                         f"{message}")
             return future.result()
         except Exception as e:
             logging.error(f"Publishing to topic {topic_path} has failed with "
