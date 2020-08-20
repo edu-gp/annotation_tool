@@ -41,17 +41,21 @@ def _model_exists(version_dir):
     return os.path.isfile(metrics_fname)
 
 
+def _load_config(config_fname):
+    config = None
+    with open(config_fname) as f:
+        config = json.loads(f.read())
+    assert config, "Missing config"
+    return config
+
+
 def _prepare_data(config_fname, data_fname):
     """
     Inputs:
         config_name: Full path to the config json
         data_fname: Full path to the data jsonl
     """
-    config = None
-    with open(config_fname) as f:
-        config = json.loads(f.read())
-
-    assert config, "Missing config"
+    config = _load_config(config_fname)
 
     data = []
     with open(data_fname) as f:
@@ -112,6 +116,7 @@ def train_model(version_dir, train_fn=None, force_retrain=False):
     if train_fn is None:
         train_fn = train
 
+    config = _load_config(config_fname)
     train_config = config['train_config']
     # Depending on where we're training the model,
     # the output is relative to the version_dir.
