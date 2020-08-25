@@ -1,5 +1,3 @@
-import logging
-
 from flask import (
     Blueprint, flash, redirect, render_template, request
 )
@@ -111,10 +109,9 @@ def bulk():
 def bulk_post():
     try:
         # Validate Form
-
         redirect_to = request.form['redirect_to'] or '/'
 
-        user, label, entities, values, entity_type = \
+        user, label, entities, values, entity_type, is_golden = \
             parse_form(request.form)
 
         # TODO should we add check on the User and Label?

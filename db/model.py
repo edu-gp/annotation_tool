@@ -6,7 +6,7 @@ from typing import List
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine, inspect, UniqueConstraint, MetaData, \
-    Boolean
+    Boolean, distinct, desc
 from sqlalchemy.schema import ForeignKey, Column
 from sqlalchemy.types import Integer, Float, String, JSON, DateTime
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
@@ -151,6 +151,7 @@ class ClassificationAnnotation(Base):
 
     id = Column(Integer, primary_key=True)
     value = Column(Integer, nullable=False)
+    weight = Column(Float, nullable=True, default=1.0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -223,27 +224,45 @@ def majority_vote_annotations_query(dbsession, label):
     q1 = dbsession.query(
         ClassificationAnnotation.entity,
         ClassificationAnnotation.value,
-        func.count('*').label('count')
+        func.sum(ClassificationAnnotation.weight).label('weight')
     ) \
         .filter_by(label=label) \
         .filter(ClassificationAnnotation.value != AnnotationValue.UNSURE) \
         .filter(ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED) \
         .group_by(ClassificationAnnotation.entity, ClassificationAnnotation.value)
 
-    q1 = q1.cte('count_query')
+    q1 = q1.cte('weight_query')
+    """
+    q1 gives us this:
+    Entity | Value | Weight
+    a.com  |   1   |   50
+    a.com  |   -1  |   50
+    b.com  |   1   |   15
+    b.com  |   -1  |   20
+    c.com  |   1   |   10
+    """
 
     q2 = dbsession.query(
         q1.c.entity,
-        func.max(q1.c.count).label('count')
-    ).group_by(q1.c.entity)
-
-    q2 = q2.cte('max_query')
+        q1.c.value,
+        q1.c.weight,
+        func.row_number().over(partition_by=q1.c.entity,
+                               order_by=desc(q1.c.weight)).label("row_number")
+    )
+    q2 = q2.cte('weight_query_with_row_number')
+    """
+    q2 gives us this:
+    Entity | Value | Weight | ROW Number
+    a.com  |   1   |   50   |     1
+    a.com  |   -1  |   50   |     2
+    b.com  |   -1  |   20   |     1
+    b.com  |   1   |   15   |     2
+    c.com  |   1   |   10   1     1
+    """
 
     query = dbsession.query(
-        q1.c.entity,
-        q1.c.value,
-        q1.c.count
-    ).join(q2, (q1.c.entity == q2.c.entity) & (q1.c.count == q2.c.count))
+        q2.c.entity, q2.c.value, q2.c.weight
+    ).filter(q2.c.row_number == 1)
 
     return query
 
@@ -278,7 +297,7 @@ class ClassificationTrainingData(Base):
         query = majority_vote_annotations_query(dbsession, label)
 
         final = []
-        for entity, anno_value, count in query.yield_per(batch_size):
+        for entity, anno_value, _ in query.yield_per(batch_size):
             final.append({
                 'text': entity_text_lookup_fn(entity_type, entity),
                 'labels': {label: anno_value}

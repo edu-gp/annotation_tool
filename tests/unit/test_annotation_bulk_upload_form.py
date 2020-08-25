@@ -32,12 +32,13 @@ def test_parse_form():
         parse_form(form)
 
     form = {'user': 'a', 'label': 'b', 'entity_type': 'company'}
-    user, label, domains, annotations, entity_type = parse_form(form)
+    user, label, domains, annotations, entity_type, is_golden = parse_form(form)
     assert user == 'a'
     assert label == 'b'
     assert len(domains) == 0
     assert len(annotations) == 0
     assert entity_type == 'company'
+    assert is_golden is False
 
     form = {'user': 'a', 'label': 'b', 'entities': 'a.com', 'entity_type': 'company'}
     with pytest.raises(Exception, match=r"Number of entities .* does not match .* number of annotations .*"):
@@ -49,13 +50,15 @@ def test_parse_form():
         parse_form(form)
 
     form = {'user': 'a', 'label': 'b',
-            'entities': 'a.com\nb.com', 'annotations': '1\n-1', 'entity_type': 'company'}
-    user, label, domains, annotations, entity_type = parse_form(form)
+            'entities': 'a.com\nb.com', 'annotations': '1\n-1', 'entity_type': 'company',
+            'is_golden': 'true'}
+    user, label, domains, annotations, entity_type, is_golden = parse_form(form)
     assert user == 'a'
     assert label == 'b'
     assert len(domains) == 2
     assert len(annotations) == 2
     assert entity_type == 'company'
+    assert is_golden is True
 
     form = {'user': 'a', 'label': 'b',
             'entities': 'a.com\nb.com', 'annotations': '1\n5', 'entity_type': 'company'}

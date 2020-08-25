@@ -1,13 +1,17 @@
 import hashlib
+import json
 import logging
 import os
-from collections import defaultdict, Counter
-import numpy as np
-import pandas as pd
-import json
+import random
 import uuid
+from collections import defaultdict, Counter
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
+
+import numpy as np
+import pandas as pd
+import typing
 
 
 def load_json(fname):
@@ -165,16 +169,51 @@ def get_entropy(annos: List[Optional[int]], eps=0.0001):
     cnt = build_counter(annos)
 
     total = sum(cnt.values()) + eps
-    probs = [cnt[x]/total for x in cnt]
+    probs = [cnt[x] / total for x in cnt]
     log_probs = [np.log(p + eps) for p in probs]
-    entropy = -sum([p*logp for p, logp in zip(probs, log_probs)])
+    entropy = -sum([p * logp for p, logp in zip(probs, log_probs)])
     return entropy
 
 
-def get_majority_vote(annos: List[Optional[int]]):
-    cnt = build_counter(annos)
+@dataclass
+class WeightedVote:
+    value: 'typing.Any'
+    weight: float
 
-    if len(cnt):
-        return cnt.most_common(1)[0][0]
-    else:
-        return None
+
+def get_weighted_majority_vote(annos: List[WeightedVote],
+                               invalid_values: Optional[typing.Tuple] = (0, -2, None)):
+    """Calculate the weighted majority votes.
+
+    :param annos: a list of WeightedVote(value, weight) objects
+    :param invalid_values: a list of invalid vote values to exclude
+    :return: the value with the highest weight
+    """
+    max_weight = -1
+    max_weight_vote = None
+
+    valid_votes = []
+    for anno in annos:
+        if __is_valid(anno, invalid_values):
+            valid_votes.append(anno)
+
+    if len(valid_votes) > 0:
+        votes_count = defaultdict(float)
+
+        for vote in valid_votes:
+            votes_count[vote.value] += vote.weight
+            if votes_count[vote.value] > max_weight:
+                max_weight = votes_count[vote.value]
+                max_weight_vote = vote.value
+
+    return max_weight_vote
+
+
+def __is_valid(anno, invalid_values):
+    if anno is None:
+        return False
+    if pd.isna(anno):
+        return False
+    if anno.value in invalid_values and not pd.isna(anno.weight):
+        return False
+    return True

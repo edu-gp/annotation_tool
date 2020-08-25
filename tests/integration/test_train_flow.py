@@ -4,8 +4,7 @@ import numpy as np
 
 from db.model import (
     Task, ClassificationAnnotation, User, EntityTypeEnum,
-    majority_vote_annotations_query
-)
+    majority_vote_annotations_query)
 from db.fs import RAW_DATA_DIR
 
 from train.no_deps.run import (
@@ -53,7 +52,14 @@ def stub_build_fn(config, model_dir):
     return stub_model()
 
 
-def _populate_db_and_fs(dbsession, tmp_path, N):
+# Create many Annotations for a Label
+def _create_anno(ent, v, user, weight=1):
+    return ClassificationAnnotation(
+        entity_type=EntityTypeEnum.COMPANY, entity=ent, user=user,
+        label=LABEL, value=v, weight=weight)
+
+
+def _populate_db_and_fs(dbsession, tmp_path, N, weight=1):
     # =========================================================================
     # Add in a fake data file
     d = tmp_path / RAW_DATA_DIR
@@ -72,35 +78,30 @@ def _populate_db_and_fs(dbsession, tmp_path, N):
 
     dbsession.commit()
 
-    # Create many Annotations for a Label
-    def _create_anno(ent, v): return ClassificationAnnotation(
-        entity_type=EntityTypeEnum.COMPANY, entity=ent, user=user,
-        label=LABEL, value=v)
-
     ents = [d['meta']['domain'] for d in data]
     annos = [
         # Create a few annotations for the first 2 entities.
-        _create_anno(ents[0], 1),
-        _create_anno(ents[0], 1),
-        _create_anno(ents[0], 1),
-        _create_anno(ents[0], -1),
-        _create_anno(ents[0], 0),
-        _create_anno(ents[0], 0),
-        _create_anno(ents[0], 0),
-        _create_anno(ents[0], 0),
+        _create_anno(ents[0], 1, user),
+        _create_anno(ents[0], 1, user),
+        _create_anno(ents[0], 1, user),
+        _create_anno(ents[0], -1, user, weight=weight),
+        _create_anno(ents[0], 0, user),
+        _create_anno(ents[0], 0, user),
+        _create_anno(ents[0], 0, user),
+        _create_anno(ents[0], 0, user),
 
-        _create_anno(ents[1], 1),
-        _create_anno(ents[1], 1),
-        _create_anno(ents[1], -1),
-        _create_anno(ents[1], -1),
-        _create_anno(ents[1], -1),
-        _create_anno(ents[1], -1),
-        _create_anno(ents[1], 0),
-        _create_anno(ents[1], 0),
+        _create_anno(ents[1], 1, user, weight=weight),
+        _create_anno(ents[1], 1, user),
+        _create_anno(ents[1], -1, user),
+        _create_anno(ents[1], -1, user),
+        _create_anno(ents[1], -1, user),
+        _create_anno(ents[1], -1, user),
+        _create_anno(ents[1], 0, user),
+        _create_anno(ents[1], 0, user),
     ]
     for i in range(2, N):
         # Create one annotations for the rest of the entities.
-        annos.append(_create_anno(ents[i], 1 if i % 2 else -1))
+        annos.append(_create_anno(ents[i], 1 if i % 2 else -1, user))
 
     dbsession.add_all(annos)
     dbsession.commit()
@@ -119,10 +120,27 @@ def _populate_db_and_fs(dbsession, tmp_path, N):
 def test_train_flow_simple(dbsession, monkeypatch, tmp_path):
     monkeypatch.setenv('ALCHEMY_FILESTORE_DIR', str(tmp_path))
     N = 2
-    _populate_db_and_fs(dbsession, tmp_path, N)
+    _populate_db_and_fs(dbsession, tmp_path, N, weight=100)
     query = majority_vote_annotations_query(dbsession, LABEL)
     res = query.all()
-    assert sorted(res) == [('0.com', 1, 3), ('1.com', -1, 4)]
+    assert sorted(res) == [('0.com', -1, 100), ('1.com', 1, 101)]
+
+
+def test_train_flow_simple_equal_weight(dbsession, monkeypatch, tmp_path):
+    monkeypatch.setenv('ALCHEMY_FILESTORE_DIR', str(tmp_path))
+    N = 2
+    _populate_db_and_fs(dbsession, tmp_path, N, weight=3)
+    query = majority_vote_annotations_query(dbsession, LABEL)
+    res = query.all()
+    assert len(res) == N
+    res = sorted(res)
+    for i in range(N):
+        assert res[i][0] == str(i) + ".com"
+        assert res[i][1] in [-1, 1]
+        if i == 0:
+            assert res[i][2] == 3
+        elif i == 1:
+            assert res[i][2] == 4
 
 
 def test_train_flow(dbsession, monkeypatch, tmp_path):
@@ -197,3 +215,53 @@ def test_train_flow(dbsession, monkeypatch, tmp_path):
     ir2 = InferenceResults.load(_get_inference_fname(model_dir, str(f2)))
     assert len(ir2.probs) == 4, "Inference should have 4 elements"
     assert ir.probs[:2] == ir2.probs[:2], "Result on the same items should be the same"
+
+
+def test_majority_vote_annotations_query(dbsession):
+    user = User(username='fake_user')
+    dbsession.add(user)
+
+    dbsession.commit()
+
+    ents = [str(i) + ".com" for i in range(3)]
+    annos = [
+        # for this entity, the value -1 has the highest weight.
+        _create_anno(ents[0], 1, user),
+        _create_anno(ents[0], 1, user),
+        _create_anno(ents[0], 1, user),
+        _create_anno(ents[0], -1, user, weight=100),
+        _create_anno(ents[0], 0, user),
+        _create_anno(ents[0], 0, user),
+        _create_anno(ents[0], 0, user),
+        _create_anno(ents[0], 0, user),
+
+        # for this entity, the weighted vote is a tie between 1 and -1.
+        _create_anno(ents[1], 1, user, weight=3),
+        _create_anno(ents[1], 1, user),
+        _create_anno(ents[1], -1, user),
+        _create_anno(ents[1], -1, user),
+        _create_anno(ents[1], -1, user),
+        _create_anno(ents[1], -1, user),
+        _create_anno(ents[1], 0, user),
+        _create_anno(ents[1], 0, user),
+
+
+        _create_anno(ents[2], 1, user)
+    ]
+
+    dbsession.add_all(annos)
+    dbsession.commit()
+
+    query = majority_vote_annotations_query(dbsession, label=LABEL)
+    res = query.all()
+    assert len(res) == 3
+    res = sorted(res, key=lambda x: x[0])
+    for i in range(3):
+        if i == 0:
+            assert res[0] == ('0.com', -1, 100)
+        elif i == 1:
+            assert res[1][0] == '1.com'
+            assert res[1][1] in [1, -1]
+            assert res[1][2] == 4
+        else:
+            assert res[2] == ('2.com', 1, 1)
