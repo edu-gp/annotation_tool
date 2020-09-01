@@ -22,6 +22,11 @@ def _get_metrics_fname(version_dir):
     return os.path.join(version_dir, 'metrics.json')
 
 
+def _get_metrics_v2_fname(version_dir, threshold):
+    threshold = round(threshold, 8)
+    return os.path.join(version_dir, f'metrics_v2_threshold={threshold}.p')
+
+
 def _get_inference_dir(version_dir):
     # Note: We're responsible for creating this dir if it doesn't exist yet.
     dirname = os.path.join(version_dir, 'inference')

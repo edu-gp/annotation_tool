@@ -4,6 +4,7 @@ import copy
 import os
 import urllib.parse
 import pandas as pd
+import pickle
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine, inspect, UniqueConstraint, MetaData, \
@@ -22,7 +23,7 @@ from db.fs import (
 from train.no_deps.paths import (
     _get_config_fname, _get_data_parser_fname, _get_metrics_fname,
     _get_all_plots, _get_exported_data_fname, _get_all_inference_fnames,
-    _get_inference_fname
+    _get_inference_fname, _get_metrics_v2_fname
 )
 from train.no_deps.inference_results import InferenceResults
 from train.no_deps.metrics import compute_metrics as _compute_metrics
@@ -440,9 +441,6 @@ class Model(Base):
         paths = [urllib.parse.quote(x) for x in paths]
         return paths
 
-    def get_inference_fname_paths(self):
-        return _get_all_inference_fnames(self.dir(abs=True))
-
     def get_inference_fnames(self):
         """Get the original filenames of the raw data for inference"""
         return [stem(path) + '.jsonl'
@@ -452,7 +450,7 @@ class Model(Base):
         """Exports the given inferenced file data_fname as a dataframe.
         Returns None if the file has not been inferenced yet.
         Inputs:
-            fname: The dataset filename.
+            fname: The dataset filename, e.g. "spring_jan_2020.jsonl"
             include_text: True to include the "text" column.
         Returns:
             A dataframe containing columns ['name', 'domain', 'probs'] and
@@ -464,7 +462,7 @@ class Model(Base):
             cols = ['name', 'domain', 'text', 'probs']
 
         version_dir = self.dir(abs=True)
-        return load_full_inference_results(version_dir, fname, cols)
+        return load_inference(version_dir, fname, columns=cols)
 
     def get_len_data(self):
         """Return how many datapoints were used to train this model.
@@ -476,24 +474,31 @@ class Model(Base):
     def compute_metrics(self, threshold: float = 0.5):
         """See train.no_deps.compute_metrics"""
 
-        # TODO left off here. Caching.
         version_dir = self.dir(abs=True)
 
-        inf_lookup = pd.DataFrame(columns=['text', 'probs'])
+        # TODO retire the old metrics.json
+        metrics_path = _get_metrics_v2_fname(version_dir, threshold)
 
-        # TODO This loads all the inferences (deduped by text) - this could be
-        # prohibitively slow, is there a good place to precompute this?
-        for fname in _get_all_inference_fnames(version_dir):
-            df = load_full_inference_results(
-                version_dir, fname, cols=['text', 'probs'])
+        if not os.path.isfile(metrics_path):
+            cols = ['text', 'probs']
 
-            inf_lookup = pd.concat([inf_lookup, df], axis=0)
+            inf_lookup = pd.DataFrame(columns=cols)
 
-            # Since result can get very big, we only keep the unique rows by text.
-            inf_lookup = inf_lookup.drop_duplicates(
-                subset=['text'], keep='first')
+            # TODO This loads all the inferences (deduped by text) - this could
+            # be prohibitively slow, is there a good place to precompute this?
+            for fpath in _get_all_inference_fnames(version_dir):
+                df = load_inference(version_dir, fpath, columns=cols)
 
-        return _compute_metrics(version_dir, inf_lookup, threshold=threshold)
+                # inf_lookup can get very big, so only keep unique rows by text
+                inf_lookup = pd.concat([inf_lookup, df], axis=0)
+                inf_lookup = inf_lookup.drop_duplicates(
+                    subset=['text'], keep='first')
+
+            metrics = _compute_metrics(
+                version_dir, inf_lookup, threshold=threshold)
+            pickle.dump(metrics, open(metrics_path, "wb"))
+
+        return pickle.load(open(metrics_path, "rb"))
 
 
 class TextClassificationModel(Model):
@@ -900,43 +905,47 @@ def get_latest_model_for_label(dbsession, label,
         .first()
 
 
-def load_full_inference_results(version_dir: str, fname: str,
-                                cols: Optional[List[str]] = None):
+def load_inference(version_dir: str, dataset_filename: str,
+                   columns: Optional[List[str]] = None):
     """
     Inputs:
         version_dir: The model version dir
-        fname: The inference result file name
-        cols: A list of columns to include in the return value, by default
+        dataset_filename: The dataset filename inference was conducted on,
+            could also be the file path. E.g. "spring_jan_2020.jsonl"
+        columns: A list of columns to include in the return value, by default
             ['name', 'domain', 'text', 'probs']
     Returns:
         A pandas dataframe of the result with the cols
     """
-    if cols is None:
-        cols = ['name', 'domain', 'text', 'probs']
+    if columns is None:
+        columns = ['name', 'domain', 'text', 'probs']
 
-    assert cols, "At least 1 column is required"
+    assert columns, "At least 1 column is required"
+
+    # Make sure we only get the _dataset name_, in case a path was passed in
+    dataset_filename = stem(dataset_filename) + '.jsonl'
 
     # Load Inference Results
-    path = _get_inference_fname(version_dir, fname)
+    path = _get_inference_fname(version_dir, dataset_filename)
     ir = InferenceResults.load(path)
 
     # Load Original Data
     # This already includes the column "text"
     # TODO This function needs to be outside of the version_dir because the
     # original data is not in the version_dir!
-    df = load_jsonl(_raw_data_file_path(fname), to_df=True)
+    df = load_jsonl(_raw_data_file_path(dataset_filename), to_df=True)
 
     # Check they exist and are the same size
-    assert df is not None, f"Raw data not found: {fname}"
+    assert df is not None, f"Raw data not found: {dataset_filename}"
     assert len(df) == len(ir.probs), "Inference size != Raw data size"
 
     # Combine the two together.
     df['probs'] = ir.probs
 
-    if 'domain' in cols:
+    if 'domain' in columns:
         df['domain'] = df['meta'].apply(lambda x: x.get('domain'))
 
-    if 'name' in cols:
+    if 'name' in columns:
         df['name'] = df['meta'].apply(lambda x: x.get('name'))
 
-    return df[cols]
+    return df[columns]
