@@ -122,12 +122,6 @@ def compute_metrics(version_dir, inference_lookup_df, threshold: float = 0.5):
     computed (e.g. if model has not been trained).
     """
 
-    # TODO: Refactoring model.export_inference to only depend on version_dir,
-    # then compute `inference_lookup_df` in this function.
-
-    # TODO cache this function or parts of it (especially inference_lookup_df).
-    # Unless we change the UI, performance will be an issue.
-
     config_fname = _get_config_fname(version_dir)
     data_fname = _get_exported_data_fname(version_dir)
 

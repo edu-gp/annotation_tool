@@ -1,8 +1,9 @@
+from typing import Optional, List
 import logging
 import copy
 import os
 import urllib.parse
-from typing import List
+import pandas as pd
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine, inspect, UniqueConstraint, MetaData, \
@@ -23,6 +24,7 @@ from train.no_deps.paths import (
     _get_all_plots, _get_exported_data_fname, _get_all_inference_fnames,
     _get_inference_fname
 )
+from train.no_deps.inference_results import InferenceResults
 from train.no_deps.metrics import compute_metrics as _compute_metrics
 from train.paths import _get_version_dir
 
@@ -446,35 +448,23 @@ class Model(Base):
         return [stem(path) + '.jsonl'
                 for path in _get_all_inference_fnames(self.dir(abs=True))]
 
-    def export_inference(self, data_fname, include_text=False):
+    def export_inference(self, fname: str, include_text: bool = False):
         """Exports the given inferenced file data_fname as a dataframe.
         Returns None if the file has not been inferenced yet.
+        Inputs:
+            fname: The dataset filename.
+            include_text: True to include the "text" column.
+        Returns:
+            A dataframe containing columns ['name', 'domain', 'probs'] and
+            'text' if include_text=True.
         """
-        from train.no_deps.inference_results import InferenceResults
 
-        path = _get_inference_fname(self.dir(abs=True), data_fname)
-
-        # Load Inference Results
-        ir = InferenceResults.load(path)
-
-        # Load Original Data
-        df = load_jsonl(_raw_data_file_path(data_fname), to_df=True)
-
-        # Check they exist and are the same size
-        assert df is not None, f"Raw data not found: {data_fname}"
-        assert len(df) == len(ir.probs), "Inference size != Raw data size"
-
-        # Combine the two together.
-        df['probs'] = ir.probs
-        # TODO We have hard-coded domain and name.
-        df['domain'] = df['meta'].apply(lambda x: x.get('domain'))
-        df['name'] = df['meta'].apply(lambda x: x.get('name'))
+        cols = ['name', 'domain', 'probs']
         if include_text:
-            df = df[['name', 'domain', 'text', 'probs']]
-        else:
-            df = df[['name', 'domain', 'probs']]
+            cols = ['name', 'domain', 'text', 'probs']
 
-        return df
+        version_dir = self.dir(abs=True)
+        return load_full_inference_results(version_dir, fname, cols)
 
     def get_len_data(self):
         """Return how many datapoints were used to train this model.
@@ -486,22 +476,24 @@ class Model(Base):
     def compute_metrics(self, threshold: float = 0.5):
         """See train.no_deps.compute_metrics"""
 
-        # TODO this code is temporarily here; will refactor it later when I
-        # refactor the code for export_inference as well.
-        import pandas as pd
-        df = []
-        for fname in self.get_inference_fnames():
-            df.append(self.export_inference(fname, include_text=True))
-
-        if df:
-            df = pd.concat(df, axis=0)
-        else:
-            # Make a dummy dataframe, in case no inference data is found.
-            df = pd.DataFrame(columns=['text', 'probs'])
-
+        # TODO left off here. Caching.
         version_dir = self.dir(abs=True)
 
-        return _compute_metrics(version_dir, df, threshold=threshold)
+        inf_lookup = pd.DataFrame(columns=['text', 'probs'])
+
+        # TODO This loads all the inferences (deduped by text) - this could be
+        # prohibitively slow, is there a good place to precompute this?
+        for fname in _get_all_inference_fnames(version_dir):
+            df = load_full_inference_results(
+                version_dir, fname, cols=['text', 'probs'])
+
+            inf_lookup = pd.concat([inf_lookup, df], axis=0)
+
+            # Since result can get very big, we only keep the unique rows by text.
+            inf_lookup = inf_lookup.drop_duplicates(
+                subset=['text'], keep='first')
+
+        return _compute_metrics(version_dir, inf_lookup, threshold=threshold)
 
 
 class TextClassificationModel(Model):
@@ -906,3 +898,45 @@ def get_latest_model_for_label(dbsession, label,
                    type=model_type) \
         .order_by(Model.version.desc(), Model.created_at.desc()) \
         .first()
+
+
+def load_full_inference_results(version_dir: str, fname: str,
+                                cols: Optional[List[str]] = None):
+    """
+    Inputs:
+        version_dir: The model version dir
+        fname: The inference result file name
+        cols: A list of columns to include in the return value, by default
+            ['name', 'domain', 'text', 'probs']
+    Returns:
+        A pandas dataframe of the result with the cols
+    """
+    if cols is None:
+        cols = ['name', 'domain', 'text', 'probs']
+
+    assert cols, "At least 1 column is required"
+
+    # Load Inference Results
+    path = _get_inference_fname(version_dir, fname)
+    ir = InferenceResults.load(path)
+
+    # Load Original Data
+    # This already includes the column "text"
+    # TODO This function needs to be outside of the version_dir because the
+    # original data is not in the version_dir!
+    df = load_jsonl(_raw_data_file_path(fname), to_df=True)
+
+    # Check they exist and are the same size
+    assert df is not None, f"Raw data not found: {fname}"
+    assert len(df) == len(ir.probs), "Inference size != Raw data size"
+
+    # Combine the two together.
+    df['probs'] = ir.probs
+
+    if 'domain' in cols:
+        df['domain'] = df['meta'].apply(lambda x: x.get('domain'))
+
+    if 'name' in cols:
+        df['name'] = df['meta'].apply(lambda x: x.get('name'))
+
+    return df[cols]
