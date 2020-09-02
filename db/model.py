@@ -1,8 +1,10 @@
+from typing import Optional, List
 import logging
 import copy
 import os
 import urllib.parse
-from typing import List
+import pandas as pd
+import pickle
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine, inspect, UniqueConstraint, MetaData, \
@@ -21,8 +23,9 @@ from db.fs import (
 from train.no_deps.paths import (
     _get_config_fname, _get_data_parser_fname, _get_metrics_fname,
     _get_all_plots, _get_exported_data_fname, _get_all_inference_fnames,
-    _get_inference_fname
+    _get_inference_fname, _get_metrics_v2_fname
 )
+from train.no_deps.inference_results import InferenceResults
 from train.no_deps.metrics import compute_metrics as _compute_metrics
 from train.paths import _get_version_dir
 
@@ -438,43 +441,28 @@ class Model(Base):
         paths = [urllib.parse.quote(x) for x in paths]
         return paths
 
-    def get_inference_fname_paths(self):
-        return _get_all_inference_fnames(self.dir(abs=True))
-
     def get_inference_fnames(self):
         """Get the original filenames of the raw data for inference"""
         return [stem(path) + '.jsonl'
                 for path in _get_all_inference_fnames(self.dir(abs=True))]
 
-    def export_inference(self, data_fname, include_text=False):
+    def export_inference(self, fname: str, include_text: bool = False):
         """Exports the given inferenced file data_fname as a dataframe.
         Returns None if the file has not been inferenced yet.
+        Inputs:
+            fname: The dataset filename, e.g. "spring_jan_2020.jsonl"
+            include_text: True to include the "text" column.
+        Returns:
+            A dataframe containing columns ['name', 'domain', 'probs'] and
+            'text' if include_text=True.
         """
-        from train.no_deps.inference_results import InferenceResults
 
-        path = _get_inference_fname(self.dir(abs=True), data_fname)
-
-        # Load Inference Results
-        ir = InferenceResults.load(path)
-
-        # Load Original Data
-        df = load_jsonl(_raw_data_file_path(data_fname), to_df=True)
-
-        # Check they exist and are the same size
-        assert df is not None, f"Raw data not found: {data_fname}"
-        assert len(df) == len(ir.probs), "Inference size != Raw data size"
-
-        # Combine the two together.
-        df['probs'] = ir.probs
-        # TODO We have hard-coded domain and name.
-        df['domain'] = df['meta'].apply(lambda x: x.get('domain'))
-        df['name'] = df['meta'].apply(lambda x: x.get('name'))
+        cols = ['name', 'domain', 'probs']
         if include_text:
-            df = df[['name', 'domain', 'text', 'probs']]
-        else:
-            df = df[['name', 'domain', 'probs']]
+            cols = ['name', 'domain', 'text', 'probs']
 
-        return df
+        version_dir = self.dir(abs=True)
+        return load_inference(version_dir, fname, columns=cols)
 
     def get_len_data(self):
         """Return how many datapoints were used to train this model.
@@ -486,22 +474,31 @@ class Model(Base):
     def compute_metrics(self, threshold: float = 0.5):
         """See train.no_deps.compute_metrics"""
 
-        # TODO this code is temporarily here; will refactor it later when I
-        # refactor the code for export_inference as well.
-        import pandas as pd
-        df = []
-        for fname in self.get_inference_fnames():
-            df.append(self.export_inference(fname, include_text=True))
-
-        if df:
-            df = pd.concat(df, axis=0)
-        else:
-            # Make a dummy dataframe, in case no inference data is found.
-            df = pd.DataFrame(columns=['text', 'probs'])
-
         version_dir = self.dir(abs=True)
 
-        return _compute_metrics(version_dir, df, threshold=threshold)
+        # TODO retire the old metrics.json
+        metrics_path = _get_metrics_v2_fname(version_dir, threshold)
+
+        if not os.path.isfile(metrics_path):
+            cols = ['text', 'probs']
+
+            inf_lookup = pd.DataFrame(columns=cols)
+
+            # TODO This loads all the inferences (deduped by text) - this could
+            # be prohibitively slow, is there a good place to precompute this?
+            for fpath in _get_all_inference_fnames(version_dir):
+                df = load_inference(version_dir, fpath, columns=cols)
+
+                # inf_lookup can get very big, so only keep unique rows by text
+                inf_lookup = pd.concat([inf_lookup, df], axis=0)
+                inf_lookup = inf_lookup.drop_duplicates(
+                    subset=['text'], keep='first')
+
+            metrics = _compute_metrics(
+                version_dir, inf_lookup, threshold=threshold)
+            pickle.dump(metrics, open(metrics_path, "wb"))
+
+        return pickle.load(open(metrics_path, "rb"))
 
 
 class TextClassificationModel(Model):
@@ -906,3 +903,49 @@ def get_latest_model_for_label(dbsession, label,
                    type=model_type) \
         .order_by(Model.version.desc(), Model.created_at.desc()) \
         .first()
+
+
+def load_inference(version_dir: str, dataset_filename: str,
+                   columns: Optional[List[str]] = None):
+    """
+    Inputs:
+        version_dir: The model version dir
+        dataset_filename: The dataset filename inference was conducted on,
+            could also be the file path. E.g. "spring_jan_2020.jsonl"
+        columns: A list of columns to include in the return value, by default
+            ['name', 'domain', 'text', 'probs']
+    Returns:
+        A pandas dataframe of the result with the cols
+    """
+    if columns is None:
+        columns = ['name', 'domain', 'text', 'probs']
+
+    assert columns, "At least 1 column is required"
+
+    # Make sure we only get the _dataset name_, in case a path was passed in
+    dataset_filename = stem(dataset_filename) + '.jsonl'
+
+    # Load Inference Results
+    path = _get_inference_fname(version_dir, dataset_filename)
+    ir = InferenceResults.load(path)
+
+    # Load Original Data
+    # This already includes the column "text"
+    # TODO This function needs to be outside of the version_dir because the
+    # original data is not in the version_dir!
+    df = load_jsonl(_raw_data_file_path(dataset_filename), to_df=True)
+
+    # Check they exist and are the same size
+    assert df is not None, f"Raw data not found: {dataset_filename}"
+    assert len(df) == len(ir.probs), "Inference size != Raw data size"
+
+    # Combine the two together.
+    df['probs'] = ir.probs
+
+    if 'domain' in columns:
+        df['domain'] = df['meta'].apply(lambda x: x.get('domain'))
+
+    if 'name' in columns:
+        df['name'] = df['meta'].apply(lambda x: x.get('name'))
+
+    return df[columns]
