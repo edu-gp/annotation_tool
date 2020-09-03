@@ -30,9 +30,6 @@ services:
 
   frontend:
     env_file: .env
-    build:
-      context: .
-      dockerfile: _frontend.Dockerfile
     image: *img
     ports:
       - "5001:5001"
@@ -49,9 +46,6 @@ services:
 
   ar_celery:
     env_file: .env
-    build:
-      context: .
-      dockerfile: _ar_celery.Dockerfile
     image: *img
     volumes: *default-volumes
     command: ["celery", "--app=ar.ar_celery", "worker", "-Q", "ar_celery", "-c", "2", "--autoscale=100,2", "-l", "info", "--max-tasks-per-child", "1", "-n", "ar_celery"]
@@ -61,9 +55,6 @@ services:
 
   train_celery:
     env_file: .env
-    build:
-      context: .
-      dockerfile: _train_celery.Dockerfile
     image: *img
     volumes: *default-volumes
     command: ["celery", "--app=train.train_celery", "worker", "-Q", "train_celery", "-c", "2", "--autoscale=100,2", "-l", "info", "--max-tasks-per-child", "1", "-n", "train_celery"]
@@ -73,9 +64,6 @@ services:
 
   gcp_celery:
     env_file: .env
-    build:
-      context: .
-      dockerfile: _gcp_celery.Dockerfile
     image: *img
     volumes: *default-volumes
     command: ["celery", "--app=train.gcp_celery", "worker", "-Q", "gcp_celery", "-c", "5", "--autoscale=100,2", "-l", "info", "-n", "gcp_celery"]
