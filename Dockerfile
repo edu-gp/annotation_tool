@@ -5,9 +5,6 @@ RUN pip install redis pytest Flask Celery seaborn python-dotenv Flask-HTTPAuth f
 RUN pip install mockito flask-sqlalchemy alembic Flask-Testing psycopg2-binary
 RUN pip install scikit-learn
 
-# Removed
-# simpletransformers supervisor
-
 # Salesforce feedback loop related packages.
 RUN pip install google-cloud-secret-manager simple-salesforce PyJWT cryptography requests tldextract
 
