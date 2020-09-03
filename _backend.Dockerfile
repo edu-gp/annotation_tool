@@ -1,0 +1,13 @@
+FROM alchemy-base
+
+WORKDIR /app
+
+EXPOSE 5000
+
+COPY . .
+
+ENV FLASK_APP backend
+ENV FLASK_ENV development
+ENV FLASK_RUN_HOST 0.0.0.0
+ENV FLASK_RUN_PORT 5000
+CMD ["flask", "run"]

@@ -8,8 +8,6 @@ import os
 import json
 from pathlib import Path
 
-from sklearn.model_selection import train_test_split
-
 from .paths import (
     _get_config_fname, _get_data_parser_fname,
     _get_exported_data_fname, _get_metrics_fname,
@@ -19,7 +17,8 @@ from .paths import (
 from .transformers_textcat import train, evaluate_model, build_model
 from .inference_results import InferenceResults
 from .utils import (
-    BINARY_CLASSIFICATION, _parse_labels, load_original_data_text, get_env_int
+    BINARY_CLASSIFICATION, load_original_data_text, get_env_int,
+    _load_config, _prepare_data
 )
 
 
@@ -39,49 +38,6 @@ def _model_exists(version_dir):
     # If this is exists, it means the model has finished training.
     metrics_fname = _get_metrics_fname(version_dir)
     return os.path.isfile(metrics_fname)
-
-
-def _load_config(config_fname):
-    config = None
-    with open(config_fname) as f:
-        config = json.loads(f.read())
-    assert config, "Missing config"
-    return config
-
-
-def _prepare_data(config_fname, data_fname):
-    """
-    Inputs:
-        config_name: Full path to the config json
-        data_fname: Full path to the data jsonl
-    """
-    config = _load_config(config_fname)
-
-    data = []
-    with open(data_fname) as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                data.append(json.loads(line))
-
-    X = [x['text'] for x in data]
-    y, problem_type, class_order = _parse_labels(data)
-
-    # Train test split
-    if config.get('test_size', 0) > 0:
-        print("Train / Test split...")
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y,
-            test_size=config['test_size'],
-            random_state=config.get('random_state', 42))
-    else:
-        print("No train test split used")
-        X_train = X
-        y_train = y
-        X_test = None
-        y_test = None
-
-    return problem_type, class_order, X_train, y_train, X_test, y_test
 
 
 def train_model(version_dir, train_fn=None, force_retrain=False):

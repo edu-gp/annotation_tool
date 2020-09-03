@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from typing import List, Optional
 from celery import Celery
@@ -7,10 +8,10 @@ from db.model import (
 )
 from db.config import DevelopmentConfig
 from train.prep import prepare_next_model_for_label
-from train.no_deps.run import (
-    train_model as _train_model,
-    inference as _inference
-)
+# from train.no_deps.run import (
+#     train_model as _train_model,
+#     inference as _inference
+# )
 from train.gcp_job import ModelDefn, submit_job
 from train.gcp_celery import poll_status as gcp_poll_status
 from train.gs_utils import (
@@ -23,7 +24,7 @@ app = Celery(
     'train_celery',
 
     # redis://:password@hostname:port/db_number
-    broker='redis://localhost:6379/0',
+    broker=f"redis://{os.getenv('REDIS_HOST', 'localhost')}:6379/0",
 
     # # store the results here
     # backend='redis://localhost:6379/0',
@@ -34,31 +35,32 @@ app = Celery(
 # - When a model is training, even cold shutdown doesn't work
 
 
-@app.task
-def train_model(label, raw_file_path, entity_type):
-    db = Database.from_config(DevelopmentConfig)
-    try:
-        model = prepare_next_model_for_label(
-            db.session,
-            label=label,
-            raw_file_path=raw_file_path,
-            entity_type=entity_type
-        )
-        model_dir = model.dir(abs=True)
+# TODO deprecate
+# @app.task
+# def train_model(label, raw_file_path, entity_type):
+#     db = Database.from_config(DevelopmentConfig)
+#     try:
+#         model = prepare_next_model_for_label(
+#             db.session,
+#             label=label,
+#             raw_file_path=raw_file_path,
+#             entity_type=entity_type
+#         )
+#         model_dir = model.dir(abs=True)
 
-        _train_model(model_dir)
+#         _train_model(model_dir)
 
-        # Note: It appears inference can be faster if it's allowed to use all the GPU memory,
-        # however the only way to clear all GPU memory is to end this task. So we call inference
-        # asynchronously so this task can end.
-        inference.delay(model_dir, raw_file_path)
-    finally:
-        db.session.close()
+#         # Note: It appears inference can be faster if it's allowed to use all the GPU memory,
+#         # however the only way to clear all GPU memory is to end this task. So we call inference
+#         # asynchronously so this task can end.
+#         inference.delay(model_dir, raw_file_path)
+#     finally:
+#         db.session.close()
 
 
-@app.task
-def inference(model_dir, raw_file_path):
-    _inference(model_dir, [raw_file_path])
+# @app.task
+# def inference(model_dir, raw_file_path):
+#     _inference(model_dir, [raw_file_path])
 
 
 @app.task

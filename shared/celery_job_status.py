@@ -1,3 +1,4 @@
+import os
 import redis
 import time
 
@@ -12,7 +13,7 @@ class JobStatus:
 
 
 def get_redis():
-    return redis.Redis(host='localhost', port=6379, db=0)
+    return redis.Redis(host=os.getenv('REDIS_HOST', 'localhost'), port=6379, db=0)
 
 
 def create_status(celery_id, context_id, created_at=None):

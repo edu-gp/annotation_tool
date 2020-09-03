@@ -5,6 +5,7 @@ import numpy as np
 import os
 import json
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 BINARY_CLASSIFICATION = 'binary'
 MULTILABEL_CLASSIFICATION = 'multilabel'
@@ -105,6 +106,49 @@ def _parse_labels(data):
                 y.append(_y)
 
     return y, problem_type, class_order
+
+
+def _load_config(config_fname):
+    config = None
+    with open(config_fname) as f:
+        config = json.loads(f.read())
+    assert config, "Missing config"
+    return config
+
+
+def _prepare_data(config_fname, data_fname):
+    """
+    Inputs:
+        config_name: Full path to the config json
+        data_fname: Full path to the data jsonl
+    """
+    config = _load_config(config_fname)
+
+    data = []
+    with open(data_fname) as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                data.append(json.loads(line))
+
+    X = [x['text'] for x in data]
+    y, problem_type, class_order = _parse_labels(data)
+
+    # Train test split
+    if config.get('test_size', 0) > 0:
+        print("Train / Test split...")
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y,
+            test_size=config['test_size'],
+            random_state=config.get('random_state', 42))
+    else:
+        print("No train test split used")
+        X_train = X
+        y_train = y
+        X_test = None
+        y_test = None
+
+    return problem_type, class_order, X_train, y_train, X_test, y_test
 
 
 def raw_to_pos_prob(raw):

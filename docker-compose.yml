@@ -1,0 +1,125 @@
+version: '3'
+services:
+
+  backend:
+    env_file: .env
+    build:
+      context: .
+      dockerfile: _backend.Dockerfile
+    image: alchemy-backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - $HOME/.config/gcloud:/root/.config/gcloud
+      - $HOME/.secret:/root/.secret
+      - ./__filestore:/app/__filestore
+    environment:
+      - REDIS_HOST=redis
+      - ALCHEMY_DATABASE_URI=postgres://username:password@db:5432/alchemy
+      - DB_URL_FOR_MIGRATION=postgres://username:password@db:5432/alchemy
+      - ALCHEMY_FILESTORE_DIR=/app/__filestore
+    depends_on:
+      - ar_celery
+      - train_celery
+      - gcp_celery
+      - redis
+      - db
+
+  frontend:
+    env_file: .env
+    build:
+      context: .
+      dockerfile: _frontend.Dockerfile
+    image: alchemy-frontend
+    ports:
+      - "5001:5001"
+    volumes:
+      - $HOME/.config/gcloud:/root/.config/gcloud
+      - $HOME/.secret:/root/.secret
+      - ./__filestore:/app/__filestore
+    environment:
+      - REDIS_HOST=redis
+      - ALCHEMY_DATABASE_URI=postgres://username:password@db:5432/alchemy
+      - DB_URL_FOR_MIGRATION=postgres://username:password@db:5432/alchemy
+      - ALCHEMY_FILESTORE_DIR=/app/__filestore
+    depends_on:
+      - ar_celery
+      - train_celery
+      - gcp_celery
+      - redis
+      - db
+
+  ar_celery:
+    env_file: .env
+    build:
+      context: .
+      dockerfile: _ar_celery.Dockerfile
+    image: alchemy-ar_celery
+    volumes:
+      - $HOME/.config/gcloud:/root/.config/gcloud
+      - $HOME/.secret:/root/.secret
+      - ./__filestore:/app/__filestore
+    environment:
+      - REDIS_HOST=redis
+      - ALCHEMY_DATABASE_URI=postgres://username:password@db:5432/alchemy
+      - DB_URL_FOR_MIGRATION=postgres://username:password@db:5432/alchemy
+      - ALCHEMY_FILESTORE_DIR=/app/__filestore
+    depends_on:
+      - redis
+      - db
+
+  train_celery:
+    env_file: .env
+    build:
+      context: .
+      dockerfile: _train_celery.Dockerfile
+    image: alchemy-train_celery
+    volumes:
+      - $HOME/.config/gcloud:/root/.config/gcloud
+      - $HOME/.secret:/root/.secret
+      - ./__filestore:/app/__filestore
+    environment:
+      - REDIS_HOST=redis
+      - ALCHEMY_DATABASE_URI=postgres://username:password@db:5432/alchemy
+      - DB_URL_FOR_MIGRATION=postgres://username:password@db:5432/alchemy
+      - ALCHEMY_FILESTORE_DIR=/app/__filestore
+    depends_on:
+      - redis
+      - db
+
+  gcp_celery:
+    env_file: .env
+    build:
+      context: .
+      dockerfile: _gcp_celery.Dockerfile
+    image: alchemy-gcp_celery
+    volumes:
+      - $HOME/.config/gcloud:/root/.config/gcloud
+      - $HOME/.secret:/root/.secret
+      - ./__filestore:/app/__filestore
+    environment:
+      - REDIS_HOST=redis
+      - ALCHEMY_DATABASE_URI=postgres://username:password@db:5432/alchemy
+      - DB_URL_FOR_MIGRATION=postgres://username:password@db:5432/alchemy
+      - ALCHEMY_FILESTORE_DIR=/app/__filestore
+    depends_on:
+      - redis
+      - db
+
+  # TODO flower -- see if it works now
+  # command=flower --port=5555 --broker=redis://localhost:6379/0
+  
+  redis:
+    image: "redis:alpine"
+
+  db:
+    image: "postgres"
+    volumes:
+      - database-data:/var/lib/postgresql/data/
+    environment:
+        - POSTGRES_DB=alchemy
+        - POSTGRES_USER=username
+        - POSTGRES_PASSWORD=password
+
+volumes:
+  database-data:

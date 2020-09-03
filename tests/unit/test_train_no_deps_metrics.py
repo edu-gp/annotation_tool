@@ -10,7 +10,7 @@ from train.no_deps.paths import (
 
 
 def _setup(tmpdir):
-    # Note: See test_train_no_deps_run:test__prepare_data to see how
+    # Note: See test_train_no_deps_run:test__compute_metrics to see how
     # train & test sets are split.
 
     config_fname = _get_config_fname(tmpdir)
@@ -39,7 +39,7 @@ def _setup(tmpdir):
     ])
 
 
-def test__prepare_data(tmpdir):
+def test__compute_metrics(tmpdir):
     _setup(tmpdir)
 
     df = pd.DataFrame([
@@ -82,7 +82,7 @@ def test__prepare_data(tmpdir):
     }
 
 
-def test__prepare_data__with_threshold(tmpdir):
+def test__compute_metrics__with_threshold(tmpdir):
     _setup(tmpdir)
 
     df = pd.DataFrame([
@@ -128,7 +128,7 @@ def test__prepare_data__with_threshold(tmpdir):
         }), check_exact=False)
 
 
-def test__prepare_data__invalid_lookup(tmpdir):
+def test__compute_metrics__invalid_lookup(tmpdir):
     _setup(tmpdir)
 
     df = pd.DataFrame([
@@ -172,7 +172,7 @@ def test__prepare_data__invalid_lookup(tmpdir):
     }
 
 
-def test__prepare_data__invalid_lookup_2(tmpdir):
+def test__compute_metrics__invalid_lookup_2(tmpdir):
     _setup(tmpdir)
 
     df = pd.DataFrame([
@@ -219,7 +219,7 @@ def test__prepare_data__invalid_lookup_2(tmpdir):
     }
 
 
-def test__prepare_data__sensible_defaults(tmpdir):
+def test__compute_metrics__sensible_defaults(tmpdir):
     _setup(tmpdir)
 
     # We cannot find inference for any data points, in this case the metrics
