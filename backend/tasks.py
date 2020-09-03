@@ -22,10 +22,7 @@ from ar.data import (
 )
 from ar.ar_celery import generate_annotation_requests
 
-from train.train_celery import (
-    # train_model as local_train_model,
-    submit_gcp_training
-)
+from train.train_celery import submit_gcp_training
 from train.no_deps.utils import get_env_bool
 
 from shared.celery_job_status import (
@@ -275,9 +272,7 @@ def train(id):
         async_result = submit_gcp_training.delay(
             label, raw_file_path, entity_type=task.get_entity_type())
     else:
-        assert False, "Local training no longer supported. Please specify GOOGLE_AI_PLATFORM_ENABLED=True"
-        # async_result = local_train_model.delay(
-        #     label, raw_file_path, entity_type=task.get_entity_type())
+        assert False, "Local training no longer supported. Please set up training through Google AI Platform."
     # TODO
     # celery_id = str(async_result)
     # CeleryJobStatus(celery_id, f'assign:{id}').save()

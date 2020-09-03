@@ -8,10 +8,6 @@ from db.model import (
 )
 from db.config import DevelopmentConfig
 from train.prep import prepare_next_model_for_label
-# from train.no_deps.run import (
-#     train_model as _train_model,
-#     inference as _inference
-# )
 from train.gcp_job import ModelDefn, submit_job
 from train.gcp_celery import poll_status as gcp_poll_status
 from train.gs_utils import (
@@ -30,38 +26,6 @@ app = Celery(
     # backend='redis://localhost:6379/0',
 )
 
-# NOTE:
-# - Celery doesn't allow tasks to spin up other processes - I have to run it in Threads mode
-# - When a model is training, even cold shutdown doesn't work
-
-
-# TODO deprecate
-# @app.task
-# def train_model(label, raw_file_path, entity_type):
-#     db = Database.from_config(DevelopmentConfig)
-#     try:
-#         model = prepare_next_model_for_label(
-#             db.session,
-#             label=label,
-#             raw_file_path=raw_file_path,
-#             entity_type=entity_type
-#         )
-#         model_dir = model.dir(abs=True)
-
-#         _train_model(model_dir)
-
-#         # Note: It appears inference can be faster if it's allowed to use all the GPU memory,
-#         # however the only way to clear all GPU memory is to end this task. So we call inference
-#         # asynchronously so this task can end.
-#         inference.delay(model_dir, raw_file_path)
-#     finally:
-#         db.session.close()
-
-
-# @app.task
-# def inference(model_dir, raw_file_path):
-#     _inference(model_dir, [raw_file_path])
-
 
 @app.task
 def submit_gcp_training(label, raw_file_path, entity_type):
@@ -74,28 +38,6 @@ def submit_gcp_training(label, raw_file_path, entity_type):
             raw_file_path=raw_file_path,
             entity_type=entity_type
         )
-
-        submit_gcp_job(model, [raw_file_path])
-    finally:
-        db.session.close()
-
-
-# TODO deprecate; this is not used anywhere except when debugging.
-@app.task
-def submit_gcp_inference(label, version, raw_file_path):
-    '''
-    TODO: Use this function in prod when new data arrives.
-
-    Staging test:
-    from train.train_celery import submit_gcp_inference
-    submit_gcp_inference.delay('Healthcare', 7, 'spring_jan_2020.jsonl')
-    '''
-    db = Database.from_config(DevelopmentConfig)
-    try:
-        model = db.session.query(TextClassificationModel).filter_by(
-            label=label, version=version).one_or_none()
-
-        assert model, f"Model not found - label={label} version={version}"
 
         submit_gcp_job(model, [raw_file_path])
     finally:
