@@ -43,6 +43,7 @@ services:
     depends_on:
       - redis
       - db
+      - backend
 
   ar_celery:
     env_file: .env
@@ -52,6 +53,7 @@ services:
     depends_on:
       - redis
       - db
+      - backend
 
   train_celery:
     env_file: .env
@@ -61,6 +63,7 @@ services:
     depends_on:
       - redis
       - db
+      - backend
 
   gcp_celery:
     env_file: .env
@@ -70,6 +73,7 @@ services:
     depends_on:
       - redis
       - db
+      - backend
 
   # TODO flower -- see if it works now
   # command=flower --port=5555 --broker=redis://localhost:6379/0

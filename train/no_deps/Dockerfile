@@ -23,10 +23,12 @@ FROM nvidia/cuda:10.1-cudnn7-runtime
 
 # Installs necessary dependencies.
 RUN apt-get update && apt-get install -y --no-install-recommends \
+	 build-essential \
          wget \
          curl \
          git \
-         python3.7 && \
+         python3.7 \
+	 libpython3.7-dev && \
      rm -rf /var/lib/apt/lists/*
 
 RUN ln -s /usr/bin/python3.7 /usr/bin/python
@@ -42,17 +44,7 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
 WORKDIR /root
 
 # Installs pytorch and torchvision.
-RUN pip install torch==1.4.0 torchvision==0.5.0
-
-# NOTE: In order to install apex _properly_, we need the "devel" images,
-# which includes the nvcc command. But that is ~2gb big... I think we're ok
-# with a python-only build.
-RUN export CUDA_HOME=/usr/local/cuda
-RUN git clone https://github.com/NVIDIA/apex
-# python-only build... not fully optimized
-RUN pip install -v --no-cache-dir apex/
-RUN rm -rf apex
-
+RUN pip install torch==1.6.0+cu101 torchvision==0.7.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html
 RUN pip install simpletransformers matplotlib seaborn
 
 # --- GCP stuff ---
