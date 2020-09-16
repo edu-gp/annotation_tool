@@ -5,21 +5,22 @@ from flask import (
     Flask, redirect, url_for
 )
 
-from google.cloud import logging as glog
-
 from db.config import DevelopmentConfig
 from db.model import db
 from .auth import auth
 
-from google.cloud.logging.handlers import CloudLoggingHandler, setup_logging
 
-client = glog.Client()
+if os.environ.get("USE_CLOUD_LOGGING"):
+    from google.cloud import logging as glog
+    from google.cloud.logging.handlers import CloudLoggingHandler, setup_logging
 
-handler = CloudLoggingHandler(client,
-                              name=os.environ.get("BACKEND_LOGGER",
-                                                  "alchemy-backend"))
-logging.getLogger().setLevel(logging.INFO)
-setup_logging(handler)
+    client = glog.Client()
+
+    handler = CloudLoggingHandler(client,
+                                  name=os.environ.get("BACKEND_LOGGER",
+                                                      "alchemy-backend"))
+    logging.getLogger().setLevel(logging.INFO)
+    setup_logging(handler)
 
 
 def create_app(test_config=None):

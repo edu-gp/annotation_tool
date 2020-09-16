@@ -6,8 +6,6 @@ from flask import (
 )
 from sqlalchemy.exc import DatabaseError
 
-from google.cloud import logging as glog
-
 from db.model import db
 from db.config import DevelopmentConfig
 from .auth import login_required
@@ -15,15 +13,18 @@ from .auth import login_required
 from db._task import _Task
 from ar.data import fetch_tasks_for_user, fetch_tasks_for_user_from_db
 
-from google.cloud.logging.handlers import CloudLoggingHandler, setup_logging
 
-client = glog.Client()
+if os.environ.get("USE_CLOUD_LOGGING"):
+    from google.cloud import logging as glog
+    from google.cloud.logging.handlers import CloudLoggingHandler, setup_logging
 
-handler = CloudLoggingHandler(client,
-                              name=os.environ.get("FRONTEND_LOGGER",
-                                                  "alchemy-frontend"))
-logging.getLogger().setLevel(logging.INFO)
-setup_logging(handler)
+    client = glog.Client()
+
+    handler = CloudLoggingHandler(client,
+                                  name=os.environ.get("FRONTEND_LOGGER",
+                                                      "alchemy-frontend"))
+    logging.getLogger().setLevel(logging.INFO)
+    setup_logging(handler)
 
 
 def create_app(test_config=None):
