@@ -195,10 +195,6 @@
           </form>
         </div>
 
-        <p>
-          <a href="{{ url_for('admin_view_ar_logs') }}" target="_blank">View Annotation Worker Logs</a>
-        </p>
-
         {% if status_assign_jobs is defined and status_assign_jobs | length > 0 %}
         <i class='small'>Refresh page to see updates</i>
         <ul>
@@ -622,9 +618,6 @@
               <input type="hidden" name="label" value="{{label}}" />
               <button type="submit" class="btn btn-primary click-once">Train new model for "{{label}}"</button>
             </form>
-            <p>
-              <a href="{{ url_for('admin_view_train_logs') }}" target="_blank">View Train Worker Logs</a>
-            </p>
 
           </div>
         </div>

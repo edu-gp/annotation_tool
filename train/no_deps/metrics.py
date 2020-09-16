@@ -3,7 +3,7 @@ from sklearn.metrics import (
     precision_recall_fscore_support, roc_auc_score, confusion_matrix
 )
 from .paths import _get_config_fname, _get_exported_data_fname
-from .run import _prepare_data
+from .utils import _prepare_data
 
 
 class InferenceMetrics:

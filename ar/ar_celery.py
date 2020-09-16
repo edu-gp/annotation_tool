@@ -1,4 +1,5 @@
 import logging
+import os
 
 from celery import Celery
 
@@ -14,7 +15,7 @@ app = Celery(
     'ar_celery',
 
     # redis://:password@hostname:port/db_number
-    broker='redis://localhost:6379/0',
+    broker=f"redis://{os.getenv('REDIS_HOST', 'localhost')}:6379/0",
 
     # # store the results here
     # backend='redis://localhost:6379/0',
@@ -51,7 +52,7 @@ def generate_annotation_requests(task_id, max_per_annotator,
     count = 0
     for username, annotation_requests in res.items():
         logging.info("Creating annotation requests for user {}".
-                      format(username))
+                     format(username))
         #  Here we have a user and a list of request in the form of a
         #  dictionary and we want to save it for this user in db.
         save_new_ar_for_user_db(

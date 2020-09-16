@@ -22,9 +22,7 @@ from ar.data import (
 )
 from ar.ar_celery import generate_annotation_requests
 
-from train.train_celery import (
-    train_model as local_train_model, submit_gcp_training
-)
+from train.train_celery import submit_gcp_training
 from train.no_deps.utils import get_env_bool
 
 from shared.celery_job_status import (
@@ -217,16 +215,13 @@ def update(id):
         annotators = parse_annotators(form)
         entity_type = task.get_entity_type()
 
-
         _remove_obsolete_requests_under_task(task, data,
                                              annotators, labels, entity_type)
-
 
         task.set_data_filenames([data])
         task.set_annotators(annotators)
         task.set_labels(labels)
         task.name = name
-
 
         db.session.add(task)
 
@@ -277,8 +272,7 @@ def train(id):
         async_result = submit_gcp_training.delay(
             label, raw_file_path, entity_type=task.get_entity_type())
     else:
-        async_result = local_train_model.delay(
-            label, raw_file_path, entity_type=task.get_entity_type())
+        assert False, "Local training no longer supported. Please set up training through Google AI Platform."
     # TODO
     # celery_id = str(async_result)
     # CeleryJobStatus(celery_id, f'assign:{id}').save()

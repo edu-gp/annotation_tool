@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Optional
 from celery import Celery
 from train.gcp_job import GoogleAIPlatformJob, download
@@ -9,7 +10,7 @@ app = Celery(
     'gcp_celery',
 
     # redis://:password@hostname:port/db_number
-    broker='redis://localhost:6379/0',
+    broker=f"redis://{os.getenv('REDIS_HOST', 'localhost')}:6379/0",
 
     # # store the results here
     # backend='redis://localhost:6379/0',

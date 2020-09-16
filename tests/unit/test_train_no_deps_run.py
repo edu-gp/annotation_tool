@@ -1,4 +1,4 @@
-from train.no_deps.run import _prepare_data
+from train.no_deps.utils import _prepare_data
 
 from shared.utils import save_jsonl, save_json
 from train.no_deps.utils import BINARY_CLASSIFICATION
