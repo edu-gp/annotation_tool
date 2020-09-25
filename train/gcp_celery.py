@@ -35,7 +35,7 @@ def poll_status(job_id: str, metadata_dict: Optional[dict] = None, poll_count: i
     """
     logging.info(f"Poll AI Platform job_id={job_id}, poll_count={poll_count}")
 
-    job = GoogleAIPlatformJob.fetch(job_id)
+    job = GoogleAIPlatformJob(job_id)
 
     if job is None:
         raise Exception("Unknown job")
