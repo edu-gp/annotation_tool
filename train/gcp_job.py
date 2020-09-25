@@ -35,7 +35,7 @@ import uuid
 import re
 from collections import namedtuple
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 from db.utils import get_local_data_file_path
 from .paths import _get_version_dir
 from .no_deps.paths import (
