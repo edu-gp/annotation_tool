@@ -242,77 +242,36 @@ def submit_job(model_defns: List[ModelDefn],
 
 
 class GoogleAIPlatformJob:
-    def __init__(self, response: dict):
-        """
-        Note: Construct this via GoogleAIPlatformJob.fetch(job_id)
+    """Encapsulate an AI Platform job and provide some useful methods"""
 
-        Example response:
-        {
-            "createTime": "2020-04-02T23:24:18Z",
-            "etag": "2TFzYuw9IIA=",
-            "jobId": "t_99e5cb31_8343_4ec3_8b5e_c6cdedfb7e3d_v_5",
-            "labels": {
-                "owner": "alchemy",
-                "type": "production",
-                "version": "2"
-            },
-            "startTime": "2020-04-02T23:27:09Z",
-            "state": "RUNNING",
-            "trainingInput": {
-                "args": [
-                    "--dirs",
-                    "gs://_REDACTED_/tasks/99e5cb31-8343-4ec3-8b5e-c6cdedfb7e3d/models/6",
-                    "gs://_REDACTED_/tasks/99e5cb31-8343-4ec3-8b5e-c6cdedfb7e3d/models/7",
-                    "--infer",
-                    "gs://_REDACTED_/data/spring_jan_2020.jsonl",
-                    "gs://_REDACTED_/data/spring_feb_2020.jsonl",
-                    "--eval-batch-size",
-                    "16"
-                ],
-                "masterConfig": {
-                    "acceleratorConfig": {
-                        "count": "1",
-                        "type": "NVIDIA_TESLA_P100"
-                    },
-                    "imageUri": "gcr.io/_REDACTED_"
-                },
-                "masterType": "n1-standard-4",
-                "region": "us-central1",
-                "scaleTier": "CUSTOM"
-            },
-            "trainingOutput": {}
-        }
+    def __init__(self, job_id: str):
+        self.job_id = job_id
+        self.data_ = None
 
-        For all states, see:
-        https://cloud.google.com/ai-platform/training/docs/reference/rest/v1/projects.jobs#State
-        """
-        self.response = response or {}
-
-    @classmethod
-    def fetch(cls, job_id: str):
-        """This is the factory method to create GoogleAIPlatformJob objects"""
-        cmd = f"gcloud ai-platform jobs describe {job_id} --format json"
-
-        # TODO this is not best way to capture real error
-        # vs when a status doens't exist.
-        try:
-            res = run_cmd(cmd)
-        except Exception as e:
-            print(e)
-            return None
-        else:
-            return cls(json.loads(res.stdout))
+    def get_data(self) -> dict:
+        if self.data_ is None:
+            try:
+                self.data_ = describe_ai_platform_job(self.job_id)
+            except:
+                # If we run into an error, we'll retry on the next call.
+                pass
+        # If we ran into an error above, self.data_ would still be None.
+        # We want to always return a dict, so in the worst case we return {}.
+        return self.data_ or {}
 
     def get_state(self):
-        return self.response.get('state')
+        return self.get_data().get('state')
 
     def get_model_defns(self) -> List[ModelDefn]:
+        data = self.get_data()
+
         try:
-            training_args = self.response['trainingInput']['args']
+            training_args = data['trainingInput']['args']
         except KeyError:
-            # self.response['trainingInput']['args'] does not exist
+            # data['trainingInput']['args'] does not exist
             return []
         else:
+            # Parse the `training_args` str to find all the model directories.
             res = []
             in_region = False
 
@@ -342,17 +301,65 @@ class GoogleAIPlatformJob:
 
             return model_defns
 
-    def cancel(self) -> bool:
+    def cancel(self):
         """Cancel a running job
-        Returns True if the job was cancelled successfully
         Raises:
-            Exception if job_id is missing
             Exception if a job has already completed
         """
-        job_id = self.response.get("jobId")
-        assert job_id, "Cannot cancel job, missing job_id"
-        run_cmd(f'gcloud ai-platform jobs cancel {job_id}')
-        return True
+        cancel_ai_platform_job(self.job_id)
+
+
+def describe_ai_platform_job(job_id: str) -> dict:
+    """
+    Given a job_id of an AI Platform job, return information about the job.
+
+    Example response:
+    {
+        "createTime": "2020-04-02T23:24:18Z",
+        "etag": "2TFzYuw9IIA=",
+        "jobId": "t_99e5cb31_8343_4ec3_8b5e_c6cdedfb7e3d_v_5",
+        "labels": {
+            "owner": "alchemy",
+            "type": "production",
+            "version": "2"
+        },
+        "startTime": "2020-04-02T23:27:09Z",
+        "state": "RUNNING",
+        "trainingInput": {
+            "args": [
+                "--dirs",
+                "gs://_REDACTED_/tasks/99e5cb31-8343-4ec3-8b5e-c6cdedfb7e3d/models/6",
+                "gs://_REDACTED_/tasks/99e5cb31-8343-4ec3-8b5e-c6cdedfb7e3d/models/7",
+                "--infer",
+                "gs://_REDACTED_/data/spring_jan_2020.jsonl",
+                "gs://_REDACTED_/data/spring_feb_2020.jsonl",
+                "--eval-batch-size",
+                "16"
+            ],
+            "masterConfig": {
+                "acceleratorConfig": {
+                    "count": "1",
+                    "type": "NVIDIA_TESLA_P100"
+                },
+                "imageUri": "gcr.io/_REDACTED_"
+            },
+            "masterType": "n1-standard-4",
+            "region": "us-central1",
+            "scaleTier": "CUSTOM"
+        },
+        "trainingOutput": {}
+    }
+
+    For all states, see:
+    https://cloud.google.com/ai-platform/training/docs/reference/rest/v1/projects.jobs#State
+    """
+    cmd = f"gcloud ai-platform jobs describe {job_id} --format json"
+    res = run_cmd(cmd)
+    return json.loads(res.stdout)
+
+
+def cancel_ai_platform_job(job_id: str):
+    run_cmd(f'gcloud ai-platform jobs cancel {job_id}')
 
 
 if __name__ == '__main__':
