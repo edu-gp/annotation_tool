@@ -65,7 +65,7 @@ def _get_all_inference_fnames(version_dir):
     return res
 
 
-def _inference_fnames_to_original_fnames(fnames):
+def _inference_fnames_to_datasets(fnames):
     # Only retain files with the valid ending, and convert them to .jsonl
     ending = '.pred.npy'
 

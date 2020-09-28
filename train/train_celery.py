@@ -1,11 +1,8 @@
 import logging
 import os
 import time
-from typing import List, Optional
 from celery import Celery
-from db.model import (
-    Database, Model, TextClassificationModel, ModelDeploymentConfig
-)
+from db.model import Database, TextClassificationModel, ModelDeploymentConfig
 from db.config import DevelopmentConfig
 from train.prep import prepare_next_model_for_label
 from train.gcp_job import ModelDefn, submit_job
@@ -13,7 +10,6 @@ from train.gcp_celery import poll_status as gcp_poll_status
 from train.gs_utils import (
     has_model_inference, create_deployed_inference, DeployedInferenceMetadata
 )
-from pathlib import Path
 
 app = Celery(
     # module name
@@ -39,7 +35,10 @@ def submit_gcp_training(label, raw_file_path, entity_type):
             entity_type=entity_type
         )
 
-        submit_gcp_job(model, [raw_file_path])
+        model_defn = ModelDefn(model.uuid, model.version)
+        job = submit_job(model_defns=[model_defn],
+                         datasets_for_inference=[raw_file_path])
+        gcp_poll_status.delay(job.id)
     finally:
         db.session.close()
 
@@ -73,57 +72,12 @@ def submit_gcp_inference_on_new_file(dataset_name):
                 create_deployed_inference(metadata)
             else:
                 # Kick off a new job to run inference, then deploy when done.
-                submit_gcp_job(model, [dataset_name], deploy_metadata=metadata)
+                model_defn = ModelDefn(model.uuid, model.version)
+                job = submit_job(model_defns=[model_defn],
+                                 datasets_for_inference=[dataset_name])
+                gcp_poll_status.delay(job.id, metadata_dict=metadata.to_dict())
     finally:
         db.session.close()
-
-
-def submit_gcp_job(model: Model, files_for_inference: List[str],
-                   deploy_metadata: Optional[DeployedInferenceMetadata] = None):
-    """Submits a training & inference job onto Google AI Platform.
-
-    Inputs:
-        model: -
-        metadata: If a metadata is not None, it means we intend for the
-            results to be deployed.
-    """
-    for filepath in files_for_inference:
-        filename = Path(filepath).name
-        ensure_file_exists_locally(filename)
-
-    model_defn = ModelDefn(model.uuid, model.version)
-
-    job_id = submit_job(model_defns=[model_defn],
-                        files_for_inference=files_for_inference)
-
-    if deploy_metadata:
-        gcp_poll_status.delay(job_id, metadata_dict=deploy_metadata.to_dict())
-    else:
-        gcp_poll_status.delay(job_id)
-
-
-def ensure_file_exists_locally(dataset_name: str) -> None:
-    """Ensure data `dataset_name` from GCS is available locally.
-    Inputs:
-        dataset_name: A data dataset_name e.g. "jan_2020.jsonl"
-    Raises:
-        Exception if the file could not be present locally.
-    """
-    # TODO test
-    # TODO refactor to another file (but where?)
-    from db.utils import get_all_data_files, get_local_data_file_path
-    from train.gs_url import build_raw_data_url
-    from train.no_deps.utils import gs_copy_file
-
-    # Ensure the file exists locally
-    if dataset_name not in get_all_data_files():
-        remote_fname = build_raw_data_url(dataset_name)
-        local_fname = get_local_data_file_path(dataset_name)
-        gs_copy_file(remote_fname, local_fname)
-
-    if dataset_name not in get_all_data_files():
-        raise Exception(
-            f"Dataset {dataset_name} either does not exist or is invalid")
 
 
 app.conf.task_routes = {'*.train_celery.*': {'queue': 'train_celery'}}
