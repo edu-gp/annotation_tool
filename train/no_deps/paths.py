@@ -1,6 +1,27 @@
 import os
 from pathlib import Path
 
+"""
+A model's directory consists of:
+- config.json : Model training and inference configurations.
+- data.jsonl : The original data from which the model was trained and the
+    evaluation metrics were calculated.
+- data_parser.json : (Not used often) A generated file that stores metadata
+    derived from `data.jsonl`, such as is the task binary or multi-class
+    classification.
+- metrics.json : A generated file storing the training and test metrics of the
+    model, created after a model has been successfully trained. Note we usually
+    don't use this file for metrics anymore, we comupte it on the fly using
+    db.model.Model.compute_metrics instead.
+- model/ : A directory of the actual model assets, e.g. weights, vocab, etc.
+- inference/ : Past inferences. Under this directory, you'll find:
+    - <dataset>.pred.npy : The raw inference file for `dataset`.
+        Use train.no_deps.inference_results.InferenceResults.load to view the
+        results.
+    - <dataset>.pred.<label_name>.histogram: A png of the histogram of positive
+        class probabilities for `label_name`.
+"""
+
 
 def _get_model_output_dir(version_dir):
     return os.path.join(version_dir, 'model')

@@ -6,13 +6,21 @@ from .utils import run_cmd, gs_copy_file
 class ModelStorageManager:
     """A logical interface to a model's assets. A ModelStorageManager instance
     provides methods to work with a local version of the model's assets and its
-    remote counterpart on GCS."""
+    remote counterpart on GCS.
+
+    Note: As of the current version, the ModelStorageManager does not know what
+    is inside the model directory; it simply syncs the entire directory between
+    a local dir and a remote dir. In future versions, we may consider giving
+    ModelStorageManager more responsibilities.
+
+    To see what's inside a model's directory, see paths.py
+    """
 
     def __init__(self, remote_model_dir: str, local_model_dir: str):
         """
         Inputs:
-            gcs_bucket: The bucket (or prefix) on GCS to store model files and
-                datasets. e.g. "alchemy". Note it does not include "gs://".
+            remote_model_dir: A gs:// url; the model's location on GCS.
+            local_model_dir: Path to the model's local directory.
         """
         self.remote_dir = remote_model_dir
         self.local_dir = local_model_dir
@@ -39,6 +47,11 @@ class DatasetStorageManager:
     with datasets"""
 
     def __init__(self, remote_data_dir, local_data_dir):
+        """
+        Inputs:
+            remote_data_dir: A gs:// url; the raw dataset dir on GCS.
+            local_data_dir: Path to the local directory that stores datasets.
+        """
         self.remote_dir = remote_data_dir
         self.local_dir = local_data_dir
 
