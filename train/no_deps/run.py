@@ -146,7 +146,7 @@ class InferenceCache:
         self.lookup_[self.hash(text)] = value
 
     def get(self, text):
-        self.lookup_.get(self.hash(text))
+        return self.lookup_.get(self.hash(text))
 
     def hash(self, text):
         # TODO choose some hash function

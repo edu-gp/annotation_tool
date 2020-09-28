@@ -204,7 +204,13 @@ def test_train_flow(dbsession, monkeypatch, tmp_path):
         {'text': 'newline_2'}
     ])
 
-    inference_cache = build_inference_cache(model_dir, [str(f)])
+    class Mock_DatasetStorageManager:
+        def download(self, url):
+            # Return the one data file we have locally.
+            return str(f)
+    mock_dsm = Mock_DatasetStorageManager()
+
+    inference_cache = build_inference_cache(model_dir, mock_dsm)
     model, _ = inference(model_dir, str(f2),
                          build_model_fn=stub_build_fn, generate_plots=False,
                          inference_cache=inference_cache)

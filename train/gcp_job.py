@@ -33,10 +33,10 @@ import json
 import tempfile
 import uuid
 import re
-import gs_url
 from collections import namedtuple
 from pathlib import Path
 from typing import List, Optional
+from train import gs_url
 from db.fs import raw_data_dir
 from .paths import _get_version_dir
 from .no_deps.utils import run_cmd
@@ -55,7 +55,7 @@ labels:
 trainingInput:
   scaleTier: CUSTOM
   masterType: n1-standard-4
-  args:{model_dirs}{datasets_for_inference}
+  args:{model_dirs}{files_for_inference}
     - "--data-dir"
     - {remote_data_dir}
     - "--eval-batch-size"
@@ -85,7 +85,7 @@ def __fmt_yaml_list(key, values: List[str], nspaces=0):
 
 def build_job_config(
         model_dirs: List[str],
-        datasets_for_inference: List[str] = None,
+        files_for_inference: List[str] = None,
         docker_image_uri: str = None,
         label_type: str = 'production',
         label_owner: str = 'alchemy',
@@ -94,7 +94,8 @@ def build_job_config(
     Inputs:
         model_dirs: The list of gs:// location of the models (Also known as the
             "version_dir" elsewhere in the codebase).
-        datasets_for_inference: A list of datasets we would like to run inference on.
+        files_for_inference: A list of datasets to run inference on, can
+            either be the dataset names OR their gs:// urls.
         docker_image_uri: The docker image URI. If None, will default to the
             env var GOOGLE_AI_PLATFORM_DOCKER_IMAGE_URI.
         label_type: Label for type.
@@ -109,11 +110,11 @@ def build_job_config(
     # Format lists into proper yaml.
     formatted_model_dirs = __fmt_yaml_list('dirs', model_dirs, nspaces=4)
     formatted_files_for_inference = __fmt_yaml_list(
-        'infer', datasets_for_inference, nspaces=4)
+        'infer', files_for_inference, nspaces=4)
 
     return JOB_CONFIG_TEMPLATE.format(
         model_dirs=formatted_model_dirs,
-        datasets_for_inference=formatted_files_for_inference,
+        files_for_inference=formatted_files_for_inference,
         remote_data_dir=gs_url.build_raw_data_dir(),
         docker_image_uri=docker_image_uri,
         label_type=label_type,

@@ -67,3 +67,5 @@ class DatasetStorageManager:
         local_path = f"{self.local_dir}/{dataset}"
 
         gs_copy_file(remote_path, local_path, no_clobber=True)
+
+        return local_path

@@ -1,10 +1,10 @@
 from train.no_deps.paths import (
-    _inference_fnames_to_original_fnames
+    _inference_fnames_to_datasets
 )
 
 
-def test__inference_fnames_to_original_fnames():
-    fnames = _inference_fnames_to_original_fnames([
+def test__inference_fnames_to_datasets():
+    fnames = _inference_fnames_to_datasets([
         'blah.pred.npy',
         'blah.blah.pred.npy',
         'invalid_file.txt',  # Invalid files are ignored
