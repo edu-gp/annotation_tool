@@ -37,7 +37,7 @@ def submit_gcp_training(label, raw_file_path, entity_type):
 
         model_defn = ModelDefn(model.uuid, model.version)
         job = submit_job(model_defns=[model_defn],
-                         datasets_for_inference=[raw_file_path])
+                         files_for_inference=[raw_file_path])
         gcp_poll_status.delay(job.id)
     finally:
         db.session.close()
@@ -74,7 +74,7 @@ def submit_gcp_inference_on_new_file(dataset_name):
                 # Kick off a new job to run inference, then deploy when done.
                 model_defn = ModelDefn(model.uuid, model.version)
                 job = submit_job(model_defns=[model_defn],
-                                 datasets_for_inference=[dataset_name])
+                                 files_for_inference=[dataset_name])
                 gcp_poll_status.delay(job.id, metadata_dict=metadata.to_dict())
     finally:
         db.session.close()

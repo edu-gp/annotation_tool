@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
-from .utils import run_cmd
-from train.no_deps.utils import gs_copy_file
+from .utils import run_cmd, gs_copy_file
 
 
 class ModelStorageManager:

@@ -126,13 +126,13 @@ class GoogleAIPlatformJob:
     """Encapsulate an AI Platform job and provide some useful methods"""
 
     def __init__(self, job_id: str):
-        self.job_id = job_id
+        self.id = job_id
         self.data_ = None
 
     def get_data(self) -> dict:
         if self.data_ is None:
             try:
-                self.data_ = describe_ai_platform_job(self.job_id)
+                self.data_ = describe_ai_platform_job(self.id)
             except:
                 # If we run into an error, we'll retry on the next call.
                 pass
@@ -185,11 +185,11 @@ class GoogleAIPlatformJob:
         Raises:
             Exception if a job has already completed
         """
-        cancel_ai_platform_job(self.job_id)
+        cancel_ai_platform_job(self.id)
 
 
 def submit_job(model_defns: List[ModelDefn],
-               datasets_for_inference: Optional[List[str]] = None,
+               files_for_inference: Optional[List[str]] = None,
                force_retrain: bool = False,
                submit_job_fn: callable = None) -> GoogleAIPlatformJob:
     """Submits a job and returns the corresponding GoogleAIPlatformJob."""
@@ -197,7 +197,7 @@ def submit_job(model_defns: List[ModelDefn],
 
     # Make sure each dataset is a file name, not a path.
     datasets_for_inference = [Path(dataset).name
-                              for dataset in datasets_for_inference]
+                              for dataset in files_for_inference]
 
     print("Upload model assets for training")
     gcs_model_dirs = []
@@ -221,7 +221,7 @@ def submit_job(model_defns: List[ModelDefn],
 
     model_config = build_job_config(
         model_dirs=gcs_model_dirs,
-        datasets_for_inference=datasets_for_inference)
+        files_for_inference=datasets_for_inference)
 
     with tempfile.NamedTemporaryFile(mode="w") as fp:
         fp.write(model_config)
