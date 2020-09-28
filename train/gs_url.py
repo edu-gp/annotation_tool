@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 
-def build_data_dir_url() -> str:
+def build_raw_data_dir() -> str:
     bucket = os.environ.get('GOOGLE_AI_PLATFORM_BUCKET')
     assert bucket, "GCS bucket not defined"
     return f"gs://{bucket}/data"
@@ -10,7 +10,7 @@ def build_data_dir_url() -> str:
 
 def build_raw_data_url(dataset_name) -> str:
     dataset_name_stem = Path(dataset_name).stem
-    return f"{build_data_dir_url()}/{dataset_name_stem}.jsonl"
+    return f"{build_raw_data_dir()}/{dataset_name_stem}.jsonl"
 
 
 def build_model_dir(model_uuid, model_version) -> str:

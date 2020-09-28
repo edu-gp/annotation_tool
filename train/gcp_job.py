@@ -114,7 +114,7 @@ def build_job_config(
     return JOB_CONFIG_TEMPLATE.format(
         model_dirs=formatted_model_dirs,
         datasets_for_inference=formatted_files_for_inference,
-        remote_data_dir=gs_url.build_data_dir_url(),
+        remote_data_dir=gs_url.build_raw_data_dir(),
         docker_image_uri=docker_image_uri,
         label_type=label_type,
         label_owner=label_owner,
@@ -191,10 +191,7 @@ def submit_job(model_defns: List[ModelDefn],
                datasets_for_inference: Optional[List[str]] = None,
                force_retrain: bool = False,
                submit_job_fn: callable = None) -> GoogleAIPlatformJob:
-    """
-    Returns:
-        The job id on Google AI Platform.
-    """
+    """Submits a job and returns the corresponding GoogleAIPlatformJob."""
     # TODO pass through the force_retrain parameter.
 
     # Make sure each dataset is a file name, not a path.
@@ -218,7 +215,7 @@ def submit_job(model_defns: List[ModelDefn],
         #       be uploading datasets.
         dsm.sync(dataset)
 
-    job_id = generate_job_id_()
+    job_id = __generate_job_id()
     print(f"Submit job: {job_id}")
 
     model_config = build_job_config(
@@ -236,7 +233,7 @@ def submit_job(model_defns: List[ModelDefn],
     return GoogleAIPlatformJob(job_id)
 
 
-def generate_job_id_():
+def __generate_job_id():
     # A valid job_id only contains letters, numbers and underscores,
     # AND must start with a letter.
     return 't_' + str(uuid.uuid4()).replace('-', '_')
@@ -251,7 +248,7 @@ def build_model_storage_manager(uuid, version) -> ModelStorageManager:
 
 def build_dataset_storage_manager() -> DatasetStorageManager:
     """Factory function"""
-    remote_data_dir = gs_url.build_data_dir_url()
+    remote_data_dir = gs_url.build_raw_data_dir()
     local_data_dir = raw_data_dir()
     return DatasetStorageManager(remote_data_dir, local_data_dir)
 
