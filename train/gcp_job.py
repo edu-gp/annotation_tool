@@ -53,6 +53,7 @@ labels:
   owner: "{label_owner}"
   version: "{version}"
 trainingInput:
+  serviceAccount: 123@developer.gserviceaccount.com
   scaleTier: CUSTOM
   masterType: n1-standard-4
   args:{model_dirs}{files_for_inference}
