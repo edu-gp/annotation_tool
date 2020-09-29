@@ -2,7 +2,7 @@ import logging
 import os
 from typing import Optional
 from celery import Celery
-from train.gcp_job import GoogleAIPlatformJob, download
+from train.gcp_job import GoogleAIPlatformJob, build_model_storage_manager
 from train.gs_utils import create_deployed_inference, DeployedInferenceMetadata
 
 app = Celery(
@@ -65,7 +65,8 @@ def poll_status(job_id: str, metadata_dict: Optional[dict] = None, poll_count: i
 def on_job_success(job: GoogleAIPlatformJob, metadata_dict: Optional[dict] = None):
     # Sync down the model assets
     for md in job.get_model_defns():
-        download(md)
+        msm = build_model_storage_manager(md.uuid, md.version)
+        msm.download(include_weights=False)
     # Deploy inferences to prod as needed
     if metadata_dict:
         metadata = DeployedInferenceMetadata.from_dict(metadata_dict)

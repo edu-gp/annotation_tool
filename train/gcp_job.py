@@ -36,16 +36,11 @@ import re
 from collections import namedtuple
 from pathlib import Path
 from typing import List, Optional
-from db.utils import get_local_data_file_path
+from train import gs_url
+from db.fs import raw_data_dir
 from .paths import _get_version_dir
-from .no_deps.paths import (
-    _get_config_fname,
-    _get_exported_data_fname
-)
-from .no_deps.utils import (
-    gs_copy_file,
-    run_cmd
-)
+from .no_deps.utils import run_cmd
+from .no_deps.storage_manager import DatasetStorageManager, ModelStorageManager
 
 ModelDefn = namedtuple("ModelDefn", ("uuid", "version"))
 
@@ -74,7 +69,7 @@ trainingInput:
 '''
 
 
-def _fmt_yaml_list(key, values: List[str], nspaces=0):
+def __fmt_yaml_list(key, values: List[str], nspaces=0):
     """Spacing matters since we're constructing a yaml file. This function
     creates a string that represents a list of values in yaml."""
     result = ''
@@ -99,7 +94,8 @@ def build_job_config(
     Inputs:
         model_dirs: The list of gs:// location of the models (Also known as the
             "version_dir" elsewhere in the codebase).
-        files_for_inference: A list of files we would like to run inference on.
+        files_for_inference: A list of datasets to run inference on, can
+            either be the dataset names OR their gs:// urls.
         docker_image_uri: The docker image URI. If None, will default to the
             env var GOOGLE_AI_PLATFORM_DOCKER_IMAGE_URI.
         label_type: Label for type.
@@ -111,147 +107,32 @@ def build_job_config(
             'GOOGLE_AI_PLATFORM_DOCKER_IMAGE_URI')
     assert docker_image_uri
 
-    # Note: Spacing matters since we're constructing a yaml file.
-    fmt_model_dirs = _fmt_yaml_list('dirs', model_dirs, nspaces=4)
-    fmt_files_for_inference = _fmt_yaml_list(
+    # Format lists into proper yaml.
+    formatted_model_dirs = __fmt_yaml_list('dirs', model_dirs, nspaces=4)
+    formatted_files_for_inference = __fmt_yaml_list(
         'infer', files_for_inference, nspaces=4)
 
-    bucket = os.environ.get('GOOGLE_AI_PLATFORM_BUCKET')
-    assert bucket, "Missing GOOGLE_AI_PLATFORM_BUCKET"
-    remote_data_dir = f'gs://{bucket}/data'
-
-    # TODO simple formatting like this is subject to injection attack.
     return JOB_CONFIG_TEMPLATE.format(
-        model_dirs=fmt_model_dirs,
-        files_for_inference=fmt_files_for_inference,
-        remote_data_dir=remote_data_dir,
+        model_dirs=formatted_model_dirs,
+        files_for_inference=formatted_files_for_inference,
+        remote_data_dir=gs_url.build_raw_data_dir(),
         docker_image_uri=docker_image_uri,
         label_type=label_type,
         label_owner=label_owner,
         version=version)
 
 
-def build_remote_model_dir(model_uuid, model_version):
-    bucket = os.environ.get('GOOGLE_AI_PLATFORM_BUCKET')
-    assert bucket, "Missing GOOGLE_AI_PLATFORM_BUCKET"
-    # Legacy path system - let's not change it in fear of breaking things
-    return f'gs://{bucket}/tasks/{model_uuid}/models/{model_version}'
-
-
-def get_name(filename_or_path):
-    return Path(filename_or_path).name
-
-
-def build_remote_data_fname(data_filename):
-    """
-    Inputs:
-        data_filename: e.g. spring_jan_2020.jsonl
-    """
-    bucket = os.environ.get('GOOGLE_AI_PLATFORM_BUCKET')
-    assert bucket
-    return f'gs://{bucket}/data/{get_name(data_filename)}'
-
-
-def sync_data_file(fname):
-    local_fname = get_local_data_file_path(fname)
-    remote_fname = build_remote_data_fname(fname)
-    gs_copy_file(local_fname, remote_fname, no_clobber=True)
-    return remote_fname
-
-
-def prepare_model_assets_for_training(model_uuid, model_version):
-    # Training only needs the config and exported data.
-
-    version_dir = _get_version_dir(model_uuid, model_version)
-    config_fname = _get_config_fname(version_dir)
-    data_fname = _get_exported_data_fname(version_dir)
-
-    # We assume these two files exist
-    assert os.path.isfile(config_fname), \
-        f'Config File Not Found: {config_fname}'
-    assert os.path.isfile(data_fname), f'Data File Not Found: {data_fname}'
-
-    output_dir = build_remote_model_dir(model_uuid, model_version)
-
-    gs_copy_file(config_fname,
-                 os.path.join(output_dir, Path(config_fname).name))
-    gs_copy_file(data_fname,
-                 os.path.join(output_dir, Path(data_fname).name))
-
-    return output_dir
-
-
-def download(model: ModelDefn, include_weights=False):
-    """Download a model from cloud to local storage.
-    Args:
-        include_weights: If True, download the model weights as well.
-    """
-    src_dir = build_remote_model_dir(model.uuid, model.version)
-    dst_dir = _get_version_dir(model.uuid, model.version)
-    if include_weights:
-        run_cmd(f'gsutil -m rsync -r {src_dir} {dst_dir}')
-    else:
-        run_cmd(f'gsutil -m rsync -x "model" -r {src_dir} {dst_dir}')
-
-
-def submit_google_ai_platform_job(job_id, config_file):
-    run_cmd(f'gcloud ai-platform jobs submit training {job_id}'
-            f' --config {config_file}')
-
-
-def submit_job(model_defns: List[ModelDefn],
-               files_for_inference: Optional[List[str]] = None,
-               force_retrain=False,
-               submit_job_fn=None):
-    """
-    Returns:
-        The job id on Google AI Platform.
-    """
-    # TODO pass through the force_retrain parameter.
-
-    if submit_job_fn is None:
-        submit_job_fn = submit_google_ai_platform_job
-
-    # A valid job_id only contains letters, numbers and underscores
-    # AND must start with a letter.
-    job_id = 't_' + str(uuid.uuid4()).replace('-', '_')
-
-    print("Upload model assets for training, if needed")
-    model_dirs = [prepare_model_assets_for_training(md.uuid, md.version)
-                  for md in model_defns]
-
-    # Make sure the filenames are _names_, not _paths_
-    files_for_inference = files_for_inference or []
-    files_for_inference = [get_name(f) for f in files_for_inference]
-
-    print("Upload data for inference, if needed")
-    for fname in files_for_inference:
-        sync_data_file(fname)
-
-    print("Submit job")
-    with tempfile.NamedTemporaryFile(mode="w") as fp:
-        model_config = build_job_config(
-            model_dirs=model_dirs,
-            files_for_inference=files_for_inference)
-        fp.write(model_config)
-        fp.flush()
-
-        submit_job_fn(job_id, fp.name)
-
-    return job_id
-
-
 class GoogleAIPlatformJob:
     """Encapsulate an AI Platform job and provide some useful methods"""
 
     def __init__(self, job_id: str):
-        self.job_id = job_id
+        self.id = job_id
         self.data_ = None
 
     def get_data(self) -> dict:
         if self.data_ is None:
             try:
-                self.data_ = describe_ai_platform_job(self.job_id)
+                self.data_ = describe_ai_platform_job(self.id)
             except:
                 # If we run into an error, we'll retry on the next call.
                 pass
@@ -263,12 +144,10 @@ class GoogleAIPlatformJob:
         return self.get_data().get('state')
 
     def get_model_defns(self) -> List[ModelDefn]:
-        data = self.get_data()
-
         try:
-            training_args = data['trainingInput']['args']
+            training_args = self.get_data()['trainingInput']['args']
         except KeyError:
-            # data['trainingInput']['args'] does not exist
+            # self.get_data()['trainingInput']['args'] does not exist
             return []
         else:
             # Parse the `training_args` str to find all the model directories.
@@ -306,7 +185,83 @@ class GoogleAIPlatformJob:
         Raises:
             Exception if a job has already completed
         """
-        cancel_ai_platform_job(self.job_id)
+        cancel_ai_platform_job(self.id)
+
+
+def submit_job(model_defns: List[ModelDefn],
+               files_for_inference: Optional[List[str]] = None,
+               force_retrain: bool = False,
+               submit_job_fn: callable = None) -> GoogleAIPlatformJob:
+    """Submits a job and returns the corresponding GoogleAIPlatformJob."""
+    # TODO pass through the force_retrain parameter.
+
+    # Make sure each dataset is a file name, not a path.
+    datasets_for_inference = [Path(dataset).name
+                              for dataset in files_for_inference]
+
+    print("Upload model assets for training")
+    gcs_model_dirs = []
+    for md in model_defns:
+        msm = build_model_storage_manager(md.uuid, md.version)
+        msm.upload()
+        gcs_model_dirs.append(msm.remote_dir)
+
+    print("Sync data for inference")
+    dsm = build_dataset_storage_manager()
+    for dataset in datasets_for_inference:
+        # Ensure each dataset exists locally _and_ on GCS.
+        # TODO: We need datasets locally because later on we'll need it to
+        #       compute metrics, export inferences, etc. However, it's a bit
+        #       strange to download datasets here, when we really should only
+        #       be uploading datasets.
+        dsm.sync(dataset)
+
+    job_id = __generate_job_id()
+    print(f"Submit job: {job_id}")
+
+    model_config = build_job_config(
+        model_dirs=gcs_model_dirs,
+        files_for_inference=datasets_for_inference)
+
+    with tempfile.NamedTemporaryFile(mode="w") as fp:
+        fp.write(model_config)
+        fp.flush()
+
+        if submit_job_fn is None:
+            submit_job_fn = submit_ai_platform_job
+        submit_job_fn(job_id, fp.name)
+
+    return GoogleAIPlatformJob(job_id)
+
+
+def __generate_job_id():
+    # A valid job_id only contains letters, numbers and underscores,
+    # AND must start with a letter.
+    return 't_' + str(uuid.uuid4()).replace('-', '_')
+
+
+def build_model_storage_manager(uuid, version) -> ModelStorageManager:
+    """Factory function"""
+    remote_model_dir = gs_url.build_model_dir(uuid, version)
+    local_model_dir = _get_version_dir(uuid, version)
+    return ModelStorageManager(remote_model_dir, local_model_dir)
+
+
+def build_dataset_storage_manager() -> DatasetStorageManager:
+    """Factory function"""
+    remote_data_dir = gs_url.build_raw_data_dir()
+    local_data_dir = raw_data_dir()
+    return DatasetStorageManager(remote_data_dir, local_data_dir)
+
+
+def submit_ai_platform_job(job_id, config_file):
+    """
+    Inputs:
+        job_id: The id of the new job.
+        config_file: Path to a config file on disk.
+    """
+    run_cmd(f'gcloud ai-platform jobs submit training {job_id}'
+            f' --config {config_file}')
 
 
 def describe_ai_platform_job(job_id: str) -> dict:

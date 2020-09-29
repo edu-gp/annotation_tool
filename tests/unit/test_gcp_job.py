@@ -1,7 +1,5 @@
 from train.gcp_job import (
     build_job_config,
-    build_remote_model_dir,
-    build_remote_data_fname,
     GoogleAIPlatformJob,
     ModelDefn
 )
@@ -98,6 +96,7 @@ trainingInput:
     - "--infer"
     - gs://my_bucket/data/spring_jan_2020.jsonl
     - gs://my_bucket/data/spring_jan_2021.jsonl
+    - spring_jan_2022.jsonl
     - "--data-dir"
     - gs://gs://blah/data
     - "--eval-batch-size"
@@ -112,7 +111,9 @@ trainingInput:
 
     result = build_job_config(model_dirs=['gs://my_bucket/model_dir'],
                               files_for_inference=[
-                                  'gs://my_bucket/data/spring_jan_2020.jsonl', 'gs://my_bucket/data/spring_jan_2021.jsonl'],
+                                  'gs://my_bucket/data/spring_jan_2020.jsonl',
+                                  'gs://my_bucket/data/spring_jan_2021.jsonl',
+                                  'spring_jan_2022.jsonl'],
                               version='1')
 
     assert expected.strip() == result.strip()
@@ -156,24 +157,6 @@ trainingInput:
                               version='1')
 
     assert expected.strip() == result.strip()
-
-
-def test_build_remote_model_dir(monkeypatch):
-    monkeypatch.setenv('GOOGLE_AI_PLATFORM_BUCKET', 'mybucket')
-    assert build_remote_model_dir('abc', 2) == \
-        'gs://mybucket/tasks/abc/models/2'
-
-
-def test_build_remote_data_fname(monkeypatch):
-    monkeypatch.setenv('GOOGLE_AI_PLATFORM_BUCKET', 'mybucket')
-    assert build_remote_data_fname('blah.jsonl') == \
-        'gs://mybucket/data/blah.jsonl'
-
-
-def test_build_remote_data_fname_long(monkeypatch):
-    monkeypatch.setenv('GOOGLE_AI_PLATFORM_BUCKET', 'mybucket')
-    assert build_remote_data_fname('/tmp/foo/blah.jsonl') == \
-        'gs://mybucket/data/blah.jsonl'
 
 
 def test_get_job_status_v1(monkeypatch):

@@ -1,52 +1,10 @@
+# This is the entrypoint to an AI Platform job.
+
 import os
 import tempfile
 from pathlib import Path
-from .run import (
-    train_model as _train_model,
-    inference as _inference,
-    build_inference_cache
-)
-from .utils import (
-    gs_copy_dir as copy_dir,
-    gs_copy_file as copy_file
-)
-from .paths import (
-    _get_all_inference_fnames,
-    _inference_fnames_to_original_fnames
-)
-
-
-def train_model(local_dir, remote_dir, force_retrain=False):
-    # Download config and data
-    copy_dir(remote_dir, local_dir)
-
-    # Train Model
-    _train_model(local_dir, force_retrain=force_retrain)
-
-    # Upload trained model
-    copy_dir(local_dir, remote_dir)
-
-
-def download_files_to_local(remote_data_dir, fnames, local_data_dir):
-    remote_fnames = [f'{remote_data_dir}/{fname}' for fname in fnames]
-
-    local_fnames = []
-    for fname in remote_fnames:
-        local_fname = os.path.join(local_data_dir, Path(fname).name)
-        copy_file(fname, local_fname)
-        local_fnames.append(local_fname)
-    return local_fnames
-
-
-def inference(local_dir, remote_dir, local_fname, inference_cache=None):
-    # Download a trained model
-    copy_dir(remote_dir, local_dir)
-
-    # Run Inference - results saved in local_dir
-    _inference(local_dir, local_fname, inference_cache=inference_cache)
-
-    # Upload results
-    copy_dir(local_dir, remote_dir)
+from .run import train_model, inference, build_inference_cache, InferenceCache
+from .storage_manager import ModelStorageManager, DatasetStorageManager
 
 
 def run(remote_model_dirs, remote_data_dir, infer_fnames, force_retrain, eval_batch_size):
@@ -68,52 +26,56 @@ def run(remote_model_dirs, remote_data_dir, infer_fnames, force_retrain, eval_ba
     for remote_model_dir in remote_model_dirs:
         print(f"Executing Training Script")
 
-        with tempfile.TemporaryDirectory() as local_dir:
+        with tempfile.TemporaryDirectory() as tempdir:
             # -----------------------------------------------------------------
             # 1. Setup
-            local_model_dir = os.path.join(local_dir, 'model')
-            local_data_dir = os.path.join(local_dir, 'data')
+            local_model_dir = os.path.join(tempdir, 'model')
+            local_data_dir = os.path.join(tempdir, 'data')
 
             os.makedirs(local_model_dir, exist_ok=True)
             os.makedirs(local_data_dir, exist_ok=True)
 
+            dsm = DatasetStorageManager(remote_data_dir, local_data_dir)
+            msm = ModelStorageManager(remote_model_dir, local_model_dir)
+
+            # Download config and data, and any previously trained model
+            msm.download()
+
             # -----------------------------------------------------------------
             # 2. Train model, if needed (unless force_retrain=True)
-            train_model(local_model_dir, remote_model_dir,
-                        force_retrain=force_retrain)
 
-            # -----------------------------------------------------------------
-            # 3. Build a cache of previous inference results
+            # Train Model
+            train_model(msm.local_dir, force_retrain=force_retrain)
 
-            # Assuming inferences don't get stale, we can build a cache of all
-            # previous inference to make sure we don't duplicate work. This is
-            # important to make inference on incremental changes in data fast
-            # and cost-efficient.
-
-            # TODO only build cache if we have some files for inference?
-
-            # Get the names of all the files we have ran inference on.
-            prev_infer_fnames = _get_all_inference_fnames(local_model_dir)
-            prev_infer_fnames = \
-                _inference_fnames_to_original_fnames(prev_infer_fnames)
-            # Download them.
-            local_infer_fnames = download_files_to_local(
-                remote_data_dir, prev_infer_fnames, local_data_dir)
-            # Build a cache from them.
-            inference_cache = \
-                build_inference_cache(local_model_dir, local_infer_fnames)
+            # Upload trained model
+            msm.upload()
 
             # -----------------------------------------------------------------
             # 3. Run inference on all the files
-            if len(infer_fnames) > 0:
-                local_fnames = download_files_to_local(
-                    remote_data_dir, infer_fnames, local_data_dir)
-                for fname in local_fnames:
-                    # TODO don't run inference if we have already done it on that file.
-                    inference(local_model_dir, remote_model_dir,
-                              fname, inference_cache)
 
-            # TODO remove model locally to save space!
+            inference_cache: InferenceCache = None
+
+            if len(infer_fnames) > 0:
+                # Make sure the datasets are names and not paths
+                infer_fnames = [Path(dataset).name for dataset in infer_fnames]
+
+                for dataset in infer_fnames:
+                    dataset_local_path = dsm.download(dataset)
+
+                    # Build an inference_cache, as needed.
+                    # Cache is not nessesary but makes inference on incremental
+                    # data updates a lot faster.
+                    if inference_cache is None:
+                        inference_cache = \
+                            build_inference_cache(msm.local_dir, dsm)
+
+                    # Run Inference - results saved in local_model_dir
+                    # Note the inference_cache is updated for each new file.
+                    inference(msm.local_dir, dataset_local_path,
+                              inference_cache=inference_cache)
+
+            # Upload inference results
+            msm.upload()
 
 
 if __name__ == '__main__':

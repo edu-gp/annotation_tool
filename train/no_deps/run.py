@@ -12,8 +12,10 @@ from .paths import (
     _get_config_fname, _get_data_parser_fname,
     _get_exported_data_fname, _get_metrics_fname,
     _get_model_output_dir, _get_inference_fname,
-    _get_inference_density_plot_fname
+    _get_inference_density_plot_fname,
+    _get_all_inference_fnames, _inference_fnames_to_datasets
 )
+from .storage_manager import DatasetStorageManager
 from .transformers_textcat import train, evaluate_model, build_model
 from .inference_results import InferenceResults
 from .utils import (
@@ -126,73 +128,6 @@ def plot_results(version_dir, fname, inference_results) -> None:
         raise Exception("generate_plots only supports binary classification")
 
 
-def inference(version_dir, fname,
-              build_model_fn=None, generate_plots=True, inference_cache=None):
-    """
-    Inputs:
-        fname: A .jsonl file to run inference on.
-            Each line should contain a "text" key.
-
-    Results will be stored in version_dir/inference
-    """
-
-    model = load_model(version_dir, build_model_fn)
-
-    # Run Inference on fname
-    text = load_original_data_text(fname)
-    if inference_cache:
-        # If using the cache, we first pick out the elements not in cache
-        # and send those for inference.
-        to_infer = []
-        for t in text:
-            if inference_cache.get(t) is None:
-                to_infer.append(t)
-        _, raw = model.predict(to_infer)
-        # After we receive the results, update the cache.
-        for x, y in zip(to_infer, raw):
-            inference_cache[x] = y
-
-        # Finally, using the updated cache to populate all the raw results.
-        raw = []
-        for t in text:
-            # By now, all elements in text should have some results,
-            # so we can safely use [ ] to access.
-            raw.append(inference_cache[t])
-    else:
-        # If not using the cache, we just predict on all text.
-        _, raw = model.predict(text)
-        to_infer = text
-
-    inference_results = InferenceResults(raw)
-
-    # Make sure the output dir exists and save it
-    inference_results.save(_get_inference_fname(version_dir, fname))
-
-    # Generate Plots
-    if generate_plots:
-        plot_results(version_dir, fname, inference_results)
-
-    return model, inference_results
-
-
-def build_inference_cache(version_dir, fnames):
-    """Build an inference cache from the previous inference results by the
-    model in version_dir on the files in fnames.
-    """
-    lookup = {}
-
-    for fname in fnames:
-        text = load_original_data_text(fname)
-        inf = InferenceResults.load(_get_inference_fname(version_dir, fname))
-
-        if text and inf:
-            for x, y in zip(text, inf.raw):
-                if x:
-                    lookup[x] = y
-
-    return lookup
-
-
 def _plot(outname, data, title):
     import seaborn as sns
     import matplotlib.pyplot as plt
@@ -201,3 +136,92 @@ def _plot(outname, data, title):
     plt.title(title)
     sns_plot.figure.savefig(outname)
     plt.clf()
+
+
+class InferenceCache:
+    def __init__(self):
+        self.lookup_ = {}
+
+    def set(self, text, value):
+        self.lookup_[self.hash(text)] = value
+
+    def get(self, text):
+        return self.lookup_.get(self.hash(text))
+
+    def hash(self, text):
+        # TODO choose some hash function
+        return text
+
+
+def build_inference_cache(version_dir: str,
+                          dsm: DatasetStorageManager) -> InferenceCache:
+    """Build an inference cache from the previous inference results by the
+    model in version_dir on the files in fnames.
+    """
+    cache = InferenceCache()
+
+    prev_inf_fnames = _get_all_inference_fnames(version_dir)
+    prev_inf_datasets = _inference_fnames_to_datasets(prev_inf_fnames)
+
+    for dataset in prev_inf_datasets:
+        dataset_path = dsm.download(dataset)
+        text = load_original_data_text(dataset_path)
+        inf = InferenceResults.load(
+            _get_inference_fname(version_dir, dataset_path))
+
+        if text and inf:
+            for x, y in zip(text, inf.raw):
+                if x:  # Ignore cases when the text is empty.
+                    cache.set(x, y)
+
+    return cache
+
+
+def inference(version_dir, dataset_local_path,
+              build_model_fn=None, generate_plots=True,
+              inference_cache: InferenceCache = None):
+    """
+    Inputs:
+        dataset_local_path: A .jsonl file to run inference on.
+            Each line should contain a "text" key.
+
+    Results will be stored in version_dir/inference
+    """
+
+    model = load_model(version_dir, build_model_fn)
+
+    # Run Inference on dataset
+    text = load_original_data_text(dataset_local_path)
+    if inference_cache:
+        # If using the cache, we first pick out the elements not in cache
+        # and send those for inference in batch.
+        to_infer = []
+        for t in text:
+            if inference_cache.get(t) is None:
+                to_infer.append(t)
+        _, raw = model.predict(to_infer)
+        # After we receive the results, update the cache.
+        for x, y in zip(to_infer, raw):
+            inference_cache.set(x, y)
+
+        # Finally, using the updated cache to populate all the raw results.
+        raw = []
+        for t in text:
+            # By now, all elements in text should have some results,
+            # so we can safely use [ ] to access.
+            raw.append(inference_cache.get(t))
+    else:
+        # If not using the cache, we just predict on all text.
+        _, raw = model.predict(text)
+
+    inference_results = InferenceResults(raw)
+
+    # Make sure the output dir exists and save it
+    inference_results.save(_get_inference_fname(
+        version_dir, dataset_local_path))
+
+    # Generate Plots
+    if generate_plots:
+        plot_results(version_dir, dataset_local_path, inference_results)
+
+    return model, inference_results
