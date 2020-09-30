@@ -91,53 +91,6 @@ def save_new_ar_for_user_db(dbsession, task_id, username,
         raise
 
 
-def save_new_ar_for_user(task_id, user_id, annotation_requests,
-                         clean_existing=True):
-    '''
-    Save a list of new annotation requests for a user (annotator).
-    Args:
-        task_id: -
-        user_id: -
-        annotation_requests: A list of dict objects
-        clean_existing: Optionally erase all existing requests
-    '''
-    # Save each file individually for fast random access.
-
-    # TODO save to Redis?
-    task = _Task.fetch(task_id)
-
-    basedir = [task.get_dir(), DIR_AREQ, str(user_id)]
-    _basedir = os.path.join(*basedir)
-
-    if clean_existing:
-        # Clean out all old requests first
-        if os.path.isdir(_basedir):
-            shutil.rmtree(_basedir)
-
-    mkd(*basedir)
-
-    # NOTE insert these in reverse order so the most recently created ones are
-    # the ones to be labeled first.
-    annotation_requests = annotation_requests[::-1]
-
-    # Save each annotation request request as a single file.
-    for req in annotation_requests:
-        path = basedir + [f"{req['ar_id']}.json"]
-        fname = os.path.join(*path)
-        save_json(fname, req)
-
-        # TODO this is SUPER hacky. I want to maintain order of the annotations
-        # because it would allow the most important datapoints to come first.
-        # However, on some OS, file modified time granularity is not good enough.
-        # So I space out all the saves a little bit.
-        # This means saving annotations for each user (for 100 tasks) takes a full second!
-        # This is a temporary fix.
-        time.sleep(1 / 100.)
-
-    # Return the dir holding all the AR's.
-    return _basedir
-
-
 def fetch_tasks_for_user(user_id):
     '''
     Return a list of task_id for which the user has annotation jobs to do.
