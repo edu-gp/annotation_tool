@@ -4,7 +4,8 @@ version: '3.4'
 x-volumes:
   &default-volumes
   - $GCLOUD_LOCAL_DIR:/root/.config/gcloud
-  - $GOOGLE_APPLICATION_CREDENTIALS_LOCAL_DIR:/root/.secret
+  # By default the credential location is under $GCLOUD_LOCAL_DIR/credentials. Unless it is customized, there is no need to use the next line.
+  #- $GOOGLE_APPLICATION_CREDENTIALS_LOCAL_DIR:/root/.secret
   - $FILESTORE_LOCAL_DIR:/app/__filestore
 
 services:
@@ -89,6 +90,9 @@ services:
         - POSTGRES_DB=$POSTGRES_DB
         - POSTGRES_USER=$POSTGRES_USER
         - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+    # To connect with the postgres server in docker, add your port forwarding
+    # ports:
+      # - "5432:5432"
 
 volumes:
   database-data:
