@@ -4,9 +4,15 @@ version: '3.4'
 x-volumes:
   &default-volumes
   - $GCLOUD_LOCAL_DIR:/root/.config/gcloud
-  # By default the credential location is under $GCLOUD_LOCAL_DIR/credentials. Unless it is customized, there is no need to use the next line.
+  # By default the credential location is under $GCLOUD_LOCAL_DIR/credentials.
+  # Unless it is customized, there is no need to use the next line.
   #- $GOOGLE_APPLICATION_CREDENTIALS_LOCAL_DIR:/root/.secret
   - $FILESTORE_LOCAL_DIR:/app/__filestore
+  # This is useful for local development if we want changes to take effect
+  # immediately without restarting the docker service. Note that this will
+  # restart all services. If you want to narrow down the scope of the change,
+  # specify a desired folder like $LOCAL_PROJECT_ROOT/db:/app/db
+  - $PWD:/app
 
 services:
 
