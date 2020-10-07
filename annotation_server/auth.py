@@ -6,7 +6,7 @@ from flask import (
 #from werkzeug.security import check_password_hash, generate_password_hash
 #from main_server.db import get_db
 
-from shared.frontend_path_finder import get_frontend_user_password
+from shared.annotation_server_path_finder import get_annotation_server_user_password
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -37,7 +37,7 @@ def login():
         # elif not check_password_hash(user['password'], password):
         #     error = 'Incorrect password.'
 
-        if get_frontend_user_password(username) != password:
+        if get_annotation_server_user_password(username) != password:
             error = 'Incorrect password.'
 
         if error is None:

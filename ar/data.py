@@ -21,7 +21,7 @@ from db.model import (
     update_instance, AnnotationType, get_or_create, AnnotationValue,
     delete_requests_for_user_under_task)
 from db._task import _Task, DIR_ANNO, DIR_AREQ
-from shared.frontend_path_finder import generate_frontend_compare_link
+from shared.annotation_server_path_finder import generate_annotation_server_compare_link
 from shared.utils import save_jsonl, load_json, save_json, mkf, mkd, \
     PrettyDefaultDict
 
@@ -195,7 +195,7 @@ def construct_annotation_dict(dbsession, annotation_id) -> Dict:
         #  have annotations but not annotation requests in my local db and
         #  they are not from Salesforce. Weird...
         #  I can't run backfill on the context column so I have to hardcode
-        #  a text field to show the description on the frontend.
+        #  a text field to show the description on the annotation server.
         result.update({
             'data': {"text": context}
         })
@@ -774,7 +774,7 @@ def _construct_kappa_analysis_link_dict(kappa_matrices, task_id):
                 user2 = index[j]
                 if user1 != user2:
                     kappa_analysis_links_dict[label][(user1, user2)] = \
-                        generate_frontend_compare_link(
+                        generate_annotation_server_compare_link(
                             task_id=task_id,
                             label=label,
                             users_dict={

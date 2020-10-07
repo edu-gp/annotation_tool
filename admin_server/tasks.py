@@ -28,9 +28,9 @@ from train.no_deps.utils import get_env_bool
 from shared.celery_job_status import (
     CeleryJobStatus, create_status, delete_status
 )
-from shared.frontend_path_finder import (
-    generate_frontend_user_login_link, generate_frontend_admin_examine_link,
-    generate_frontend_compare_link
+from shared.annotation_server_path_finder import (
+    generate_annotation_server_user_login_link, generate_annotation_server_admin_examine_link,
+    generate_annotation_server_compare_link
 )
 from shared.utils import (
     get_env_int, stem, list_to_textarea, textarea_to_list, get_entropy,
@@ -138,18 +138,18 @@ def show(id):
 
     # Annotator login links
     annotator_login_links = [
-        (username, generate_frontend_user_login_link(username))
+        (username, generate_annotation_server_user_login_link(username))
         for username in task.get_annotators()
     ]
 
     # Admin Examine Links
     admin_examine_links = [
-        (username, generate_frontend_admin_examine_link(id, username))
+        (username, generate_annotation_server_admin_examine_link(id, username))
         for username in task.get_annotators()
     ]
 
     kappa_analysis_for_all_users_links = {
-        label: generate_frontend_compare_link(id, label)
+        label: generate_annotation_server_compare_link(id, label)
         for label in task.get_labels()
     }
 

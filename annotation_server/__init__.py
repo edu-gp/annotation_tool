@@ -21,8 +21,8 @@ if os.environ.get("USE_CLOUD_LOGGING"):
     client = glog.Client()
 
     handler = CloudLoggingHandler(client,
-                                  name=os.environ.get("FRONTEND_LOGGER",
-                                                      "alchemy-frontend"))
+                                  name=os.environ.get("ANNOTATION_SERVER_LOGGER",
+                                                      "alchemy-annotation-server"))
     logging.getLogger().setLevel(logging.INFO)
     setup_logging(handler)
 
@@ -81,7 +81,7 @@ def create_app(test_config=None):
 
 
 '''
-env FLASK_APP=frontend FLASK_ENV=development flask init-db
+env FLASK_APP=annotation_server FLASK_ENV=development flask init-db
 
-env FLASK_APP=frontend FLASK_ENV=development flask run
+env FLASK_APP=annotation_server FLASK_ENV=development flask run
 '''

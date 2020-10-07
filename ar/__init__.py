@@ -257,11 +257,11 @@ def _merge_pattern_decor_for_all_labels_recursive(
     using a recursive merge like the logic in merge sort.
 
     As discussed, we decided to show all the pattern matches from different
-    labels together on the frontend with the same color for now. This may
+    labels together on the annotation server with the same color for now. This may
     cause some confusion as there may be overlap of matching positions from
     different labels. For example, one match could be (5, 7) from label A
     and the other could be (6, 9) from label B. In this case, (5, 9) will be
-    highlighted since the frontend will highlight both (5, 7) and (6,
+    highlighted since the annotation server will highlight both (5, 7) and (6,
     9) separately. Since we use the same color, it appears as we are
     highlighting (5, 9) as one match.
 

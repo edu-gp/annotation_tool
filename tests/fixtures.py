@@ -20,9 +20,9 @@ def backend_client(monkeypatch, tmp_path):
 
 
 @pytest.fixture
-def frontend_client(monkeypatch, tmp_path):
+def annotation_server_client(monkeypatch, tmp_path):
     monkeypatch.setenv('ALCHEMY_FILESTORE_DIR', str(tmp_path))
-    monkeypatch.setenv('ANNOTATION_TOOL_FRONTEND_SECRET', 'asdsad')
+    monkeypatch.setenv('ANNOTATION_TOOL_ANNOTATION_SERVER_SECRET', 'asdsad')
 
     app = create_annotation_server_app(TestingConfig)
 
