@@ -61,7 +61,7 @@ def show(id):
 @login_required
 def examine(task_id, user_under_exam):
     # TODO we should add UserRole control. Right now I'm just assuming only
-    #  the admin can see the backend control page.
+    #  the admin can see the admin server control page.
     task = db.session.query(Task).filter(Task.id == task_id).first()
     annotation_entity_and_ids_done_by_user_for_task = \
         fetch_annotation_entity_and_ids_done_by_user_under_labels(

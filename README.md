@@ -5,14 +5,14 @@ Create an `.env` file or pass in your own environment vars to override configura
 e.g.
 
 ```
-env ANNOTATION_TOOL_BACKEND_PASSWORD=1234 flask run
+env ANNOTATION_TOOL_ADMIN_SERVER_PASSWORD=1234 flask run
 ```
 
 Or use the --env or --env-file args for Docker.
 
 Descriptions of the env vars:
 
-- `ANNOTATION_TOOL_BACKEND_PASSWORD`: The password to login to the backend (admin dashboard).
+- `ANNOTATION_TOOL_ADMIN_SERVER_PASSWORD`: The password to login to the backend (admin dashboard).
 - `ANNOTATION_TOOL_ANNOTATION_SERVER_SECRET`: The secret used to generate login links for annotators. If you change this, all login links will change.
 - `ANNOTATION_TOOL_ANNOTATION_SERVER_SERVER`: URL of annotation server, e.g. `http://localhost:5001`.
 - `ANNOTATION_TOOL_TASKS_DIR`: Where all the tasks and their related annotations and models are stored. Default is `./__tasks`
@@ -31,7 +31,7 @@ Descriptions of the env vars:
 - `CLOUDSDK_COMPUTE_REGION`: The GCP region, e.g. "us-central1". You must set this in order for Google AI Platform to work.
 - `GCP_PROJECT_ID`: The id of the current project on GCP.
 - `DB_URL_FOR_MIGRATION`: The link to the database instance when running migration.
-- `BACKEND_LOGGER`: The logger name for the alchemy backend server.
+- `ADMIN_SERVER_LOGGER`: The logger name for the alchemy admin server.
 - `ANNOTATION_SERVER_LOGGER`: The logger name for the alchemy annotation server.
 - `INFERENCE_OUTPUT_PUBSUB_TOPIC_DEV`: The PubSub topic name for inference output on the dev stage.
 - `INFERENCE_OUTPUT_PUBSUB_TOPIC_BETA`: The PubSub topic name for inference output on the beta stage.

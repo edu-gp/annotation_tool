@@ -6,9 +6,9 @@ from annotation_server import create_app as create_annotation_server_app
 
 
 @pytest.fixture
-def backend_client(monkeypatch, tmp_path):
+def admin_server_client(monkeypatch, tmp_path):
     monkeypatch.setenv('ALCHEMY_FILESTORE_DIR', str(tmp_path))
-    monkeypatch.setenv('ANNOTATION_TOOL_BACKEND_PASSWORD', 'password')
+    monkeypatch.setenv('ANNOTATION_TOOL_ADMIN_SERVER_PASSWORD', 'password')
 
     app = create_admin_server_app(TestingConfig)
 

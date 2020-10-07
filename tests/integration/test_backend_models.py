@@ -6,7 +6,7 @@ from tests.utils import create_example_model
 from shared.utils import load_jsonl
 
 
-def test_export_new_raw_data(backend_client):
+def test_export_new_raw_data(admin_server_client):
     ctx = create_example_model(db.session)
 
     from db.model import Model
@@ -25,7 +25,7 @@ def test_export_new_raw_data(backend_client):
         'cutoff': '0.9'
     }
 
-    response = backend_client.post(
+    response = admin_server_client.post(
         '/models/export_new_raw_data',
         data=json.dumps(data),
         headers=headers
