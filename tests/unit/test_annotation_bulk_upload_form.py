@@ -1,5 +1,5 @@
-from backend.annotations import _upsert_annotations
-from backend.annotations_utils import _parse_list, parse_form, \
+from admin_server.annotations import _upsert_annotations
+from admin_server.annotations_utils import _parse_list, parse_form, \
     parse_bulk_upload_v2_form
 import pytest
 

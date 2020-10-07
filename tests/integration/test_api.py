@@ -1,6 +1,6 @@
-from backend.external_services import SecretManagerService
+from admin_server.external_services import SecretManagerService
 from tests.fixtures import *
-from backend import api
+from admin_server import api
 
 
 def test_hc(backend_client):

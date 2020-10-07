@@ -1,4 +1,4 @@
-from backend.api import (
+from admin_server.api import (
     get_bearer_token
 )
 

@@ -3,7 +3,7 @@ import os
 import tempfile
 import json
 
-from backend.external_services import GCPPubSubService
+from admin_server.external_services import GCPPubSubService
 from shared.utils import load_jsonl
 from train.gs_url import (
     build_raw_data_url, build_model_inference_url, build_prod_inference_url,
