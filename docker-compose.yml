@@ -16,7 +16,7 @@ x-volumes:
 
 services:
 
-  backend:
+  admin_server:
     env_file: .env
     build:
       context: .
@@ -35,7 +35,7 @@ services:
       - redis
       - db
 
-  frontend:
+  annotation_server:
     env_file: .env
     image: *img
     ports:
@@ -50,7 +50,7 @@ services:
     depends_on:
       - redis
       - db
-      - backend
+      - admin_server
 
   ar_celery:
     env_file: .env
@@ -60,7 +60,7 @@ services:
     depends_on:
       - redis
       - db
-      - backend
+      - admin_server
 
   train_celery:
     env_file: .env
@@ -70,7 +70,7 @@ services:
     depends_on:
       - redis
       - db
-      - backend
+      - admin_server
 
   gcp_celery:
     env_file: .env
@@ -80,7 +80,7 @@ services:
     depends_on:
       - redis
       - db
-      - backend
+      - admin_server
 
   # TODO flower -- see if it works now
   # command=flower --port=5555 --broker=redis://localhost:6379/0
