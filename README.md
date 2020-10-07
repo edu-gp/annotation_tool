@@ -55,5 +55,6 @@ Add a Firewall group, then tag your instance with that group.
 # Tests
 
 ```
-pytest
+# Specify the test folder can reduce the time of compiling tests.
+pytest tests/
 ```
