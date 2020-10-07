@@ -12,7 +12,7 @@ x-volumes:
   # immediately without restarting the docker service. Note that this will
   # restart all services. If you want to narrow down the scope of the change,
   # specify a desired folder like $LOCAL_PROJECT_ROOT/db:/app/db
-  - $LOCAL_PROJECT_ROOT:/app
+  - $PWD:/app
 
 services:
 
