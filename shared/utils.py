@@ -178,7 +178,7 @@ def get_entropy(annos: List[Optional[int]], eps=0.0001):
 @dataclass
 class WeightedVote:
     value: 'typing.Any'
-    weight: float
+    weight: float = 1.0
 
 
 def get_weighted_majority_vote(annos: List[WeightedVote],
