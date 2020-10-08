@@ -2,7 +2,7 @@ import logging
 import os
 from flask import Blueprint, request, abort
 
-from backend.external_services import SecretManagerService
+from admin_server.external_services import SecretManagerService
 from train.train_celery import submit_gcp_inference_on_new_file
 
 bp = Blueprint('api', __name__, url_prefix='/api')

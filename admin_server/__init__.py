@@ -17,8 +17,8 @@ if os.environ.get("USE_CLOUD_LOGGING"):
     client = glog.Client()
 
     handler = CloudLoggingHandler(client,
-                                  name=os.environ.get("BACKEND_LOGGER",
-                                                      "alchemy-backend"))
+                                  name=os.environ.get("ADMIN_SERVER_LOGGER",
+                                                      "alchemy-admin-server"))
     logging.getLogger().setLevel(logging.INFO)
     setup_logging(handler)
 
@@ -108,7 +108,7 @@ def create_app(test_config=None):
 
 
 '''
-env FLASK_APP=backend FLASK_ENV=development flask init-db
+env FLASK_APP=admin_server FLASK_ENV=development flask init-db
 
-env FLASK_APP=backend FLASK_ENV=development flask run
+env FLASK_APP=admin_server FLASK_ENV=development flask run
 '''

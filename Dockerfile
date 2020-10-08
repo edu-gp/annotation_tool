@@ -1,9 +1,21 @@
 FROM python:3.7-slim
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+	 build-essential \
+         wget \
+         curl \
+         git && \
+     rm -rf /var/lib/apt/lists/*
+
 WORKDIR /base
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt
+
+# Have to add back these two lines. Otherwise the test will fail due to missing dependencies.
+RUN pip install torch==1.6.0+cu101 torchvision==0.7.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html
+RUN pip install simpletransformers matplotlib seaborn
+
 RUN python -m spacy download en_core_web_sm
 
 # ----------- GOOGLE CLOUD -----------

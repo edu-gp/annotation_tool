@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from backend.external_services import GCPPubSubService
+from admin_server.external_services import GCPPubSubService
 from train.gs_utils import _message_constructor_alchemy_to_gdp
 
 

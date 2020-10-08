@@ -9,17 +9,17 @@ class Config:
     This module is designed to fail loudly when a required env var is not found.
     """
     @staticmethod
-    def get_backend_password():
-        return environ['ANNOTATION_TOOL_BACKEND_PASSWORD']
+    def get_admin_server_password():
+        return environ['ANNOTATION_TOOL_ADMIN_SERVER_PASSWORD']
 
     @staticmethod
-    def get_frontend_secret():
-        return environ['ANNOTATION_TOOL_FRONTEND_SECRET']
+    def get_annotation_server_secret():
+        return environ['ANNOTATION_TOOL_ANNOTATION_SERVER_SECRET']
 
     @staticmethod
-    def get_frontend_server():
+    def get_annotation_server():
         '''e.g. http://localhost:5001'''
-        return environ['ANNOTATION_TOOL_FRONTEND_SERVER']
+        return environ['ANNOTATION_TOOL_ANNOTATION_SERVER_SERVER']
 
     @staticmethod
     def get_tasks_dir():
