@@ -976,17 +976,17 @@ def _reformat_metrics(metrics):
 
     for metric in test_metrics:
         test_metrics[metric] = _format_float_numbers(test_metrics[metric])
-
     logging.info(metrics)
 
     return metrics
 
 
-def _format_float_numbers(nums):
+def _format_float_numbers(nums, precision_string="{:.2f}"):
     if isinstance(nums, list):
-        return [float("{:.2f}".format(num)) if not numpy.isnan(num) else num
-                for num in nums]
+        return [float(precision_string.format(num)) if not numpy.isnan(num)
+                else num for num in nums]
     elif isinstance(nums, float):
-        return float("{:.2f}".format(nums)) if not numpy.isnan(nums) else nums
+        return float(precision_string.format(nums)) if not numpy.isnan(nums) \
+            else nums
     else:
         return nums
