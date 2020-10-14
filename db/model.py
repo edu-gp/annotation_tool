@@ -10,7 +10,7 @@ import pickle
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine, inspect, UniqueConstraint, MetaData, \
-    Boolean, desc, orm
+    Boolean, desc
 from sqlalchemy.schema import ForeignKey, Column
 from sqlalchemy.types import Integer, Float, String, JSON, DateTime
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
