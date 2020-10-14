@@ -316,7 +316,10 @@ def download_prediction():
         all_annos = []
         for anno in res:
             # we want a column to group the value and weight together.
-            anno = anno + (WeightedVote(value=anno[2], weight=anno[3]), )
+            if anno[3] and anno[3] > 0:
+                anno = anno + (WeightedVote(value=anno[2], weight=anno[3]), )
+            else:
+                anno = anno + (WeightedVote(value=anno[2]),)
             all_annos.append(anno)
 
         # Convert query result into a dataframe
