@@ -1,6 +1,7 @@
 import logging
 import os
 
+from envparse import env
 from flask import (
     Flask, render_template, g
 )
@@ -12,7 +13,7 @@ from .auth import login_required
 from alchemy.ar.data import fetch_tasks_for_user_from_db
 
 
-if os.environ.get("USE_CLOUD_LOGGING"):
+if env.bool("USE_CLOUD_LOGGING", default=False):
     from google.cloud import logging as glog
     from google.cloud.logging.handlers import CloudLoggingHandler, setup_logging
 
