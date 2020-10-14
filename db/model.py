@@ -3,12 +3,14 @@ import logging
 import copy
 import os
 import urllib.parse
+
+import numpy
 import pandas as pd
 import pickle
 from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import create_engine, inspect, UniqueConstraint, MetaData, \
-    Boolean, distinct, desc
+    Boolean, desc, orm
 from sqlalchemy.schema import ForeignKey, Column
 from sqlalchemy.types import Integer, Float, String, JSON, DateTime
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
@@ -64,6 +66,7 @@ class Database:
     def from_config(config):
         return Database(config.SQLALCHEMY_DATABASE_URI)
 
+
 # =============================================================================
 # Enums
 
@@ -102,6 +105,7 @@ class AnnotationValue:
 # A dummy entity is used to store the value of a label that don't have any real
 # annotations yet, but we want to show it to the user as an option.
 DUMMY_ENTITY = '__dummy__'
+
 
 # =============================================================================
 # Tables
@@ -231,8 +235,10 @@ def majority_vote_annotations_query(dbsession, label):
     ) \
         .filter_by(label=label) \
         .filter(ClassificationAnnotation.value != AnnotationValue.UNSURE) \
-        .filter(ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED) \
-        .group_by(ClassificationAnnotation.entity, ClassificationAnnotation.value)
+        .filter(
+        ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED) \
+        .group_by(ClassificationAnnotation.entity,
+                  ClassificationAnnotation.value)
 
     q1 = q1.cte('weight_query')
     """
@@ -344,7 +350,8 @@ class ModelDeploymentConfig(Base):
     threshold = Column(Float, default=0.5)
 
     @staticmethod
-    def get_selected_for_deployment(dbsession) -> List['ModelDeploymentConfig']:
+    def get_selected_for_deployment(dbsession) -> List[
+        'ModelDeploymentConfig']:
         """Return all ModelDeploymentConfig's that are selected for deployment.
         """
         return dbsession.query(ModelDeploymentConfig).filter_by(
@@ -425,7 +432,6 @@ class Model(Base):
         # Model is ready when it has a metrics file.
         return self.get_metrics() is not None
 
-    # TODO deprecate in favor of compute_metrics
     def get_metrics(self):
         return self._load_json(_get_metrics_fname)
 
@@ -473,7 +479,6 @@ class Model(Base):
 
     def compute_metrics(self, threshold: float = 0.5):
         """See train.no_deps.compute_metrics"""
-
         version_dir = self.dir(abs=True)
 
         # TODO retire the old metrics.json
@@ -498,7 +503,11 @@ class Model(Base):
                 version_dir, inf_lookup, threshold=threshold)
             pickle.dump(metrics, open(metrics_path, "wb"))
 
-        return pickle.load(open(metrics_path, "rb"))
+        metrics = pickle.load(open(metrics_path, "rb"))
+
+        metrics = _reformat_metrics(metrics)
+
+        return metrics
 
 
 class TextClassificationModel(Model):
@@ -748,6 +757,7 @@ class LabelPatterns(Base):
         else:
             return 0
 
+
 # =============================================================================
 # Convenience Functions
 
@@ -774,7 +784,7 @@ def get_or_create(dbsession, model, exclude_keys_in_retrieve=None, **kwargs):
         read_kwargs.pop(key, None)
 
     try:
-        instance = dbsession.query(model).\
+        instance = dbsession.query(model). \
             filter_by(**read_kwargs).one_or_none()
         if instance:
             return instance
@@ -815,7 +825,7 @@ def save_labels_by_entity_type(dbsession, entity_type: str, labels: List[str]):
 
 
 def fetch_ar_ids_by_task_and_user(dbsession, task_id, username):
-    res = dbsession.query(AnnotationRequest).\
+    res = dbsession.query(AnnotationRequest). \
         filter(AnnotationRequest.task_id == task_id,
                User.username == username).join(User).all()
     return [ar.id for ar in res]
@@ -897,7 +907,6 @@ def delete_requests_under_task(dbsession, task_id):
 
 def get_latest_model_for_label(dbsession, label,
                                model_type="text_classification_model"):
-
     return dbsession.query(Model) \
         .filter_by(label=label,
                    type=model_type) \
@@ -949,3 +958,35 @@ def load_inference(version_dir: str, dataset_filename: str,
         df['name'] = df['meta'].apply(lambda x: x.get('name'))
 
     return df[columns]
+
+
+def _reformat_metrics(metrics):
+    logging.info("Reformatting metrics")
+    train_metrics = metrics["train"]
+    test_metrics = metrics["test"]
+
+    logging.info("Train metrics are: ")
+    logging.info(train_metrics)
+
+    logging.info("Testing metrics are: ")
+    logging.info(test_metrics)
+
+    for metric in train_metrics:
+        train_metrics[metric] = _format_float_numbers(train_metrics[metric])
+
+    for metric in test_metrics:
+        test_metrics[metric] = _format_float_numbers(test_metrics[metric])
+
+    logging.info(metrics)
+
+    return metrics
+
+
+def _format_float_numbers(nums):
+    if isinstance(nums, list):
+        return [float("{:.2f}".format(num)) if not numpy.isnan(num) else num
+                for num in nums]
+    elif isinstance(nums, float):
+        return float("{:.2f}".format(nums)) if not numpy.isnan(nums) else nums
+    else:
+        return nums
