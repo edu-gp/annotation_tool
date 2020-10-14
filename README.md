@@ -39,6 +39,7 @@ Descriptions of the env vars:
 - `ENV_STAGE`: Environment stage name.
 - `API_TOKEN_NAME`: The secret name for the inference API token.
 - `INFERENCE_OUTPUT_DATA_SOURCE_NAME_FOR_PUBSUB`: The inference output dataset source name for pubsub.
+- `USE_CLOUD_LOGGING`: Use GCP logging instead of the default logging. If set to true, `ADMIN_SERVER_LOGGGER` and `ANNOTATION_SERVER_LOGGER` must be set properly.
 
 New env vars:
 
