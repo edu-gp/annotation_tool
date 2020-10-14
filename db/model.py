@@ -18,7 +18,8 @@ from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 from shared.utils import (
-    gen_uuid, stem, file_len, load_json, load_jsonl, safe_getattr)
+    gen_uuid, stem, file_len, load_json, load_jsonl, safe_getattr,
+    _format_float_numbers)
 from db.fs import (
     filestore_base_dir, RAW_DATA_DIR, TRAINING_DATA_DIR
 )
@@ -979,14 +980,3 @@ def _reformat_metrics(metrics):
     logging.info(metrics)
 
     return metrics
-
-
-def _format_float_numbers(nums, precision_string="{:.2f}"):
-    if isinstance(nums, list):
-        return [float(precision_string.format(num)) if not numpy.isnan(num)
-                else num for num in nums]
-    elif isinstance(nums, float):
-        return float(precision_string.format(nums)) if not numpy.isnan(nums) \
-            else nums
-    else:
-        return nums
