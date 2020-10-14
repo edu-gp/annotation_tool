@@ -1,4 +1,4 @@
-from db.model import AnnotationGuide
+from alchemy.db.model import AnnotationGuide
 
 
 def test_plaintext_to_html():

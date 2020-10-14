@@ -1,4 +1,4 @@
-from train.no_deps.paths import (
+from alchemy.train.no_deps.paths import (
     _inference_fnames_to_datasets
 )
 

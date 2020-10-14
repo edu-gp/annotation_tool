@@ -1,4 +1,4 @@
-from db.model import (
+from alchemy.db.model import (
     User, AnnotationRequest, AnnotationType, AnnotationRequestStatus,
     ClassificationAnnotation,
 )

@@ -1,6 +1,6 @@
 from pandas import np
 
-from shared.utils import (
+from alchemy.shared.utils import (
     stem,
     list_to_textarea, textarea_to_list,
     json_lookup,

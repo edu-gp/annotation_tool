@@ -26,7 +26,7 @@ services:
       - "5000:5000"
     volumes: *default-volumes
     environment:
-      - FLASK_APP=admin_server
+      - FLASK_APP=alchemy/admin_server
       - FLASK_ENV=development
       - FLASK_RUN_HOST=0.0.0.0
       - FLASK_RUN_PORT=5000
@@ -42,7 +42,7 @@ services:
       - "5001:5001"
     volumes: *default-volumes
     environment:
-      - FLASK_APP=annotation_server
+      - FLASK_APP=alchemy/annotation_server
       - FLASK_ENV=development
       - FLASK_RUN_HOST=0.0.0.0
       - FLASK_RUN_PORT=5001
@@ -56,7 +56,7 @@ services:
     env_file: .env
     image: *img
     volumes: *default-volumes
-    command: ["celery", "--app=ar.ar_celery", "worker", "-Q", "ar_celery", "-c", "2", "--autoscale=100,2", "-l", "info", "--max-tasks-per-child", "1", "-n", "ar_celery"]
+    command: ["celery", "--app=alchemy.ar.ar_celery", "worker", "-Q", "ar_celery", "-c", "2", "--autoscale=100,2", "-l", "info", "--max-tasks-per-child", "1", "-n", "ar_celery"]
     depends_on:
       - redis
       - db
@@ -66,7 +66,7 @@ services:
     env_file: .env
     image: *img
     volumes: *default-volumes
-    command: ["celery", "--app=train.train_celery", "worker", "-Q", "train_celery", "-c", "2", "--autoscale=100,2", "-l", "info", "--max-tasks-per-child", "1", "-n", "train_celery"]
+    command: ["celery", "--app=alchemy.train.train_celery", "worker", "-Q", "train_celery", "-c", "2", "--autoscale=100,2", "-l", "info", "--max-tasks-per-child", "1", "-n", "train_celery"]
     depends_on:
       - redis
       - db
@@ -76,7 +76,7 @@ services:
     env_file: .env
     image: *img
     volumes: *default-volumes
-    command: ["celery", "--app=train.gcp_celery", "worker", "-Q", "gcp_celery", "-c", "5", "--autoscale=100,2", "-l", "info", "-n", "gcp_celery"]
+    command: ["celery", "--app=alchemy.train.gcp_celery", "worker", "-Q", "gcp_celery", "-c", "5", "--autoscale=100,2", "-l", "info", "-n", "gcp_celery"]
     depends_on:
       - redis
       - db

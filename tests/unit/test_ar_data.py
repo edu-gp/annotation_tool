@@ -1,8 +1,8 @@
-from ar.data import (
+from alchemy.ar.data import (
     _majority_label,
     _compute_total_distinct_number_of_annotated_entities_for_label
 )
-from db.model import User, ClassificationAnnotation
+from alchemy.db.model import User, ClassificationAnnotation
 
 
 def test_majority_label():

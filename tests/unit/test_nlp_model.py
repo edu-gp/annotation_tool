@@ -1,6 +1,6 @@
 from tests.utils import create_example_model
-from db.model import Model
-from inference.nlp_model import (
+from alchemy.db.model import Model
+from alchemy.inference.nlp_model import (
     NLPModel, NLPModelTopResults, NLPModelBottomResults
 )
 

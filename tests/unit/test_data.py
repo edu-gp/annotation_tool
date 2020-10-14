@@ -3,9 +3,9 @@ from collections import namedtuple
 
 import pandas as pd
 import numpy as np
-from sqlalchemy import distinct, func
+from sqlalchemy import func
 
-from ar.data import _compute_kappa_matrix, \
+from alchemy.ar.data import _compute_kappa_matrix, \
     _compute_number_of_annotations_done_per_user, \
     _exclude_unknowns_for_kappa_calculation, \
     _retrieve_annotation_with_same_entity_shared_by_two_users, \
@@ -16,11 +16,11 @@ from ar.data import _compute_kappa_matrix, \
     _compute_num_of_annotations_per_value, PrettyDefaultDict, \
     fetch_annotated_ar_ids_from_db, fetch_ar_ids, construct_ar_request_dict, \
     _construct_comparison_df
-from db.model import User, ClassificationAnnotation, \
+from alchemy.db.model import User, ClassificationAnnotation, \
     AnnotationRequest, AnnotationType, AnnotationRequestStatus, Task, \
     update_instance, AnnotationValue, delete_requests_for_user_under_task, \
     delete_requests_for_label_under_task, delete_requests_under_task, \
-    delete_requests_for_entity_type_under_task, Model
+    delete_requests_for_entity_type_under_task
 
 ENTITY_TYPE = 'blah'
 

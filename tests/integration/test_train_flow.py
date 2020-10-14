@@ -2,27 +2,27 @@ from typing import List
 import os
 import numpy as np
 
-from db.model import (
+from alchemy.db.model import (
     Task, ClassificationAnnotation, User, EntityTypeEnum,
     majority_vote_annotations_query)
-from db.fs import RAW_DATA_DIR
+from alchemy.db.fs import RAW_DATA_DIR
 
-from train.no_deps.run import (
+from alchemy.train.no_deps.run import (
     train_model, inference, build_inference_cache
 )
-from train.no_deps.paths import (
+from alchemy.train.no_deps.paths import (
     # Train Model
     _get_data_parser_fname,
     _get_metrics_fname,
     # Model Inference
     _get_inference_fname,
 )
-from train.no_deps.inference_results import InferenceResults
-from train.no_deps.utils import BINARY_CLASSIFICATION
+from alchemy.train.no_deps.inference_results import InferenceResults
+from alchemy.train.no_deps.utils import BINARY_CLASSIFICATION
 
-from train.prep import prepare_next_model_for_label
+from alchemy.train.prep import prepare_next_model_for_label
 
-from shared.utils import save_jsonl, load_jsonl, load_json
+from alchemy.shared.utils import save_jsonl, load_jsonl, load_json
 
 LABEL = 'IsTall'
 

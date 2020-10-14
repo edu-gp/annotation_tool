@@ -1,10 +1,9 @@
-import pytest
 import sqlalchemy
 from mockito import when
 from sqlalchemy.exc import ArgumentError
 from tests.sqlalchemy_conftest import *
 from tests.utils import fake_train_model
-from db.model import TextClassificationModel, get_or_create, User
+from alchemy.db.model import TextClassificationModel, get_or_create, User
 
 
 def test_default_uuid_and_version(dbsession):

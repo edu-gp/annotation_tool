@@ -1,4 +1,4 @@
-from db.model import AnnotationRequest, User, Task, AnnotationType
+from alchemy.db.model import AnnotationRequest, User, Task, AnnotationType
 
 
 def _populate_db(dbsession):

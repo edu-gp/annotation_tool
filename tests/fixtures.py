@@ -1,8 +1,8 @@
 import pytest
-from db.config import TestingConfig
-from db.model import db
-from admin_server import create_app as create_admin_server_app
-from annotation_server import create_app as create_annotation_server_app
+from alchemy.db.config import TestingConfig
+from alchemy.db.model import db
+from alchemy.admin_server import create_app as create_admin_server_app
+from alchemy.annotation_server import create_app as create_annotation_server_app
 
 
 @pytest.fixture

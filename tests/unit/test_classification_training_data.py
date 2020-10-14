@@ -1,10 +1,9 @@
-from db.model import (
+from alchemy.db.model import (
     User, ClassificationAnnotation,
-    ClassificationTrainingData,
-    majority_vote_annotations_query)
+    ClassificationTrainingData)
 import os
-from db.fs import filestore_base_dir
-from shared.utils import load_jsonl
+from alchemy.db.fs import filestore_base_dir
+from alchemy.shared.utils import load_jsonl
 
 ENTITY_TYPE = "Foo"
 LABEL = "MyLabel"

@@ -1,6 +1,4 @@
-from flask import url_for
-
-from shared.annotation_server_path_finder import get_annotation_server_user_password, \
+from alchemy.shared.annotation_server_path_finder import get_annotation_server_user_password, \
     generate_annotation_server_user_login_link, generate_annotation_server_compare_link
 
 

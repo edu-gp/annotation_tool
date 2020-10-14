@@ -1,6 +1,6 @@
 from functools import cmp_to_key
 
-from inference.pattern_model import PatternModel, \
+from alchemy.inference.pattern_model import PatternModel, \
     _maximize_non_overlapping_matches, _compare_matches
 
 import pytest

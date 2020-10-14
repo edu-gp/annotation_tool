@@ -1,4 +1,4 @@
-from db.model import (
+from alchemy.db.model import (
     ClassificationAnnotation,
     fetch_labels_by_entity_type, save_labels_by_entity_type
 )

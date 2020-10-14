@@ -1,4 +1,4 @@
-from ar.utils import get_ar_id
+from alchemy.ar.utils import get_ar_id
 
 
 def test_get_ar_id():

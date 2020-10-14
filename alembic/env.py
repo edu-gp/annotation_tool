@@ -29,7 +29,7 @@ fileConfig(config.config_file_name)
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-from db.model import metadata
+from alchemy.db.model import metadata
 target_metadata = metadata
 
 # other values from the config, defined by the needs of env.py,

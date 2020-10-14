@@ -2,8 +2,8 @@
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-from db.model import Base as BaseModel
-from db.config import TestingConfig
+from alchemy.db.model import Base as BaseModel
+from alchemy.db.config import TestingConfig
 import pytest
 
 

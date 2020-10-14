@@ -1,9 +1,10 @@
-from train.gcp_job import (
+from alchemy.train.gcp_job import (
     build_job_config,
     GoogleAIPlatformJob,
     ModelDefn
 )
-from train import gcp_job
+
+from alchemy.train import gcp_job
 
 
 def test_build_job_config_simple(monkeypatch):

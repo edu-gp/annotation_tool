@@ -1,6 +1,6 @@
 import os
 import pytest
-from db.model import TextClassificationModel
+from alchemy.db.model import TextClassificationModel
 from tests.utils import create_example_model
 
 
@@ -11,8 +11,8 @@ def test_export_new_raw_data(dbsession, monkeypatch, tmp_path):
 
     model = dbsession.query(TextClassificationModel).first()
 
-    from bg.jobs import export_new_raw_data
-    from shared.utils import load_jsonl
+    from alchemy.bg.jobs import export_new_raw_data
+    from alchemy.shared.utils import load_jsonl
 
     fname = 'test_export_new_raw_data.jsonl'
 

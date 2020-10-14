@@ -1,15 +1,15 @@
-from tests.fixtures import *
 import os
 import json
-from db.model import db, _raw_data_file_path
+from alchemy.db.model import db, _raw_data_file_path
 from tests.utils import create_example_model
-from shared.utils import load_jsonl
+from alchemy.shared.utils import load_jsonl
+from tests.fixtures import admin_server_client
 
 
 def test_export_new_raw_data(admin_server_client):
     ctx = create_example_model(db.session)
 
-    from db.model import Model
+    from alchemy.db.model import Model
     model = db.session.query(Model).first()
     assert model is not None
 
