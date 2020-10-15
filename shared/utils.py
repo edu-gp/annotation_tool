@@ -2,7 +2,7 @@ import hashlib
 import json
 import logging
 import os
-import random
+import numpy
 import uuid
 from collections import defaultdict, Counter
 from dataclasses import dataclass
@@ -217,3 +217,14 @@ def __is_valid(anno, invalid_values):
     if anno.value in invalid_values and not pd.isna(anno.weight):
         return False
     return True
+
+
+def _format_float_numbers(nums, precision_format="{:.2f}"):
+    if isinstance(nums, list):
+        return [float(precision_format.format(num)) if not numpy.isnan(num)
+                else num for num in nums]
+    elif isinstance(nums, float):
+        return float(precision_format.format(nums)) if not numpy.isnan(nums) \
+            else nums
+    else:
+        return nums
