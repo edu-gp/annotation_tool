@@ -45,7 +45,7 @@ WORKDIR /root
 
 # Installs pytorch and torchvision.
 RUN pip install torch==1.6.0+cu101 torchvision==0.7.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html
-RUN pip install simpletransformers matplotlib seaborn
+RUN pip install simpletransformers matplotlib seaborn envparse==0.2.0
 
 # --- GCP stuff ---
 
