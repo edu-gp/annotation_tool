@@ -1,5 +1,5 @@
 import logging
-import os
+from envparse import env
 from flask import Blueprint, request, abort
 
 from alchemy.admin_server.external_services import SecretManagerService
@@ -22,9 +22,9 @@ def _before_request():
     if not request.endpoint.endswith('.healthcheck'):
         # Check token auth
         try:
-            target_token = os.environ.get('API_TOKEN', None) or \
-                           SecretManagerService.get_secret(project_id=os.environ.get("GCP_PROJECT_ID"),
-                                                           secret_id=os.environ.get("API_TOKEN_NAME"))
+            target_token = env('API_TOKEN', None) or \
+                           SecretManagerService.get_secret(project_id=env("GCP_PROJECT_ID"),
+                                                           secret_id=env("API_TOKEN_NAME"))
         except Exception as e:
             logging.error(e)
             target_token = None

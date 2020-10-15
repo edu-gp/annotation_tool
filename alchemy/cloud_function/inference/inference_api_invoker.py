@@ -3,6 +3,7 @@ import json
 import os
 import uuid
 
+from envparse import env
 import requests
 from google.cloud import storage, secretmanager
 
@@ -34,7 +35,7 @@ def handler(request):
         source_bucket = storage_client.bucket(source_bucket_name)
         source_blob = source_bucket.blob(source_blob_name)
 
-        destination_bucket_name = os.environ.get('ALCHEMY_BUCKET')
+        destination_bucket_name = env('ALCHEMY_BUCKET')
         print("Destination bucket is " + destination_bucket_name)
         destination_file_name = "_".join(source_blob_name.split("/")[1:])
         destination_blob_name = os.path.join(
@@ -54,7 +55,7 @@ def handler(request):
             )
         )
 
-        url = os.environ.get('INFERENCE_API')
+        url = env('INFERENCE_API')
         print(f"URL to call is: {url}")
         payload = {
             "request_id": str(uuid.uuid1()),
@@ -65,8 +66,8 @@ def handler(request):
         secret_manager_client = create_gcp_client()
         api_token = get_secret(
             client=secret_manager_client,
-            project_id=os.environ.get('PROJECT_ID'),
-            secret_id=os.environ.get('API_TOKEN_NAME')
+            project_id=env('PROJECT_ID'),
+            secret_id=env('API_TOKEN_NAME')
         )
         headers = {
             'Authorization': 'Bearer ' + api_token,

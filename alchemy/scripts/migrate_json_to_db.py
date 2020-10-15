@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import datetime
-from os import environ
 
 # Filesystem based data:
 from alchemy.ar.data import (
@@ -172,7 +171,7 @@ if __name__ == "__main__":
     # Migrate data to database
 
     logging.info(f"Tasks dir: {tasks_dir}")
-    environ['ANNOTATION_TOOL_TASKS_DIR'] = tasks_dir
+    os.environ['ANNOTATION_TOOL_TASKS_DIR'] = tasks_dir
 
     if drop:
         # Drop database and restart from scratch.

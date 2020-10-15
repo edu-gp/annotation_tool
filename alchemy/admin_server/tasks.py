@@ -3,6 +3,7 @@ import logging
 import tempfile
 import pandas as pd
 
+from envparse import env
 from flask import (
     Blueprint, flash, redirect, render_template, request, url_for, send_file
 )
@@ -22,7 +23,6 @@ from alchemy.ar.data import (
 from alchemy.ar.ar_celery import generate_annotation_requests
 
 from alchemy.train.train_celery import submit_gcp_training
-from alchemy.train.no_deps.utils import get_env_bool
 
 from alchemy.shared.celery_job_status import (
     CeleryJobStatus, create_status, delete_status
@@ -32,7 +32,7 @@ from alchemy.shared.annotation_server_path_finder import (
     generate_annotation_server_compare_link
 )
 from alchemy.shared.utils import (
-    get_env_int, stem, list_to_textarea, textarea_to_list, get_entropy,
+    stem, list_to_textarea, textarea_to_list, get_entropy,
     get_weighted_majority_vote, WeightedVote)
 
 from .auth import auth
@@ -238,8 +238,8 @@ def update(id):
 
 @bp.route('/<string:id>/assign', methods=['POST'])
 def assign(id):
-    max_per_annotator = get_env_int('ANNOTATION_TOOL_MAX_PER_ANNOTATOR', 100)
-    max_per_dp = get_env_int('ANNOTATION_TOOL_MAX_PER_DP', 3)
+    max_per_annotator = env.int('ANNOTATION_TOOL_MAX_PER_ANNOTATOR', default=100)
+    max_per_dp = env.int('ANNOTATION_TOOL_MAX_PER_DP', default=3)
     entity_type = request.form.get('entity_type')
     if entity_type is None:
         msg = f"Cannot request annotations without " \
@@ -267,7 +267,7 @@ def train(id):
 
     raw_file_path = task.get_data_filenames(abs=True)[0]
 
-    if get_env_bool('GOOGLE_AI_PLATFORM_ENABLED', False):
+    if env.bool('GOOGLE_AI_PLATFORM_ENABLED', default=False):
         async_result = submit_gcp_training.delay(
             label, raw_file_path, entity_type=task.get_entity_type())
     else:

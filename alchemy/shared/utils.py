@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
+from envparse import env
 import numpy as np
 import pandas as pd
 import typing
@@ -64,13 +65,6 @@ def mkd(*dir_path):
     d = os.path.join(*dir_path)
     os.makedirs(d, exist_ok=True)
     return d
-
-
-def get_env_int(key, default):
-    val = os.environ.get(key, default)
-    if not isinstance(val, int):
-        val = int(val)
-    return val
 
 
 def stem(fname, include_suffix=False):

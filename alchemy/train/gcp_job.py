@@ -33,6 +33,7 @@ import json
 import tempfile
 import uuid
 import re
+from envparse import env
 from collections import namedtuple
 from pathlib import Path
 from typing import List, Optional
@@ -103,8 +104,7 @@ def build_job_config(
     """
 
     if docker_image_uri is None:
-        docker_image_uri = os.environ.get(
-            'GOOGLE_AI_PLATFORM_DOCKER_IMAGE_URI')
+        docker_image_uri = env('GOOGLE_AI_PLATFORM_DOCKER_IMAGE_URI')
     assert docker_image_uri
 
     # Format lists into proper yaml.
