@@ -1,4 +1,4 @@
-from ar.data import _export_distinct_labeled_examples
+from alchemy.ar.data import _export_distinct_labeled_examples
 
 
 def test__export_labeled_examples__simple():

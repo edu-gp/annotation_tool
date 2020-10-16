@@ -1,4 +1,4 @@
-from db.model import ModelDeploymentConfig, TextClassificationModel
+from alchemy.db.model import ModelDeploymentConfig, TextClassificationModel
 
 
 def test_get_selected_for_deployment(dbsession):

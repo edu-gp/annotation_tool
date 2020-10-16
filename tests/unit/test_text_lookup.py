@@ -1,5 +1,5 @@
-from shared.utils import save_jsonl
-from train.text_lookup import get_entity_text_lookup_function
+from alchemy.shared.utils import save_jsonl
+from alchemy.train.text_lookup import get_entity_text_lookup_function
 
 
 def test_get_entity_text_lookup_function(monkeypatch, tmp_path):

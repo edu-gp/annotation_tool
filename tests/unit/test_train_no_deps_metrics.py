@@ -1,10 +1,10 @@
 import pandas as pd
 from pandas.testing import assert_series_equal
 
-from train.no_deps.metrics import compute_metrics
+from alchemy.train.no_deps.metrics import compute_metrics
 
-from shared.utils import save_jsonl, save_json
-from train.no_deps.paths import (
+from alchemy.shared.utils import save_jsonl, save_json
+from alchemy.train.no_deps.paths import (
     _get_config_fname, _get_exported_data_fname
 )
 

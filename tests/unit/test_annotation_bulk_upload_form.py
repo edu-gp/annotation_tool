@@ -1,9 +1,9 @@
-from admin_server.annotations import _upsert_annotations
-from admin_server.annotations_utils import _parse_list, parse_form, \
+from alchemy.admin_server.annotations import _upsert_annotations
+from alchemy.admin_server.annotations_utils import _parse_list, parse_form, \
     parse_bulk_upload_v2_form
 import pytest
 
-from db.model import ClassificationAnnotation
+from alchemy.db.model import ClassificationAnnotation
 
 
 def test__parse_list():

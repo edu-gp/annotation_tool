@@ -1,4 +1,4 @@
-from train.no_deps.utils import (
+from alchemy.train.no_deps.utils import (
     _parse_labels, MULTILABEL_CLASSIFICATION, BINARY_CLASSIFICATION,
     raw_to_pos_prob,
 )

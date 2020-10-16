@@ -1,4 +1,4 @@
-from inference.nlp_model import _get_uncertainty
+from alchemy.inference.nlp_model import _get_uncertainty
 
 
 def test_get_uncertainty():

@@ -1,5 +1,5 @@
-from shared import celery_job_status
-from shared.celery_job_status import (
+from alchemy.shared import celery_job_status
+from alchemy.shared.celery_job_status import (
     create_status, delete_status, set_status,
     CeleryJobStatus, JobStatus
 )

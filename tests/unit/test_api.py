@@ -1,4 +1,4 @@
-from admin_server.api import (
+from alchemy.admin_server.api import (
     get_bearer_token
 )
 

@@ -1,8 +1,8 @@
-from train.no_deps.utils import _prepare_data
+from alchemy.train.no_deps.utils import _prepare_data
 
-from shared.utils import save_jsonl, save_json
-from train.no_deps.utils import BINARY_CLASSIFICATION
-from train.no_deps.paths import (
+from alchemy.shared.utils import save_jsonl, save_json
+from alchemy.train.no_deps.utils import BINARY_CLASSIFICATION
+from alchemy.train.no_deps.paths import (
     _get_config_fname, _get_exported_data_fname
 )
 

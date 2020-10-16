@@ -1,4 +1,4 @@
-from train.no_deps.inference_results import InferenceResults
+from alchemy.train.no_deps.inference_results import InferenceResults
 
 
 def test_train_flow(tmp_path):

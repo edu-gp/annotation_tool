@@ -1,7 +1,7 @@
 import os
 import tempfile
-from db._task import _Task, _convert_to_spacy_patterns
-from shared.utils import save_jsonl
+from alchemy.db._task import _Task, _convert_to_spacy_patterns
+from alchemy.shared.utils import save_jsonl
 
 PATTERNS = [
     'Hello',

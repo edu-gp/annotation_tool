@@ -1,4 +1,4 @@
-from db.utils import is_data_file, is_pattern_file
+from alchemy.db.utils import is_data_file, is_pattern_file
 
 
 def make_data_file(tmpdir):

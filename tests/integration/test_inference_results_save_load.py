@@ -1,7 +1,7 @@
 import os
 import numpy as np
-from db._task import _Task
-from train.no_deps.inference_results import InferenceResults
+from alchemy.db._task import _Task
+from alchemy.train.no_deps.inference_results import InferenceResults
 
 
 class TestInferenceResultsSaveLoad:

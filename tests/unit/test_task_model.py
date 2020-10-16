@@ -1,5 +1,4 @@
-from tests.utils import fake_train_model
-from db.model import Task, TextClassificationModel
+from alchemy.db.model import Task
 
 
 def _populate_db(dbsession):

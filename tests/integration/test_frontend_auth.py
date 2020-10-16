@@ -1,9 +1,9 @@
-from tests.fixtures import *
 import pytest
-from shared.annotation_server_path_finder import (
+from alchemy.shared.annotation_server_path_finder import (
     get_annotation_server_user_password,
     _generate_annotation_server_user_login_path
 )
+from tests.fixtures import annotation_server_client
 
 
 def _assert_has_logged_in(response, username):

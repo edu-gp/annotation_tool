@@ -3,8 +3,8 @@ import json
 import numpy as np
 from pathlib import Path
 from numpy import save
-from shared.utils import stem
-from db.model import Task, TextClassificationModel
+from alchemy.shared.utils import stem
+from alchemy.db.model import Task, TextClassificationModel
 
 
 def fake_train_model(model, filestore_base_dir):

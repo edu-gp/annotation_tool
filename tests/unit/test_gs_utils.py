@@ -1,9 +1,9 @@
 import os
 
-from train.gs_utils import build_prod_inference_dataframe, \
+from alchemy.train.gs_utils import build_prod_inference_dataframe, \
     _get_topic_name_on_stage
-from train.no_deps.inference_results import InferenceResults
-from shared.utils import save_jsonl
+from alchemy.train.no_deps.inference_results import InferenceResults
+from alchemy.shared.utils import save_jsonl
 
 
 def test_build_prod_inference_dataframe(tmp_path):

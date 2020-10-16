@@ -1,6 +1,6 @@
-import ar
-from ar import Example
-from db.model import (
+from alchemy import ar
+from alchemy.ar import Example
+from alchemy.db.model import (
     ClassificationAnnotation, get_or_create, User, LabelPatterns
 )
 
