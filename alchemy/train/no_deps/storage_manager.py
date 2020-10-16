@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
-from .utils import run_cmd, gs_copy_file
+
+from .utils import gs_copy_file, run_cmd
 
 
 class ModelStorageManager:
@@ -27,7 +28,7 @@ class ModelStorageManager:
 
     def upload(self):
         """Upload the entire model folder, only contents that have changed"""
-        run_cmd(f'gsutil -m rsync -r {self.local_dir} {self.remote_dir}')
+        run_cmd(f"gsutil -m rsync -r {self.local_dir} {self.remote_dir}")
 
     def download(self, include_weights=True):
         """Download a model from cloud to local storage.
@@ -37,7 +38,7 @@ class ModelStorageManager:
         src = self.remote_dir
         dst = self.local_dir
         if include_weights:
-            run_cmd(f'gsutil -m rsync -r {src} {dst}')
+            run_cmd(f"gsutil -m rsync -r {src} {dst}")
         else:
             run_cmd(f'gsutil -m rsync -x "model" -r {src} {dst}')
 
@@ -69,7 +70,7 @@ class DatasetStorageManager:
         gs_copy_file(local_path, remote_path, no_clobber=True)
 
         # Make sure it exists locally.
-        assert os.path.isfile(local_path), f'Missing dataset: {local_path}'
+        assert os.path.isfile(local_path), f"Missing dataset: {local_path}"
 
     def download(self, dataset):
         # Make sure dataset is a file name, not a path.

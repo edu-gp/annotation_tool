@@ -5,36 +5,43 @@ from sqlalchemy import distinct, func
 from sqlalchemy.exc import DatabaseError
 
 from alchemy.db.config import DevelopmentConfig
-from alchemy.db.model import Database, ClassificationAnnotation, AnnotationValue
+from alchemy.db.model import AnnotationValue, ClassificationAnnotation, Database
 
 if __name__ == "__main__":
     logging.root.setLevel(logging.INFO)
 
     db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
 
-    distinct_labels = db.session.query(
-        distinct(ClassificationAnnotation.label)).all()
+    distinct_labels = db.session.query(distinct(ClassificationAnnotation.label)).all()
 
     for label in distinct_labels:
         logging.info(f"Processing label {label}...")
-        res = db.session.query(
-            ClassificationAnnotation.entity,
-            ClassificationAnnotation.user_id,
-            func.count(ClassificationAnnotation.id)
-        ).filter(ClassificationAnnotation.label == label)\
-            .group_by(
-            ClassificationAnnotation.user_id,
-            ClassificationAnnotation.entity).all()
+        res = (
+            db.session.query(
+                ClassificationAnnotation.entity,
+                ClassificationAnnotation.user_id,
+                func.count(ClassificationAnnotation.id),
+            )
+            .filter(ClassificationAnnotation.label == label)
+            .group_by(ClassificationAnnotation.user_id, ClassificationAnnotation.entity)
+            .all()
+        )
 
         for entity, user_id, num in res:
             if num > 1:
-                logging.info(f"Found duplicates for entity {entity} "
-                             f"under label {label} and user {user_id}...")
-                duplicates = db.session.query(ClassificationAnnotation).filter(
-                    ClassificationAnnotation.entity == entity,
-                    ClassificationAnnotation.user_id == user_id,
-                    ClassificationAnnotation.label == label
-                ).all()
+                logging.info(
+                    f"Found duplicates for entity {entity} "
+                    f"under label {label} and user {user_id}..."
+                )
+                duplicates = (
+                    db.session.query(ClassificationAnnotation)
+                    .filter(
+                        ClassificationAnnotation.entity == entity,
+                        ClassificationAnnotation.user_id == user_id,
+                        ClassificationAnnotation.label == label,
+                    )
+                    .all()
+                )
 
                 logging.info(duplicates)
 
@@ -58,7 +65,3 @@ if __name__ == "__main__":
                     logging.error(e)
                     db.session.rollback()
                     raise e
-
-
-
-

@@ -1,7 +1,9 @@
 import os
 import re
 from typing import Optional
-from numpy import save, load
+
+from numpy import load, save
+
 from .utils import raw_to_pos_prob
 
 
@@ -11,14 +13,14 @@ class InferenceResults:
         self.probs = raw_to_pos_prob(self.raw)
 
     def save(self, inf_fname):
-        if not inf_fname.endswith('.npy'):
-            inf_fname = inf_fname + '.npy'
+        if not inf_fname.endswith(".npy"):
+            inf_fname = inf_fname + ".npy"
         save(inf_fname, self.raw)
 
     @staticmethod
-    def load(inf_fname) -> Optional['InferenceResults']:
-        if not inf_fname.endswith('.npy'):
-            inf_fname = inf_fname + '.npy'
+    def load(inf_fname) -> Optional["InferenceResults"]:
+        if not inf_fname.endswith(".npy"):
+            inf_fname = inf_fname + ".npy"
         if os.path.isfile(inf_fname):
             try:
                 loaded_raw = load(inf_fname, allow_pickle=True)

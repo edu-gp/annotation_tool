@@ -2,6 +2,8 @@
 
 import logging
 import os
+import time
+import typing
 from datetime import datetime
 from typing import List, NoReturn
 
@@ -10,16 +12,19 @@ from simple_salesforce import Salesforce
 
 from envparse import env
 import jwt
-import time
 import requests
 import tldextract
+from google.cloud import secretmanager
+from simple_salesforce import Salesforce
 
 from alchemy.db.config import DevelopmentConfig
-from alchemy.db.model import Database, get_or_create, User, ClassificationAnnotation, \
-    EntityTypeEnum
-
-from google.cloud import secretmanager
-
+from alchemy.db.model import (
+    ClassificationAnnotation,
+    Database,
+    EntityTypeEnum,
+    User,
+    get_or_create,
+)
 
 PROJECT_ID = env("GCP_PROJECT_ID")
 
@@ -29,10 +34,10 @@ def create_gcp_client():
     return client
 
 
-def get_secret(client, project_id, secret_id, version_id='latest'):
+def get_secret(client, project_id, secret_id, version_id="latest"):
     name = client.secret_version_path(project_id, secret_id, version_id)
     response = client.access_secret_version(name)
-    return response.payload.data.decode('UTF-8')
+    return response.payload.data.decode("UTF-8")
 
 
 def make_from_credentials(env: str) -> Salesforce:
@@ -45,70 +50,69 @@ def make_from_credentials(env: str) -> Salesforce:
         Instance of simple-salesforce object
     """
 
-    ENV_SUFFIX_MAP = {
-        'dev': '.dev',
-        'beta': '.beta',
-        'prod': ''
-    }
+    ENV_SUFFIX_MAP = {"dev": ".dev", "beta": ".beta", "prod": ""}
     # ENV = 'prod'
-    IS_SANDBOX = env != 'prod'
+    IS_SANDBOX = env != "prod"
 
     gclient = create_gcp_client()
 
     consumer_key = get_secret(
         client=gclient,
         project_id=PROJECT_ID,
-        secret_id="alchemy_salesforce_consumer_id")
+        secret_id="alchemy_salesforce_consumer_id",
+    )
 
     private_key = get_secret(
         client=gclient,
         project_id=PROJECT_ID,
-        secret_id="alchemy_salesforce_private_key"
+        secret_id="alchemy_salesforce_private_key",
     )
 
     account_name = get_secret(
         client=gclient,
         project_id=PROJECT_ID,
-        secret_id="alchemy_salesforce_email_account"
+        secret_id="alchemy_salesforce_email_account",
     )
 
     ISSUER = consumer_key
     SUBJECT = account_name + ENV_SUFFIX_MAP[env]
 
-    DOMAIN = 'test' if IS_SANDBOX else 'login'
+    DOMAIN = "test" if IS_SANDBOX else "login"
 
-    print('Generating signed JWT assertion...')
+    print("Generating signed JWT assertion...")
     claim = {
-        'iss': ISSUER,
-        'exp': int(time.time()) + 300,
-        'aud': f'https://{DOMAIN}.salesforce.com',
-        'sub': SUBJECT,
+        "iss": ISSUER,
+        "exp": int(time.time()) + 300,
+        "aud": f"https://{DOMAIN}.salesforce.com",
+        "sub": SUBJECT,
     }
-    assertion = jwt.encode(claim, private_key, algorithm='RS256',
-                           headers={'alg': 'RS256'}).decode('utf8')
+    assertion = jwt.encode(
+        claim, private_key, algorithm="RS256", headers={"alg": "RS256"}
+    ).decode("utf8")
 
-    print('Making OAuth request...')
-    r = requests.post(f'https://{DOMAIN}.salesforce.com/services/oauth2/token',
-                      data={
-                          'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-                          'assertion': assertion,
-                      })
+    print("Making OAuth request...")
+    r = requests.post(
+        f"https://{DOMAIN}.salesforce.com/services/oauth2/token",
+        data={
+            "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+            "assertion": assertion,
+        },
+    )
 
     response = r.json()
-    print('Status:', r.status_code)
+    print("Status:", r.status_code)
     print(response)
 
     return Salesforce(
-        instance_url=response['instance_url'],
-        session_id=response['access_token']
+        instance_url=response["instance_url"], session_id=response["access_token"]
     )
 
 
-def fetch_lead_status_and_dropoff_reason(api: Salesforce,
-                                         start_time: datetime,
-                                         end_time_exclusive: datetime) -> List:
-    start_time_str = start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
-    end_time_str = end_time_exclusive.strftime('%Y-%m-%dT%H:%M:%SZ')
+def fetch_lead_status_and_dropoff_reason(
+    api: Salesforce, start_time: datetime, end_time_exclusive: datetime
+) -> List:
+    start_time_str = start_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+    end_time_str = end_time_exclusive.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     records = api.query_all(
         """
@@ -118,8 +122,10 @@ def fetch_lead_status_and_dropoff_reason(api: Salesforce,
         AND Domain_Ext__c <> Null
         AND CreatedDate >= {} 
         AND CreatedDate < {}
-        """.format(start_time_str, end_time_str)
-    )['records']
+        """.format(
+            start_time_str, end_time_str
+        )
+    )["records"]
     return records
 
 
@@ -129,8 +135,10 @@ def _extract_domain(website_link: str) -> str:
 
 
 def _is_b2c_related(record):
-    return record["Dropoff_Reason__c"] == "Business Model - B2C" or \
-           record["Status"] == "BD Accepted"
+    return (
+        record["Dropoff_Reason__c"] == "Business Model - B2C"
+        or record["Status"] == "BD Accepted"
+    )
 
 
 def _determine_value_for_b2c(record):
@@ -144,10 +152,11 @@ def _determine_value_for_b2c(record):
 
 
 def upsert_salesforce_b2c_annotations(
-        dbsession,
-        salesforce_user: User,
-        last_dropoff_reasons: List,
-        is_filtered_by: typing.Callable = _is_b2c_related) -> NoReturn:
+    dbsession,
+    salesforce_user: User,
+    last_dropoff_reasons: List,
+    is_filtered_by: typing.Callable = _is_b2c_related,
+) -> NoReturn:
 
     entities_selected = {}
     for record in last_dropoff_reasons:
@@ -157,20 +166,24 @@ def upsert_salesforce_b2c_annotations(
             elif record["Website"]:
                 entities_selected[_extract_domain(record["Website"])] = record
             else:
-                logging.warning("Company {} had neither domain nor website "
-                                "in Salesforce".format(record["Company"]))
+                logging.warning(
+                    "Company {} had neither domain nor website "
+                    "in Salesforce".format(record["Company"])
+                )
 
     try:
-        res = \
-            dbsession.query(ClassificationAnnotation).filter(
+        res = (
+            dbsession.query(ClassificationAnnotation)
+            .filter(
                 ClassificationAnnotation.entity.in_(entities_selected),
                 ClassificationAnnotation.entity_type == EntityTypeEnum.COMPANY,
                 ClassificationAnnotation.label == "B2C",
-                ClassificationAnnotation.user_id == salesforce_bot.id
-            ).all()
+                ClassificationAnnotation.user_id == salesforce_bot.id,
+            )
+            .all()
+        )
         existing_entity_annotations = {
-            annotation.entity: annotation
-            for annotation in res
+            annotation.entity: annotation for annotation in res
         }
 
         new_entities = []
@@ -185,14 +198,13 @@ def upsert_salesforce_b2c_annotations(
                     label="B2C",
                     user_id=salesforce_user.id,
                     context={
-                        "text": entities_selected[entity][
-                            "Company_Description__c"],
+                        "text": entities_selected[entity]["Company_Description__c"],
                         "meta": {
                             "name": entities_selected[entity]["Company"],
-                            "domain": entity
+                            "domain": entity,
                         },
-                        "source": "salesforce_bot"
-                    }
+                        "source": "salesforce_bot",
+                    },
                 )
                 new_entities.append(entity)
                 dbsession.add(new_annotation)
@@ -216,25 +228,19 @@ def upsert_salesforce_b2c_annotations(
 if __name__ == "__main__":
     logging.root.setLevel(logging.INFO)
 
-    sf = make_from_credentials(env='prod')
+    sf = make_from_credentials(env="prod")
     salesforce_records = fetch_lead_status_and_dropoff_reason(
         api=sf,
         start_time=datetime(year=2018, month=1, day=1),
-        end_time_exclusive=datetime.now()
+        end_time_exclusive=datetime.now(),
     )
 
     db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
     salesforce_bot = get_or_create(
-        dbsession=db.session,
-        model=User,
-        username="salesforce_bot"
+        dbsession=db.session, model=User, username="salesforce_bot"
     )
     upsert_salesforce_b2c_annotations(
         dbsession=db.session,
         salesforce_user=salesforce_bot,
-        last_dropoff_reasons=salesforce_records
+        last_dropoff_reasons=salesforce_records,
     )
-
-
-
-

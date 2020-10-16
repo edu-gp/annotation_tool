@@ -1,29 +1,29 @@
-from typing import List, Optional
 import os
 import re
 import shutil
 import uuid
-
-from alchemy.shared.utils import (
-    load_json, save_json, mkf, load_jsonl,
-    list_to_textarea, textarea_to_list
-)
-
-from alchemy.inference.pattern_model import PatternModel
+from typing import List, Optional
 
 from alchemy.db import _data_dir, _task_dir
-
 from alchemy.db.model import TextClassificationModel
 from alchemy.inference.nlp_model import NLPModel
+from alchemy.inference.pattern_model import PatternModel
+from alchemy.shared.utils import (
+    list_to_textarea,
+    load_json,
+    load_jsonl,
+    mkf,
+    save_json,
+    textarea_to_list,
+)
 
-DIR_AREQ = 'ar'  # Annotation Requests
-DIR_ANNO = 'an'  # Annotations
+DIR_AREQ = "ar"  # Annotation Requests
+DIR_ANNO = "an"  # Annotations
 
 
 def _convert_to_spacy_patterns(patterns: List[str]):
     return [
-        {"label": "POSITIVE_CLASS", "pattern": [{"lower": x.lower()}]}
-        for x in patterns
+        {"label": "POSITIVE_CLASS", "pattern": [{"lower": x.lower()}]} for x in patterns
     ]
 
 
@@ -36,7 +36,7 @@ class _Task:
 
         self.name = name
         if self.name is None:
-            self.name = 'No Name'
+            self.name = "No Name"
 
         # Access PatternModel via get_pattern_model,
         # after setting self.patterns_file first...
@@ -51,39 +51,39 @@ class _Task:
 
     def get_clean_name(self):
         """Return a filesystem friendly (only alphanum chars) name."""
-        return re.sub('[^0-9a-zA-Z]+', '_', self.name).lower()
+        return re.sub("[^0-9a-zA-Z]+", "_", self.name).lower()
 
     def to_json(self):
         return {
-            'name': self.name,
-            'task_id': self.task_id,
-            'data_filenames': self._data_filenames,
-            'annotators': self.annotators,
-            'labels': self.labels,
-            'patterns_file': self.patterns_file,
-            'patterns': self.patterns,
+            "name": self.name,
+            "task_id": self.task_id,
+            "data_filenames": self._data_filenames,
+            "annotators": self.annotators,
+            "labels": self.labels,
+            "patterns_file": self.patterns_file,
+            "patterns": self.patterns,
         }
 
     @staticmethod
     def from_json(data):
-        task = _Task(data.get('name'))
-        task.task_id = data['task_id']
-        task._data_filenames = data['data_filenames']
-        task.annotators = data['annotators']
-        task.labels = data.get('labels', [])
-        task.patterns_file = data.get('patterns_file', None)
-        task.patterns = data.get('patterns', [])
+        task = _Task(data.get("name"))
+        task.task_id = data["task_id"]
+        task._data_filenames = data["data_filenames"]
+        task.annotators = data["annotators"]
+        task.labels = data.get("labels", [])
+        task.patterns_file = data.get("patterns_file", None)
+        task.patterns = data.get("patterns", [])
         return task
 
     # ------------------------------------------------------------
 
     def get_dir(self):
-        '''Where files for this task are stored'''
+        """Where files for this task are stored"""
         return _task_dir(self.task_id)
 
     @staticmethod
     def fetch(task_id):
-        task_config_path = os.path.join(_task_dir(task_id), 'config.json')
+        task_config_path = os.path.join(_task_dir(task_id), "config.json")
         data = load_json(task_config_path)
         if data:
             return _Task.from_json(data)
@@ -91,7 +91,7 @@ class _Task:
             return None
 
     def save(self):
-        task_config_path = [self.get_dir(), 'config.json']
+        task_config_path = [self.get_dir(), "config.json"]
         mkf(*task_config_path)
         task_config_path = os.path.join(*task_config_path)
         save_json(task_config_path, self.to_json())
@@ -99,9 +99,8 @@ class _Task:
     @staticmethod
     def fetch_all_tasks(id_only=False):
         task_ids: List[os.DirEntry] = sorted(
-            os.scandir(_task_dir()),
-            key=lambda d: d.stat().st_mtime,
-            reverse=True)
+            os.scandir(_task_dir()), key=lambda d: d.stat().st_mtime, reverse=True
+        )
         task_ids = [x.name for x in task_ids]
         if id_only:
             return task_ids
@@ -109,9 +108,9 @@ class _Task:
         return tasks
 
     def delete(self):
-        '''
+        """
         Use with caution! This deletes all the labels and models.
-        '''
+        """
         _dir = self.get_dir()
         if os.path.isdir(_dir):
             shutil.rmtree(_dir)
@@ -120,8 +119,7 @@ class _Task:
 
     def _add_data(self, fname: str):
         # TODO test
-        assert fname in os.listdir(
-            _data_dir()), f"{fname} is not in {_data_dir}"
+        assert fname in os.listdir(_data_dir()), f"{fname} is not in {_data_dir}"
         if fname not in self._data_filenames:
             self._data_filenames.append(fname)
 
@@ -130,13 +128,14 @@ class _Task:
             self.annotators.append(user_id)
 
     def get_pattern_model(self):
-        '''Return a PatternModel, if it exists'''
+        """Return a PatternModel, if it exists"""
         if self._pattern_model is None:
             patterns = []
 
             if self.patterns_file is not None:
-                patterns += load_jsonl(os.path.join(_data_dir(),
-                                                    self.patterns_file), to_df=False)
+                patterns += load_jsonl(
+                    os.path.join(_data_dir(), self.patterns_file), to_df=False
+                )
 
             if self.patterns is not None:
                 patterns += _convert_to_spacy_patterns(self.patterns)
@@ -146,13 +145,15 @@ class _Task:
 
         return self._pattern_model
 
-    def update(self,
-               name=None,
-               labels=None,
-               patterns_file=None,
-               patterns=None,
-               annotators=None,
-               data_files=None):
+    def update(
+        self,
+        name=None,
+        labels=None,
+        patterns_file=None,
+        patterns=None,
+        annotators=None,
+        data_files=None,
+    ):
 
         if name:
             self.name = name.strip()
@@ -197,18 +198,18 @@ class _Task:
 
     def jinjafy(self, field):
         # A list of values, one on each line
-        if field == 'labels':
+        if field == "labels":
             return list_to_textarea(self.labels)
-        if field == 'annotators':
+        if field == "annotators":
             return list_to_textarea(self.annotators)
-        if field == 'patterns':
+        if field == "patterns":
             return list_to_textarea(self.patterns)
-        return ''
+        return ""
 
     @staticmethod
     def parse_jinjafied(field, value):
         # A list of values, one on each line
-        if field == 'labels' or field == 'annotators' or field == 'patterns':
+        if field == "labels" or field == "annotators" or field == "patterns":
             return textarea_to_list(value)
         return None
 

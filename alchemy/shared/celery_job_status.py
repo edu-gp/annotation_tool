@@ -1,19 +1,20 @@
 import os
-import redis
 import time
+
+import redis
 
 
 # Don't use enum here because it's easier to serialize and compare strings.
 class JobStatus:
-    INIT = 'INIT'
-    QUEUED = 'QUEUED'
-    STARTED = 'STARTED'
-    DONE = 'DONE'
-    FAILED = 'FAILED'
+    INIT = "INIT"
+    QUEUED = "QUEUED"
+    STARTED = "STARTED"
+    DONE = "DONE"
+    FAILED = "FAILED"
 
 
 def get_redis():
-    return redis.Redis(host=os.getenv('REDIS_HOST', 'localhost'), port=6379, db=0)
+    return redis.Redis(host=os.getenv("REDIS_HOST", "localhost"), port=6379, db=0)
 
 
 def create_status(celery_id, context_id, created_at=None):
@@ -31,9 +32,9 @@ def create_status(celery_id, context_id, created_at=None):
         created_at = time.time()
 
     r = get_redis()
-    r.set(f'cjs:{celery_id}:c', created_at)
-    r.set(f'cjs:{celery_id}:x', context_id)
-    r.sadd(f'cjss:{context_id}', celery_id)
+    r.set(f"cjs:{celery_id}:c", created_at)
+    r.set(f"cjs:{celery_id}:x", context_id)
+    r.sadd(f"cjss:{context_id}", celery_id)
 
 
 def set_status(celery_id, state: str, progress=None, updated_at=None):
@@ -42,28 +43,35 @@ def set_status(celery_id, state: str, progress=None, updated_at=None):
         updated_at = time.time()
 
     r = get_redis()
-    r.set(f'cjs:{celery_id}:s', state)
-    r.set(f'cjs:{celery_id}:u', updated_at)
+    r.set(f"cjs:{celery_id}:s", state)
+    r.set(f"cjs:{celery_id}:u", updated_at)
 
     if progress is not None and isinstance(progress, float):
-        r.set(f'cjs:{celery_id}:p', progress)
+        r.set(f"cjs:{celery_id}:p", progress)
 
 
 def delete_status(celery_id, context_id):
     r = get_redis()
-    r.delete(f'cjs:{celery_id}:s')
-    r.delete(f'cjs:{celery_id}:p')
-    r.delete(f'cjs:{celery_id}:c')
-    r.delete(f'cjs:{celery_id}:u')
-    r.delete(f'cjs:{celery_id}:x')
-    r.srem(f'cjss:{context_id}', celery_id)
+    r.delete(f"cjs:{celery_id}:s")
+    r.delete(f"cjs:{celery_id}:p")
+    r.delete(f"cjs:{celery_id}:c")
+    r.delete(f"cjs:{celery_id}:u")
+    r.delete(f"cjs:{celery_id}:x")
+    r.srem(f"cjss:{context_id}", celery_id)
 
 
 class CeleryJobStatus:
     """Only use this to view the job status, not to mutate it"""
 
-    def __init__(self, celery_id: str, context_id: str, state: str,
-                 progress: float, created_at: float, updated_at: float):
+    def __init__(
+        self,
+        celery_id: str,
+        context_id: str,
+        state: str,
+        progress: float,
+        created_at: float,
+        updated_at: float,
+    ):
         self.celery_id = celery_id
         self.context_id = context_id
         self.state = state
@@ -81,7 +89,7 @@ class CeleryJobStatus:
         now = time.time()
 
         if isinstance(self.created_at, float):
-            if now - self.created_at > 60*60*5:  # 5 hours
+            if now - self.created_at > 60 * 60 * 5:  # 5 hours
                 return True
 
         if isinstance(self.updated_at, float):
@@ -94,7 +102,7 @@ class CeleryJobStatus:
     def fetch_all_by_context_id(context_id):
         r = get_redis()
         res = []
-        for celery_id in r.smembers(f'cjss:{context_id}'):
+        for celery_id in r.smembers(f"cjss:{context_id}"):
             celery_id = celery_id.decode()
             res.append(CeleryJobStatus.fetch_by_celery_id(celery_id))
         res = sorted(res, key=lambda cjs: cjs.created_at)
@@ -104,11 +112,11 @@ class CeleryJobStatus:
     def fetch_by_celery_id(celery_id):
         r = get_redis()
 
-        _s = r.get(f'cjs:{celery_id}:s')
-        _p = r.get(f'cjs:{celery_id}:p')
-        _c = r.get(f'cjs:{celery_id}:c')
-        _u = r.get(f'cjs:{celery_id}:u')
-        _x = r.get(f'cjs:{celery_id}:x')
+        _s = r.get(f"cjs:{celery_id}:s")
+        _p = r.get(f"cjs:{celery_id}:p")
+        _c = r.get(f"cjs:{celery_id}:c")
+        _u = r.get(f"cjs:{celery_id}:u")
+        _x = r.get(f"cjs:{celery_id}:x")
 
         now = time.time()
 
@@ -123,5 +131,5 @@ class CeleryJobStatus:
                 state=_s.decode() if _s is not None else JobStatus.INIT,
                 progress=float(_p) if _p is not None else 0.0,
                 created_at=float(_c) if _c is not None else now,
-                updated_at=float(_u) if _u is not None else now
+                updated_at=float(_u) if _u is not None else now,
             )

@@ -1,34 +1,40 @@
 # Annotation Request Module
 import logging
 import os
-from typing import List, Dict
 from collections import namedtuple
+from typing import Dict, List
 
 import numpy as np
 
-from alchemy.db.fs import filestore_base_dir, RAW_DATA_DIR
-from alchemy.db.model import Task, User, ClassificationAnnotation, \
-    AnnotationValue, LabelPatterns, get_latest_model_for_label
-from alchemy.shared.utils import load_jsonl
-from alchemy.inference import ITextCatModel
-from alchemy.inference import get_predicted
-from alchemy.inference.random_model import RandomModel
-from alchemy.inference.pattern_model import PatternModel
-from alchemy.inference.nlp_model import (
-    NLPModel, NLPModelTopResults, NLPModelBottomResults
+from alchemy.db.fs import RAW_DATA_DIR, filestore_base_dir
+from alchemy.db.model import (
+    AnnotationValue,
+    ClassificationAnnotation,
+    LabelPatterns,
+    Task,
+    User,
+    get_latest_model_for_label,
 )
+from alchemy.inference import ITextCatModel, get_predicted
+from alchemy.inference.nlp_model import (
+    NLPModel,
+    NLPModelBottomResults,
+    NLPModelTopResults,
+)
+from alchemy.inference.pattern_model import PatternModel
+from alchemy.inference.random_model import RandomModel
+from alchemy.shared.utils import load_jsonl
 
 Example = namedtuple(
-    'Example', ['score', 'entity_type', 'entity', 'label', 'fname', 'line_number'])
-LookupKey = namedtuple(
-    'LookupKey', ['entity_type', 'entity', 'label', 'user'])
+    "Example", ["score", "entity_type", "entity", "label", "fname", "line_number"]
+)
+LookupKey = namedtuple("LookupKey", ["entity_type", "entity", "label", "user"])
 
 
 def get_pattern_model_for_label(dbsession, label):
     from alchemy.db._task import _convert_to_spacy_patterns
 
-    label_patterns = dbsession.query(
-        LabelPatterns).filter_by(label=label).first()
+    label_patterns = dbsession.query(LabelPatterns).filter_by(label=label).first()
     if label_patterns:
         patterns = label_patterns.get_positive_patterns()
         if len(patterns) > 0:
@@ -68,6 +74,7 @@ def get_ranked_examples_for_label(dbession, label, data_filenames) -> List[Examp
 
     # TODO do not hard-code
     from alchemy.db.model import EntityTypeEnum
+
     entity_type = EntityTypeEnum.COMPANY
 
     def get_examples_for_model(model: ITextCatModel):
@@ -86,8 +93,9 @@ def get_ranked_examples_for_label(dbession, label, data_filenames) -> List[Examp
         logging.info("Prediction from pattern model finished")
 
     # NLP-driven Examples
-    highest_entropy_model, top_prob_model, bottom_prob_model = \
-        get_nlp_models_for_label(dbession, label)
+    highest_entropy_model, top_prob_model, bottom_prob_model = get_nlp_models_for_label(
+        dbession, label
+    )
 
     if highest_entropy_model:
         examples.append(get_examples_for_model(highest_entropy_model))
@@ -104,15 +112,15 @@ def get_ranked_examples_for_label(dbession, label, data_filenames) -> List[Examp
         proportions.append(6)  # [1,3,12,6,6] -> [0.04, 0.11, 0.43, 0.21, 0.21]
         logging.info("Prediction from bottom prob nlp model finished")
 
-    ranked_examples = _shuffle_together_examples(
-        examples, proportions=proportions)
+    ranked_examples = _shuffle_together_examples(examples, proportions=proportions)
     logging.info("Shuffle together examples finished")
 
     return ranked_examples
 
 
 def consolidate_ranked_examples_per_label(
-        ranked_examples_per_label: List[List[Example]]) -> List[Example]:
+    ranked_examples_per_label: List[List[Example]]
+) -> List[Example]:
     """
     Inputs:
         ranked_examples_per_label: Each element in this list, List[Example], 
@@ -149,25 +157,27 @@ def consolidate_ranked_examples_per_label(
     return res
 
 
-def generate_annotation_requests(dbsession, task_id: int,
-                                 max_per_annotator: int, max_per_dp: int):
-    '''
+def generate_annotation_requests(
+    dbsession, task_id: int, max_per_annotator: int, max_per_dp: int
+):
+    """
     NOTE: This could be super slow, but that's okay for now!
-    '''
+    """
     task = dbsession.query(Task).filter_by(id=task_id).one_or_none()
     assert task is not None, f"Task is missing task_id={task_id}"
 
     # TODO Restrict each task to use only 1 file?
-    data_filenames = [os.path.join(filestore_base_dir(), RAW_DATA_DIR, fname)
-                      for fname in task.get_data_filenames()]
+    data_filenames = [
+        os.path.join(filestore_base_dir(), RAW_DATA_DIR, fname)
+        for fname in task.get_data_filenames()
+    ]
 
     ranked_examples_per_label = []
     for label in task.get_labels():
         _res = get_ranked_examples_for_label(dbsession, label, data_filenames)
         ranked_examples_per_label.append(_res)
 
-    ranked_examples = consolidate_ranked_examples_per_label(
-        ranked_examples_per_label)
+    ranked_examples = consolidate_ranked_examples_per_label(ranked_examples_per_label)
 
     # Blacklist whatever users have labeled already
     # basic logic, given a user_id, task_id, and entity_id, we should
@@ -178,11 +188,13 @@ def generate_annotation_requests(dbsession, task_id: int,
     blacklist_fn = _build_blacklist_fn(lookup)
 
     logging.info("Assigning to annotators...")
-    assignments = _assign(ranked_examples,
-                          task.get_annotators(),
-                          blacklist_fn=blacklist_fn,
-                          max_per_annotator=max_per_annotator,
-                          max_per_dp=max_per_dp)
+    assignments = _assign(
+        ranked_examples,
+        task.get_annotators(),
+        blacklist_fn=blacklist_fn,
+        max_per_annotator=max_per_annotator,
+        max_per_dp=max_per_dp,
+    )
     logging.info("Assigning to annotators finished...")
 
     # ---- Populate Cache ----
@@ -205,18 +217,16 @@ def generate_annotation_requests(dbsession, task_id: int,
     __text_list = []
     for p in __examples:
         row = __cache_df[p.fname].iloc[p.line_number]
-        __basic_decor.append({
-            'text': row['text'],
-            'meta': row['meta']
-        })
-        __text_list.append(row['text'])
+        __basic_decor.append({"text": row["text"], "meta": row["meta"]})
+        __text_list.append(row["text"])
 
     # Pattern decorations
     __pattern_decor_for_all_labels = []
     labels = task.get_labels()
     for label in labels:
         pattern_model_for_label = get_pattern_model_for_label(
-            dbsession=dbsession, label=label)
+            dbsession=dbsession, label=label
+        )
         print(pattern_model_for_label)
         if pattern_model_for_label:
             __pattern_decor_for_label = pattern_model_for_label.predict(
@@ -227,7 +237,7 @@ def generate_annotation_requests(dbsession, task_id: int,
     __pattern_decor = _merge_pattern_decor_for_all_labels_recursive(
         pattern_decor_for_all_labels=__pattern_decor_for_all_labels,
         low=0,
-        high=len(__pattern_decor_for_all_labels) - 1
+        high=len(__pattern_decor_for_all_labels) - 1,
     )
 
     # Build up a dict for random access
@@ -239,11 +249,11 @@ def generate_annotation_requests(dbsession, task_id: int,
     annotation_requests = {}
     for user, list_of_examples in assignments.items():
         decorated_list_of_examples = [
-            _get_decorated_example(ex,
-                                   __pattern_decor,
-                                   __basic_decor,
-                                   __example_idx_lookup)
-            for ex in list_of_examples]
+            _get_decorated_example(
+                ex, __pattern_decor, __basic_decor, __example_idx_lookup
+            )
+            for ex in list_of_examples
+        ]
         annotation_requests[user] = decorated_list_of_examples
 
     logging.info("Finished generating annotation requests.")
@@ -251,7 +261,8 @@ def generate_annotation_requests(dbsession, task_id: int,
 
 
 def _merge_pattern_decor_for_all_labels_recursive(
-        pattern_decor_for_all_labels: List[List], low: int, high: int):
+    pattern_decor_for_all_labels: List[List], low: int, high: int
+):
     """Merge pattern decors from different labels into one pattern decor
     using a recursive merge like the logic in merge sort.
 
@@ -292,101 +303,111 @@ def _merge_two_pattern_decors(pattern_decor1: List, pattern_decor2: List):
     for i, item in enumerate(pattern_decor2):
         # Tokens for the same entity are the same so need to merge them.
 
-        res[i]['matches'].extend(item['matches'])
+        res[i]["matches"].extend(item["matches"])
 
         # In case we need the scores later on, they are merged into a list
-        if not isinstance(res[i]['score'], list):
-            res[i]['score'] = [res[i]['score']]
+        if not isinstance(res[i]["score"], list):
+            res[i]["score"] = [res[i]["score"]]
 
-        if isinstance(item['score'], list):
-            res[i]['score'].extend(item['score'])
+        if isinstance(item["score"], list):
+            res[i]["score"].extend(item["score"])
         else:
-            res[i]['score'].append(item['score'])
+            res[i]["score"].append(item["score"])
 
     # Dedup the merged matching positions.
     for item in res:
-        item['matches'] = sorted(list(set(item['matches'])))
+        item["matches"] = sorted(list(set(item["matches"])))
 
     return res
 
 
 def _build_blacklist_lookup(dbsession, labels: List[str] = []) -> set:
-    existing_annotations_for_labels = \
+    existing_annotations_for_labels = (
         dbsession.query(
             ClassificationAnnotation.entity_type,
             ClassificationAnnotation.entity,
             ClassificationAnnotation.label,
-            User.username
-        ). \
-        join(User). \
-        filter(
+            User.username,
+        )
+        .join(User)
+        .filter(
             ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED,
-            ClassificationAnnotation.label.in_(labels)
-        ). \
-        distinct().all()
-    lookup = set([
-        LookupKey(item[0], item[1], item[2], item[3])
-        for item in existing_annotations_for_labels
-    ])
+            ClassificationAnnotation.label.in_(labels),
+        )
+        .distinct()
+        .all()
+    )
+    lookup = set(
+        [
+            LookupKey(item[0], item[1], item[2], item[3])
+            for item in existing_annotations_for_labels
+        ]
+    )
     return lookup
 
 
-def _get_decorated_example(pred: Example,
-                           pattern_decor: List,
-                           basic_decor: List,
-                           example_idx_lookup: Dict) -> Dict:
+def _get_decorated_example(
+    pred: Example, pattern_decor: List, basic_decor: List, example_idx_lookup: Dict
+) -> Dict:
     idx = example_idx_lookup[pred]
 
     res = {
-        'fname': pred.fname,
-        'line_number': pred.line_number,
-        'score': pred.score,
-        'entity': pred.entity
+        "fname": pred.fname,
+        "line_number": pred.line_number,
+        "score": pred.score,
+        "entity": pred.entity,
     }
-    res.update({
-        'data': basic_decor[idx]
-    })
+    res.update({"data": basic_decor[idx]})
     if pattern_decor is not None:
-        res.update({
-            'pattern_info': pattern_decor[idx]
-        })
+        res.update({"pattern_info": pattern_decor[idx]})
     return res
 
 
 def _build_blacklist_fn(lookup: set):
-
     def blacklist_fn(e: Example, user: str):
         return LookupKey(e.entity_type, e.entity, e.label, user) in lookup
 
     return blacklist_fn
 
 
-def _get_examples(data_filenames: List[str], model: ITextCatModel,
-                  entity_type: str, label: str,
-                  cache=True) -> List[Example]:
-    '''Construct an Example based on the prediction of `model` on each of the
-    datasets.'''
+def _get_examples(
+    data_filenames: List[str],
+    model: ITextCatModel,
+    entity_type: str,
+    label: str,
+    cache=True,
+) -> List[Example]:
+    """Construct an Example based on the prediction of `model` on each of the
+    datasets."""
     examples = []
 
     for fname in data_filenames:
         res = get_predicted(fname, model, cache=cache)
         # TODO remove dependency on (fname,line_number)
         for line_number, row in enumerate(res):
-            examples.append(Example(score=row['score'],
-                                    entity_type=entity_type,
-                                    # TODO remove dependency on meta.domain
-                                    entity=row['meta']['domain'],
-                                    label=label,
-                                    fname=fname,
-                                    line_number=line_number))
+            examples.append(
+                Example(
+                    score=row["score"],
+                    entity_type=entity_type,
+                    # TODO remove dependency on meta.domain
+                    entity=row["meta"]["domain"],
+                    label=label,
+                    fname=fname,
+                    line_number=line_number,
+                )
+            )
 
     return examples
 
 
-def _assign(datapoints: List, annotators: List,
-            max_per_annotator: int, max_per_dp: int,
-            blacklist_fn=None):
-    '''
+def _assign(
+    datapoints: List,
+    annotators: List,
+    max_per_annotator: int,
+    max_per_dp: int,
+    blacklist_fn=None,
+):
+    """
     Args:
         datapoints: A list of data points to assign to each annotator.
         annotators: A list of annotators.
@@ -399,7 +420,7 @@ def _assign(datapoints: List, annotators: List,
             annotator:  list of datapoints
             ...
         }
-    '''
+    """
 
     def is_valid(anno, dp):
         if anno in per_dp_queue[dp]:
@@ -433,7 +454,9 @@ def _assign(datapoints: List, annotators: List,
         return ret_anno
 
     if blacklist_fn is None:
-        def blacklist_fn(datapoint, annotator): return False
+
+        def blacklist_fn(datapoint, annotator):
+            return False
 
     from queue import PriorityQueue
     from collections import defaultdict
@@ -461,17 +484,18 @@ def _assign(datapoints: List, annotators: List,
     return per_anno_queue
 
 
-def _shuffle_together_examples(list_of_examples: List[List[Example]],
-                               proportions: List[float]):
-    '''
+def _shuffle_together_examples(
+    list_of_examples: List[List[Example]], proportions: List[float]
+):
+    """
     Randomly shuffle together lists of Example, such that at any length,
     the proportion of elements from each list is approximately `proportions`.
-    '''
+    """
 
     # Sort each list from top to bottom
     list_of_examples = [
-        sorted(x, key=lambda pred: pred.score, reverse=True) for x in
-        list_of_examples]
+        sorted(x, key=lambda pred: pred.score, reverse=True) for x in list_of_examples
+    ]
 
     res = []
     seen = set()
@@ -489,8 +513,7 @@ def _shuffle_together_examples(list_of_examples: List[List[Example]],
     total_n = sum([len(x) for x in list_of_examples])
 
     for _ in range(total_n):
-        which_list = np.argmax(np.random.multinomial(
-            1, proportions, size=1), axis=1)[0]
+        which_list = np.argmax(np.random.multinomial(1, proportions, size=1), axis=1)[0]
         ls = list_of_examples[which_list]
 
         # Try our best to add 1 element from ls to res.

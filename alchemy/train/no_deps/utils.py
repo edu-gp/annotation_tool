@@ -1,14 +1,15 @@
-import subprocess
-import shlex
-from scipy.special import softmax
-import numpy as np
-import os
 import json
+import os
+import shlex
+import subprocess
+
+import numpy as np
 import pandas as pd
+from scipy.special import softmax
 from sklearn.model_selection import train_test_split
 
-BINARY_CLASSIFICATION = 'binary'
-MULTILABEL_CLASSIFICATION = 'multilabel'
+BINARY_CLASSIFICATION = "binary"
+MULTILABEL_CLASSIFICATION = "multilabel"
 
 
 # TODO: Move load_jsonl and load_original_data_text out of here.
@@ -29,14 +30,14 @@ def load_jsonl(jsonl_fname, to_df=True):
 
 
 def load_original_data_text(datafname):
-    text = load_jsonl(datafname)['text']
-    text = text.fillna('')
+    text = load_jsonl(datafname)["text"]
+    text = text.fillna("")
     text = list(text)
     return text
 
 
 def _parse_labels(data):
-    '''
+    """
     Inputs:
         data: [ 
             {
@@ -48,7 +49,7 @@ def _parse_labels(data):
             },
             ...
         ]
-    '''
+    """
 
     y = []
     problem_type = None
@@ -56,7 +57,7 @@ def _parse_labels(data):
 
     all_labels = set()
     for row in data:
-        for label in row['labels']:
+        for label in row["labels"]:
             all_labels.add(label)
 
     class_order = sorted(list(all_labels))
@@ -69,7 +70,7 @@ def _parse_labels(data):
             y = []
 
             for row in data:
-                val = list(row['labels'].values())[0]
+                val = list(row["labels"].values())[0]
                 if val == 1:
                     y.append(1)
                 elif val == -1:
@@ -84,8 +85,8 @@ def _parse_labels(data):
 
             for row in data:
                 _y = [0] * len(class_order)
-                for label in row['labels']:
-                    if row['labels'][label] == 1:
+                for label in row["labels"]:
+                    if row["labels"][label] == 1:
                         _y[class_order_idx[label]] = 1
                 y.append(_y)
 
@@ -115,16 +116,18 @@ def _prepare_data(config_fname, data_fname):
             if line:
                 data.append(json.loads(line))
 
-    X = [x['text'] for x in data]
+    X = [x["text"] for x in data]
     y, problem_type, class_order = _parse_labels(data)
 
     # Train test split
-    if config.get('test_size', 0) > 0:
+    if config.get("test_size", 0) > 0:
         print("Train / Test split...")
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y,
-            test_size=config['test_size'],
-            random_state=config.get('random_state', 42))
+            X,
+            y,
+            test_size=config["test_size"],
+            random_state=config.get("random_state", 42),
+        )
     else:
         print("No train test split used")
         X_train = X
@@ -149,8 +152,7 @@ def raw_to_pos_prob(raw):
             _prob = softmax(out, axis=1)[:, 1].mean()
             probs_pos_class.append(_prob)
         else:
-            raise Exception(
-                f"Unclear how to deal with raw dimension: {out.shape}")
+            raise Exception(f"Unclear how to deal with raw dimension: {out.shape}")
     return probs_pos_class
 
 
@@ -163,8 +165,7 @@ def run_cmd(cmd: str):
     print(cmd)
     # check=True makes this function raise an Exception if the command fails.
     try:
-        output = subprocess.run(shlex.split(
-            cmd), check=True, capture_output=True)
+        output = subprocess.run(shlex.split(cmd), check=True, capture_output=True)
         print("stdout:", output.stdout)
         print("stderr:", output.stderr)
         return output
@@ -176,16 +177,16 @@ def run_cmd(cmd: str):
 
 def gs_copy_dir(src_dir, dst_dir):
     # run_cmd(f'gsutil -m cp -r {src_dir}/* {dst_dir}')
-    run_cmd(f'gsutil -m rsync -r {src_dir} {dst_dir}')
+    run_cmd(f"gsutil -m rsync -r {src_dir} {dst_dir}")
 
 
 def gs_copy_file(fname, dst, no_clobber=True):
     if no_clobber:
         # -n : No-clobber. When specified, existing files or objects at the destination will not be overwritten.
-        run_cmd(f'gsutil cp -n {fname} {dst}')
+        run_cmd(f"gsutil cp -n {fname} {dst}")
     else:
         # Overwrite existing
-        run_cmd(f'gsutil cp {fname} {dst}')
+        run_cmd(f"gsutil cp {fname} {dst}")
 
 
 def gs_exists(gs_url):
@@ -198,7 +199,7 @@ def gs_exists(gs_url):
     # Otherwise, it would return a bunch of information about the file,
     # one of them being "Creation time".
     try:
-        res = run_cmd(f'gsutil stat {gs_url}')
-        return 'Creation time:' in res.stdout.decode('utf-8')
+        res = run_cmd(f"gsutil stat {gs_url}")
+        return "Creation time:" in res.stdout.decode("utf-8")
     except subprocess.CalledProcessError:
         return False

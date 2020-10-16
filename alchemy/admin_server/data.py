@@ -1,12 +1,10 @@
-from flask import (
-    Blueprint, render_template
-)
+from flask import Blueprint, render_template
 
 from alchemy.db.utils import get_all_data_files
 
 from .auth import auth
 
-bp = Blueprint('data', __name__, url_prefix='/data')
+bp = Blueprint("data", __name__, url_prefix="/data")
 
 
 @auth.login_required
@@ -18,6 +16,6 @@ def _before_request():
 bp.before_request(_before_request)
 
 
-@bp.route('/', methods=['GET'])
+@bp.route("/", methods=["GET"])
 def index():
-    return render_template('data/index.html', data_fnames=get_all_data_files())
+    return render_template("data/index.html", data_fnames=get_all_data_files())

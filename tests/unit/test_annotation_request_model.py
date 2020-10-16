@@ -1,4 +1,4 @@
-from alchemy.db.model import AnnotationRequest, User, Task, AnnotationType
+from alchemy.db.model import AnnotationRequest, AnnotationType, Task, User
 
 
 def _populate_db(dbsession):
@@ -17,18 +17,18 @@ def test_create_annotation_request(dbsession):
     _populate_db(dbsession)
     user = dbsession.query(User).first()
 
-    task = Task(name='My Task', default_params={})
+    task = Task(name="My Task", default_params={})
 
     req = AnnotationRequest(
         user=user,
-        entity_type='blah',
-        entity='blah',
-        label='blah',
-        context={'foo': 'bar'},
+        entity_type="blah",
+        entity="blah",
+        label="blah",
+        context={"foo": "bar"},
         task=task,
         annotation_type=AnnotationType.ClassificationAnnotation,
         order=12,
-        name="Testing"
+        name="Testing",
     )
     dbsession.add(req)
     dbsession.commit()
@@ -43,13 +43,13 @@ def test_create_minimal_annotation_request(dbsession):
 
     req = AnnotationRequest(
         user=user,
-        entity_type='blah',
-        entity='blah',
-        label='blah',
-        context={'foo': 'bar'},
+        entity_type="blah",
+        entity="blah",
+        label="blah",
+        context={"foo": "bar"},
         annotation_type=AnnotationType.ClassificationAnnotation,
         order=12,
-        name="Testing"
+        name="Testing",
     )
     dbsession.add(req)
     dbsession.commit()

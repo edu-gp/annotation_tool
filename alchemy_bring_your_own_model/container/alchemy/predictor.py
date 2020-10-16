@@ -2,40 +2,38 @@
 # implement the scoring for your own algorithm.
 
 from __future__ import print_function
-from simpletransformers.classification import ClassificationModel
 
-import os
-import json
 import io
+import json
+import os
 import pickle
-import sys
 import signal
+import sys
 import traceback
-import redis
-
+import uuid
 from datetime import datetime
-from flask import jsonify
 
 import flask
-
-import uuid
-
 import pandas as pd
-
+import redis
 import torch
+from flask import jsonify
+from simpletransformers.classification import ClassificationModel
+
 USE_CUDA = torch.cuda.is_available()
 
-prefix = '/opt/ml/'
-model_dir = '/opt/program/model'
-model_path = '/opt/program/model'
+prefix = "/opt/ml/"
+model_dir = "/opt/program/model"
+model_path = "/opt/program/model"
+
 
 class ScoringService(object):
-    model = None                # Where we keep the model when it's loaded
+    model = None  # Where we keep the model when it's loaded
     train_config = {
-        'model_output_dir': '/tmp',
-        'num_train_epochs': 5,
-        'sliding_window': True,
-        'max_seq_length': 512,
+        "model_output_dir": "/tmp",
+        "num_train_epochs": 5,
+        "sliding_window": True,
+        "max_seq_length": 512,
     }
 
     @classmethod
@@ -60,7 +58,6 @@ class ScoringService(object):
         # X, y = load_iris(return_X_y=True)
         # data = X[:2, :]
 
-
         data = input
         clf = cls.get_model()
         print(clf)
@@ -69,6 +66,7 @@ class ScoringService(object):
         res = clf.predict(data)
         print(str(datetime.now()) + " Prediction completed...")
         return res
+
 
 def build_model(config, model_dir=None, weight=None):
     """
@@ -81,49 +79,50 @@ def build_model(config, model_dir=None, weight=None):
     print(contents)
 
     return ClassificationModel(
-        'roberta', model_dir or 'roberta-base',
+        "roberta",
+        model_dir or "roberta-base",
         use_cuda=USE_CUDA,
         args={
             # https://github.com/ThilinaRajapakse/simpletransformers/#sliding-window-for-long-sequences
-            'sliding_window': config.get('sliding_window', False),
-
-            'reprocess_input_data': True,
-            'overwrite_output_dir': True,
-
-            'use_cached_eval_features': False,
-            'no_cache': True,
-
-            'num_train_epochs': config['num_train_epochs'],
-            'weight': weight,
-
+            "sliding_window": config.get("sliding_window", False),
+            "reprocess_input_data": True,
+            "overwrite_output_dir": True,
+            "use_cached_eval_features": False,
+            "no_cache": True,
+            "num_train_epochs": config["num_train_epochs"],
+            "weight": weight,
             # TODO I don't need checkpoints yet - disable this to save disk space
-            'save_eval_checkpoints': False,
-            'save_model_every_epoch': False,
-            'save_steps': 999999,
-
+            "save_eval_checkpoints": False,
+            "save_model_every_epoch": False,
+            "save_steps": 999999,
             # Bug in the library, need to specify it here and in the .train_model kwargs
-            'output_dir': config.get('model_output_dir'),
+            "output_dir": config.get("model_output_dir"),
             # Maybe a bug in the library, need to turn off multiprocessing for prediction
             # We may also want to look at the process_count config. It may use too many cpus
-            'use_multiprocessing': False,
+            "use_multiprocessing": False,
             # Note: 512 requires 16g of GPU mem. You can try 256 for 8g.
-            'max_seq_length': config.get('max_seq_length', 512),
-        }
+            "max_seq_length": config.get("max_seq_length", 512),
+        },
     )
+
 
 # The flask app for serving predictions
 app = flask.Flask(__name__)
 
-@app.route('/ping', methods=['GET'])
+
+@app.route("/ping", methods=["GET"])
 def ping():
     """Determine if the container is working and healthy. In this sample container, we declare
     it healthy if we can load the model successfully."""
-    health = ScoringService.get_model() is not None  # You can insert a health check here
+    health = (
+        ScoringService.get_model() is not None
+    )  # You can insert a health check here
 
     status = 200 if health else 404
-    return flask.Response(response='\n', status=status, mimetype='application/json')
+    return flask.Response(response="\n", status=status, mimetype="application/json")
 
-@app.route('/invocations', methods=['POST'])
+
+@app.route("/invocations", methods=["POST"])
 def transformation():
     """Do an inference on a single batch of data. In this sample server, we take data as CSV, convert
     it to a pandas data frame for internal use and then convert the predictions back to CSV (which really
@@ -133,22 +132,25 @@ def transformation():
     request_id = str(uuid.uuid4())
 
     data = None
-    
+
     # Convert from CSV to pandas
-    if flask.request.content_type == 'application/json':
-        data = flask.request.data.decode('utf-8')
+    if flask.request.content_type == "application/json":
+        data = flask.request.data.decode("utf-8")
         s = io.StringIO(data).getvalue()
         data = json.loads(s)["data"]
     else:
-        print('This predictor only supports JSON data')
-        return flask.Response(response='This predictor only supports JSON data', status=415, mimetype='text/plain')
-
+        print("This predictor only supports JSON data")
+        return flask.Response(
+            response="This predictor only supports JSON data",
+            status=415,
+            mimetype="text/plain",
+        )
 
     # Do the prediction
     labels_pred, scores_pred = ScoringService.predict(data)
     predictions = {
         "labels": labels_pred.tolist(),
-        "scores": [scores.tolist()[0] for scores in scores_pred]
+        "scores": [scores.tolist()[0] for scores in scores_pred],
     }
 
     return jsonify(predictions)

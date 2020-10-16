@@ -1,25 +1,24 @@
 import logging
 import os
 from typing import Optional
+
 from celery import Celery
+
 from alchemy.train.gcp_job import GoogleAIPlatformJob, build_model_storage_manager
-from alchemy.train.gs_utils import create_deployed_inference, DeployedInferenceMetadata
+from alchemy.train.gs_utils import DeployedInferenceMetadata, create_deployed_inference
 
 app = Celery(
     # module name
-    'gcp_celery',
-
+    "gcp_celery",
     # redis://:password@hostname:port/db_number
     broker=f"redis://{os.getenv('REDIS_HOST', 'localhost')}:6379/0",
-
     # # store the results here
     # backend='redis://localhost:6379/0',
 )
 
 # See all states at: https://cloud.google.com/ai-platform/training/docs/reference/rest/v1/projects.jobs#State
-RUNNING_STATES = ['QUEUED', 'PREPARING', 'RUNNING', 'CANCELLING',
-                  'STATE_UNSPECIFIED']
-TERMINAL_STATES = ['SUCCEEDED', 'FAILED', 'CANCELLED']
+RUNNING_STATES = ["QUEUED", "PREPARING", "RUNNING", "CANCELLING", "STATE_UNSPECIFIED"]
+TERMINAL_STATES = ["SUCCEEDED", "FAILED", "CANCELLED"]
 
 
 @app.task
@@ -43,7 +42,7 @@ def poll_status(job_id: str, metadata_dict: Optional[dict] = None, poll_count: i
         job_state = job.get_state()
         logging.info(f"job_state={job_state}")
 
-        if job_state == 'SUCCEEDED':
+        if job_state == "SUCCEEDED":
             logging.info(f"Done AI Platform job_id={job_id}")
             on_job_success(job, metadata_dict)
         elif poll_count > 60:
@@ -58,8 +57,9 @@ def poll_status(job_id: str, metadata_dict: Optional[dict] = None, poll_count: i
 
         if job_state in RUNNING_STATES:
             # Check again in 60 seconds
-            poll_status.apply_async(args=[job_id, metadata_dict, poll_count+1],
-                                    countdown=60)
+            poll_status.apply_async(
+                args=[job_id, metadata_dict, poll_count + 1], countdown=60
+            )
 
 
 def on_job_success(job: GoogleAIPlatformJob, metadata_dict: Optional[dict] = None):
@@ -73,8 +73,8 @@ def on_job_success(job: GoogleAIPlatformJob, metadata_dict: Optional[dict] = Non
         create_deployed_inference(metadata)
 
 
-app.conf.task_routes = {'*.gcp_celery.*': {'queue': 'gcp_celery'}}
+app.conf.task_routes = {"*.gcp_celery.*": {"queue": "gcp_celery"}}
 
-'''
+"""
 celery --app=train.gcp_celery worker -Q gcp_celery -l info -n gcp_celery
-'''
+"""

@@ -1,25 +1,26 @@
 import logging
+
 from envparse import env
 from flask import Blueprint, request, abort
 
 from alchemy.admin_server.external_services import SecretManagerService
 from alchemy.train.train_celery import submit_gcp_inference_on_new_file
 
-bp = Blueprint('api', __name__, url_prefix='/api')
+bp = Blueprint("api", __name__, url_prefix="/api")
 
 
 def get_bearer_token(headers: dict):
     token = None
-    if 'Authorization' in headers:
-        auth = headers['Authorization']
-        if auth.startswith('Bearer '):
-            token = auth[len('Bearer '):]
+    if "Authorization" in headers:
+        auth = headers["Authorization"]
+        if auth.startswith("Bearer "):
+            token = auth[len("Bearer ") :]
     return token
 
 
 def _before_request():
     # Let healthcheck bypass auth
-    if not request.endpoint.endswith('.healthcheck'):
+    if not request.endpoint.endswith(".healthcheck"):
         # Check token auth
         try:
             target_token = env('API_TOKEN', None) or \
@@ -37,12 +38,12 @@ def _before_request():
 bp.before_request(_before_request)
 
 
-@bp.route('/hc', methods=['GET'])
+@bp.route("/hc", methods=["GET"])
 def healthcheck():
     return "OK", 200
 
 
-@bp.route('/trigger_inference', methods=['POST'])
+@bp.route("/trigger_inference", methods=["POST"])
 def trigger_inference():
     """Trigger inference on a dataset."""
     dataset_name = None
@@ -50,9 +51,9 @@ def trigger_inference():
     json_data = request.get_json()
 
     if json_data:
-        request_id = json_data.get('request_id')
+        request_id = json_data.get("request_id")
         logging.info("Handling request " + request_id)
-        dataset_name = json_data.get('dataset_name', None)
+        dataset_name = json_data.get("dataset_name", None)
 
     if dataset_name:
         run_inference_on_data(dataset_name)

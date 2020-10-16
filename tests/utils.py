@@ -1,19 +1,23 @@
-import os
 import json
 from envparse import env
 import numpy as np
+import os
 from pathlib import Path
+
+import numpy as np
 from numpy import save
-from alchemy.shared.utils import stem
+
 from alchemy.db.model import Task, TextClassificationModel
+from alchemy.shared.utils import stem
 
 
 def fake_train_model(model, filestore_base_dir):
-    metrics_fname = os.path.join(filestore_base_dir, 'models', model.uuid,
-                                 str(model.version), 'metrics.json')
+    metrics_fname = os.path.join(
+        filestore_base_dir, "models", model.uuid, str(model.version), "metrics.json"
+    )
     os.makedirs(os.path.dirname(metrics_fname), exist_ok=True)
-    with open(metrics_fname, 'w') as f:
-        f.write(json.dumps({'accuracy': 0.95}))
+    with open(metrics_fname, "w") as f:
+        f.write(json.dumps({"accuracy": 0.95}))
 
 
 def create_example_model(dbsession):
@@ -42,23 +46,20 @@ def create_example_model(dbsession):
     d.mkdir(parents=True)
 
     p = d / f"{stem(data_fname)}.pred.npy"
-    raw_results = np.array([
-        [0.1234, 0.234],  # prob = 0.527
-        [-2.344, 0.100],  # prob = 0.920
-        [-2.344, 0.100],  # prob = 0.920
-    ])
+    raw_results = np.array(
+        [
+            [0.1234, 0.234],  # prob = 0.527
+            [-2.344, 0.100],  # prob = 0.920
+            [-2.344, 0.100],  # prob = 0.920
+        ]
+    )
     save(p, raw_results)
 
     # A Task has a Model.
-    task = Task(name="mytask", default_params={
-        'data_filenames': [data_fname]
-    })
-    model = TextClassificationModel(
-        uuid=model_uuid, version=version)
+    task = Task(name="mytask", default_params={"data_filenames": [data_fname]})
+    model = TextClassificationModel(uuid=model_uuid, version=version)
 
     dbsession.add_all([task, model])
     dbsession.commit()
 
-    return {
-        'data_fname': data_fname
-    }
+    return {"data_fname": data_fname}

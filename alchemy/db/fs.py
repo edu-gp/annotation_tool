@@ -1,9 +1,9 @@
 import os
 from envparse import env
 
-RAW_DATA_DIR = 'raw_data'
-TRAINING_DATA_DIR = 'training_data'
-MODELS_DIR = 'models'
+RAW_DATA_DIR = "raw_data"
+TRAINING_DATA_DIR = "training_data"
+MODELS_DIR = "models"
 
 
 def filestore_base_dir():

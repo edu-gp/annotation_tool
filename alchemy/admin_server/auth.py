@@ -1,5 +1,6 @@
-from alchemy.shared.config import Config
 from flask_httpauth import HTTPBasicAuth
+
+from alchemy.shared.config import Config
 
 auth = HTTPBasicAuth()
 

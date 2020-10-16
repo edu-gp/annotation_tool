@@ -3,11 +3,14 @@
 import os
 import tempfile
 from pathlib import Path
-from .run import train_model, inference, build_inference_cache, InferenceCache
-from .storage_manager import ModelStorageManager, DatasetStorageManager
+
+from .run import InferenceCache, build_inference_cache, inference, train_model
+from .storage_manager import DatasetStorageManager, ModelStorageManager
 
 
-def run(remote_model_dirs, remote_data_dir, infer_fnames, force_retrain, eval_batch_size):
+def run(
+    remote_model_dirs, remote_data_dir, infer_fnames, force_retrain, eval_batch_size
+):
     """
     For all models in `remote_model_dirs`
         Train if `force_retrain`
@@ -21,7 +24,7 @@ def run(remote_model_dirs, remote_data_dir, infer_fnames, force_retrain, eval_ba
     print(f"eval_batch_size={eval_batch_size}")
 
     if isinstance(eval_batch_size, int):
-        os.environ['TRANSFORMER_EVAL_BATCH_SIZE'] = str(eval_batch_size)
+        os.environ["TRANSFORMER_EVAL_BATCH_SIZE"] = str(eval_batch_size)
 
     for remote_model_dir in remote_model_dirs:
         print(f"Executing Training Script")
@@ -29,8 +32,8 @@ def run(remote_model_dirs, remote_data_dir, infer_fnames, force_retrain, eval_ba
         with tempfile.TemporaryDirectory() as tempdir:
             # -----------------------------------------------------------------
             # 1. Setup
-            local_model_dir = os.path.join(tempdir, 'model')
-            local_data_dir = os.path.join(tempdir, 'data')
+            local_model_dir = os.path.join(tempdir, "model")
+            local_data_dir = os.path.join(tempdir, "data")
 
             os.makedirs(local_model_dir, exist_ok=True)
             os.makedirs(local_data_dir, exist_ok=True)
@@ -66,32 +69,35 @@ def run(remote_model_dirs, remote_data_dir, infer_fnames, force_retrain, eval_ba
                     # Cache is not nessesary but makes inference on incremental
                     # data updates a lot faster.
                     if inference_cache is None:
-                        inference_cache = \
-                            build_inference_cache(msm.local_dir, dsm)
+                        inference_cache = build_inference_cache(msm.local_dir, dsm)
 
                     # Run Inference - results saved in local_model_dir
                     # Note the inference_cache is updated for each new file.
-                    inference(msm.local_dir, dataset_local_path,
-                              inference_cache=inference_cache)
+                    inference(
+                        msm.local_dir,
+                        dataset_local_path,
+                        inference_cache=inference_cache,
+                    )
 
             # Upload inference results
             msm.upload()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description='Train Model')
-    parser.add_argument('--dirs', default=[], nargs='*',
-                        help='Remote GCS dirs containing the assets.')
-    parser.add_argument('--data-dir',
-                        help='Location of raw data files.')
-    parser.add_argument('--infer', default=[], nargs='*',
-                        help='A list of filenames to run inference on')
-    parser.add_argument('--force-retrain',
-                        action='store_true', help='Force retraining')
-    parser.add_argument('--eval-batch-size',
-                        type=int, default=8, help='eval_batch_size')
+    parser = argparse.ArgumentParser(description="Train Model")
+    parser.add_argument(
+        "--dirs", default=[], nargs="*", help="Remote GCS dirs containing the assets."
+    )
+    parser.add_argument("--data-dir", help="Location of raw data files.")
+    parser.add_argument(
+        "--infer", default=[], nargs="*", help="A list of filenames to run inference on"
+    )
+    parser.add_argument("--force-retrain", action="store_true", help="Force retraining")
+    parser.add_argument(
+        "--eval-batch-size", type=int, default=8, help="eval_batch_size"
+    )
     args = parser.parse_args()
 
     remote_model_dirs = args.dirs
@@ -102,8 +108,8 @@ if __name__ == '__main__':
 
     run(remote_model_dirs, data_dir, infer_fnames, force_retrain, eval_batch_size)
 
-'''
+"""
 Try it out locally:
 
 python -m train.no_deps.gcp_run --dir gs://alchemy-gp/tasks/8a79a035-56fa-415c-8202-9297652dfe75/models/3 --data-dir gs://alchemy-gp/data --infer spring_jan_2020_small.jsonl --eval-batch-size 32
-'''
+"""

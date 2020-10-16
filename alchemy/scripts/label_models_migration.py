@@ -3,8 +3,8 @@ Models used to be stored on Tasks.
 This script migrates all the models from binary-classification tasks
 to individual labels (by storing the 'label' properly in Model).
 """
-from alchemy.db.model import Database, Task
 from alchemy.db.config import DevelopmentConfig
+from alchemy.db.model import Database, Task
 
 db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
 
@@ -23,6 +23,8 @@ if __name__ == "__main__":
                 db.session.add(model)
             db.session.commit()
         else:
-            print(f'** Skip task name="{task.name}" id={task.id}, '
-                  f'it has {len(labels)} labels.')
-        print('-'*80)
+            print(
+                f'** Skip task name="{task.name}" id={task.id}, '
+                f"it has {len(labels)} labels."
+            )
+        print("-" * 80)

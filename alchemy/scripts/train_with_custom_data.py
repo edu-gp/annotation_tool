@@ -1,15 +1,14 @@
 import pandas as pd
+
 from alchemy.shared.utils import save_jsonl
-from alchemy.train import (
-    get_next_version, save_config
-)
-from alchemy.train.no_deps.paths import _get_exported_data_fname
-from alchemy.train import _get_version_dir
-from alchemy.train import GCPJob
+from alchemy.train import GCPJob, _get_version_dir, get_next_version, save_config
 from alchemy.train.gcp_celery import poll_status as gcp_poll_status
+from alchemy.train.no_deps.paths import _get_exported_data_fname
 
 
-def train_with_custom_data(task_id, custom_data_file, text_col, label_col, label, dryrun=True):
+def train_with_custom_data(
+    task_id, custom_data_file, text_col, label_col, label, dryrun=True
+):
     """Train with custom data (in a csv file)
 
     Inputs:
@@ -30,11 +29,13 @@ def train_with_custom_data(task_id, custom_data_file, text_col, label_col, label
     save_config(version_dir)
 
     data_fname = _get_exported_data_fname(version_dir)
-    convert_user_csv(custom_data_file,
-                     text_col=text_col,
-                     label_col=label_col,
-                     label=label,
-                     outfile=data_fname)
+    convert_user_csv(
+        custom_data_file,
+        text_col=text_col,
+        label_col=label_col,
+        label=label,
+        outfile=data_fname,
+    )
 
     if not dryrun:
         job = GCPJob(task_id, version)
@@ -49,39 +50,46 @@ def convert_user_csv(csv_fname, text_col, label_col, label, outfile):
 
     data = []
     for idx, row in df.iterrows():
-        if row[label_col] != 0 and \
-                not pd.isna(row[text_col]) and \
-                len(row[text_col]) > 0:
+        if (
+            row[label_col] != 0
+            and not pd.isna(row[text_col])
+            and len(row[text_col]) > 0
+        ):
 
-            assert row[label_col] in [-1, 1], \
-                f'Invalid Label: "{row[label_col]}"'
+            assert row[label_col] in [-1, 1], f'Invalid Label: "{row[label_col]}"'
 
-            data.append(
-                {'text': row[text_col], 'labels': {label: row[label_col]}})
+            data.append({"text": row[text_col], "labels": {label: row[label_col]}})
 
     save_jsonl(outfile, data)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description='Train with custom data')
-    parser.add_argument('--task_id', required=True)
-    parser.add_argument('--file', required=True, help='CSV data file')
-    parser.add_argument('--text_col', required=True, help='Text col name')
-    parser.add_argument('--label_col', required=True,
-                        help='Label col name - labels should be -1, 0, or 1')
-    parser.add_argument('--label', required=True, help='Label name')
-    parser.add_argument('--dry', default=False,
-                        action='store_true', help='Dry run')
+    parser = argparse.ArgumentParser(description="Train with custom data")
+    parser.add_argument("--task_id", required=True)
+    parser.add_argument("--file", required=True, help="CSV data file")
+    parser.add_argument("--text_col", required=True, help="Text col name")
+    parser.add_argument(
+        "--label_col",
+        required=True,
+        help="Label col name - labels should be -1, 0, or 1",
+    )
+    parser.add_argument("--label", required=True, help="Label name")
+    parser.add_argument("--dry", default=False, action="store_true", help="Dry run")
 
     args = parser.parse_args()
     print(args)
-    train_with_custom_data(args.task_id, args.file,
-                           args.text_col, args.label_col, args.label,
-                           dryrun=args.dry)
+    train_with_custom_data(
+        args.task_id,
+        args.file,
+        args.text_col,
+        args.label_col,
+        args.label,
+        dryrun=args.dry,
+    )
 
-'''
+"""
 Example past runs:
 
 python -m scripts.train_with_custom_data \
@@ -115,4 +123,4 @@ python -m scripts.train_with_custom_data \
     --label_col Label \
     --label GRC \
     --dry
-'''
+"""

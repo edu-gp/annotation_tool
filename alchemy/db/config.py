@@ -5,6 +5,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 class Config(object):
     """Base config, uses staging database server."""
+
     DEBUG = False
     TESTING = False
     SQLALCHEMY_DATABASE_URI = env(  # maybe env.url?
@@ -22,4 +23,4 @@ class DevelopmentConfig(Config):
 class TestingConfig(Config):
     DEBUG = True
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"

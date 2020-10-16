@@ -1,16 +1,15 @@
 import os
 from pathlib import Path
-from typing import List, Dict
+from typing import Dict, List
 
 from alchemy.inference.base import ITextCatModel
-from alchemy.shared.utils import load_jsonl, save_jsonl, mkf
-
 from alchemy.shared.config import Config
+from alchemy.shared.utils import load_jsonl, mkf, save_jsonl
 
 
 def _predict(data_fname, model) -> List[Dict]:
     df = load_jsonl(data_fname)
-    results = model.predict(df['text'])
+    results = model.predict(df["text"])
     # Attaching the meta data for an entity (e.g., name and domain)
     for i, res in enumerate(results):
         res.update({"meta": df["meta"][i]})
@@ -30,15 +29,14 @@ def get_predicted(data_fname, model: ITextCatModel, cache=True):
 
     cache = False
 
-    print(
-        f"get_predicted model={model} data_fname={data_fname} (cache={cache})")
+    print(f"get_predicted model={model} data_fname={data_fname} (cache={cache})")
 
     if not cache:
         return _predict(data_fname, model)
     else:
         # Get cache filename
         stem = Path(data_fname).stem
-        fname = f'{stem}__inferred_by__{model}.jsonl'
+        fname = f"{stem}__inferred_by__{model}.jsonl"
         path = [Config.get_inference_cache_dir(), fname]
         fname = os.path.join(*path)
 

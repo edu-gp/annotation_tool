@@ -2,14 +2,14 @@ from alchemy.db.model import AnnotationGuide
 
 
 def test_plaintext_to_html():
-    plaintext = 'hello'
+    plaintext = "hello"
     res = AnnotationGuide.plaintext_to_html(plaintext)
-    assert res == 'hello'
+    assert res == "hello"
 
-    plaintext = 'hello\nworld'
+    plaintext = "hello\nworld"
     res = AnnotationGuide.plaintext_to_html(plaintext)
-    assert res == 'hello<br />world'
+    assert res == "hello<br />world"
 
-    plaintext = ''
+    plaintext = ""
     res = AnnotationGuide.plaintext_to_html(plaintext)
-    assert res == ''
+    assert res == ""

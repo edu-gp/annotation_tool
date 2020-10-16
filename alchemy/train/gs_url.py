@@ -34,9 +34,9 @@ def _build_prod_dir(model_uuid, model_version, dataset_name, ts) -> str:
 
 def build_prod_inference_url(model_uuid, model_version, dataset_name, ts) -> str:
     dirname = _build_prod_dir(model_uuid, model_version, dataset_name, ts)
-    return dirname + '/inference.csv'
+    return dirname + "/inference.csv"
 
 
 def build_prod_metadata_url(model_uuid, model_version, dataset_name, ts) -> str:
     dirname = _build_prod_dir(model_uuid, model_version, dataset_name, ts)
-    return dirname + '/metadata.json'
+    return dirname + "/metadata.json"

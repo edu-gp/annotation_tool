@@ -1,6 +1,7 @@
 import os
+
+from alchemy.db.fs import MODELS_DIR, filestore_base_dir
 from alchemy.shared.utils import mkd
-from alchemy.db.fs import filestore_base_dir, MODELS_DIR
 
 
 def _get_version_dir(uuid, version, abs=True):
