@@ -1,5 +1,6 @@
 import os
 import json
+from envparse import env
 import numpy as np
 from pathlib import Path
 from numpy import save
@@ -16,7 +17,7 @@ def fake_train_model(model, filestore_base_dir):
 
 
 def create_example_model(dbsession):
-    root_dir = Path(os.environ.get('ALCHEMY_FILESTORE_DIR'))
+    root_dir = env('ALCHEMY_FILESTORE_DIR', cast=Path)
 
     # Create mock files
     model_uuid = "abc"

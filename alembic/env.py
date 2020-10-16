@@ -1,4 +1,4 @@
-import os
+from envparse import env
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
@@ -14,7 +14,7 @@ sys.path = ['', '..'] + sys.path[1:]
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-db_url = os.environ.get("DB_URL_FOR_MIGRATION", None)
+db_url = env("DB_URL_FOR_MIGRATION", None)
 if db_url:
     logging.info("DB_URL is {}".format(db_url))
     config.set_main_option('sqlalchemy.url', db_url)

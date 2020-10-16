@@ -1,6 +1,7 @@
 import os
 import logging
 
+from envparse import env
 from flask import (
     Flask, redirect, url_for
 )
@@ -9,16 +10,15 @@ from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import db
 from .auth import auth
 
-
-if os.environ.get("USE_CLOUD_LOGGING"):
+if env.bool("USE_CLOUD_LOGGING", default=False):
     from google.cloud import logging as glog
     from google.cloud.logging.handlers import CloudLoggingHandler, setup_logging
 
     client = glog.Client()
 
     handler = CloudLoggingHandler(client,
-                                  name=os.environ.get("ADMIN_SERVER_LOGGER",
-                                                      "alchemy-admin-server"))
+                                  name=env("ADMIN_SERVER_LOGGER",
+                                           default="alchemy-admin-server"))
     logging.getLogger().setLevel(logging.INFO)
     setup_logging(handler)
 

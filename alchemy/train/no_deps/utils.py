@@ -35,22 +35,6 @@ def load_original_data_text(datafname):
     return text
 
 
-def get_env_int(key, default):
-    val = os.environ.get(key, default)
-    if not isinstance(val, int):
-        val = int(val)
-    return val
-
-
-def get_env_bool(key, default):
-    val = os.environ.get(key, default)
-    if isinstance(val, str):
-        val = val.lower() in ['t', 'true', '1', 'y', 'yes']
-    if not isinstance(val, bool):
-        val = bool(val)
-    return val
-
-
 def _parse_labels(data):
     '''
     Inputs:

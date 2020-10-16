@@ -1,6 +1,7 @@
 import logging
 import os
 
+from envparse import env
 from flask import (
     Flask, render_template, g
 )
@@ -12,15 +13,15 @@ from .auth import login_required
 from alchemy.ar.data import fetch_tasks_for_user_from_db
 
 
-if os.environ.get("USE_CLOUD_LOGGING"):
+if env.bool("USE_CLOUD_LOGGING", default=False):
     from google.cloud import logging as glog
     from google.cloud.logging.handlers import CloudLoggingHandler, setup_logging
 
     client = glog.Client()
 
     handler = CloudLoggingHandler(client,
-                                  name=os.environ.get("ANNOTATION_SERVER_LOGGER",
-                                                      "alchemy-annotation-server"))
+                                  name=env("ANNOTATION_SERVER_LOGGER",
+                                           default="alchemy-annotation-server"))
     logging.getLogger().setLevel(logging.INFO)
     setup_logging(handler)
 
@@ -28,7 +29,7 @@ if os.environ.get("USE_CLOUD_LOGGING"):
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
-    # TODO add credentials for sqlite, probably from os.environ
+    # TODO add credentials for sqlite, probably from environment vars
     app.config.from_mapping(
         SECRET_KEY='athena_todo_change_this_in_prod',
     )

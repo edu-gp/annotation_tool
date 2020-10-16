@@ -1,10 +1,10 @@
-import os
+from envparse import env
 from pathlib import Path
 
 
 def build_raw_data_dir() -> str:
-    bucket = os.environ.get('GOOGLE_AI_PLATFORM_BUCKET')
-    assert bucket, "GCS bucket not defined"
+    bucket = env('GOOGLE_AI_PLATFORM_BUCKET', default=None)
+    assert bucket, "GCS bucket not defined"  # TODO: If no default is set env will automatically raise an exception, so we might be able to remove this assertion
     return f"gs://{bucket}/data"
 
 
@@ -14,8 +14,8 @@ def build_raw_data_url(dataset_name) -> str:
 
 
 def build_model_dir(model_uuid, model_version) -> str:
-    bucket = os.environ.get('GOOGLE_AI_PLATFORM_BUCKET')
-    assert bucket, "GCS bucket not defined"
+    bucket = env('GOOGLE_AI_PLATFORM_BUCKET', default=None)
+    assert bucket, "GCS bucket not defined"  # TODO: above
     return f"gs://{bucket}/tasks/{model_uuid}/models/{model_version}"
 
 
@@ -27,8 +27,8 @@ def build_model_inference_url(model_uuid, model_version, dataset_name) -> str:
 
 def _build_prod_dir(model_uuid, model_version, dataset_name, ts) -> str:
     stem = Path(dataset_name).stem
-    bucket = os.environ.get('GOOGLE_AI_PLATFORM_BUCKET')
-    assert bucket, "GCS bucket not defined"
+    bucket = env('GOOGLE_AI_PLATFORM_BUCKET', None)
+    assert bucket, "GCS bucket not defined"  # TODO: above
     return f"gs://{bucket}/prod/{model_uuid}/{model_version}/{stem}/{ts}"
 
 

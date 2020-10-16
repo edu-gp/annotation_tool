@@ -8,6 +8,8 @@ import os
 import json
 from pathlib import Path
 
+from envparse import env
+
 from .paths import (
     _get_config_fname, _get_data_parser_fname,
     _get_exported_data_fname, _get_metrics_fname,
@@ -19,7 +21,7 @@ from .storage_manager import DatasetStorageManager
 from .transformers_textcat import train, evaluate_model, build_model
 from .inference_results import InferenceResults
 from .utils import (
-    BINARY_CLASSIFICATION, load_original_data_text, get_env_int,
+    BINARY_CLASSIFICATION, load_original_data_text,
     _load_config, _prepare_data
 )
 
@@ -102,8 +104,8 @@ def load_model(version_dir, build_model_fn=None):
     config = load_json(_get_config_fname(version_dir))
 
     # You can increase TRANSFORMER_EVAL_BATCH_SIZE for faster inference.
-    config['train_config']['eval_batch_size'] = get_env_int(
-        "TRANSFORMER_EVAL_BATCH_SIZE", 8)
+    config['train_config']['eval_batch_size'] = env.int(
+        "TRANSFORMER_EVAL_BATCH_SIZE", default=8)
 
     if build_model_fn is None:
         build_model_fn = build_model

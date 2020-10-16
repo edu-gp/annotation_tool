@@ -8,6 +8,7 @@ from typing import List, NoReturn
 import typing
 from simple_salesforce import Salesforce
 
+from envparse import env
 import jwt
 import time
 import requests
@@ -20,7 +21,7 @@ from alchemy.db.model import Database, get_or_create, User, ClassificationAnnota
 from google.cloud import secretmanager
 
 
-PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
+PROJECT_ID = env("GCP_PROJECT_ID")
 
 
 def create_gcp_client():
