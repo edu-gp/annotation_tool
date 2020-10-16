@@ -1,47 +1,54 @@
-from typing import Optional, List
-import logging
 import copy
+import logging
 import os
-import urllib.parse
-
-import numpy
-import pandas as pd
 import pickle
-from werkzeug.utils import secure_filename
+import urllib.parse
+from typing import List, Optional
+
+import pandas as pd
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import create_engine, inspect, UniqueConstraint, MetaData, \
-    Boolean, desc
-from sqlalchemy.schema import ForeignKey, Column
-from sqlalchemy.types import Integer, Float, String, JSON, DateTime
+from sqlalchemy import Boolean, MetaData, UniqueConstraint, create_engine, desc, inspect
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
 from sqlalchemy.orm.attributes import flag_modified
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.schema import Column, ForeignKey
 from sqlalchemy.sql import func
-from shared.utils import (
-    gen_uuid, stem, file_len, load_json, load_jsonl, safe_getattr,
-    _format_float_numbers)
-from db.fs import (
+from sqlalchemy.types import JSON, DateTime, Float, Integer, String
+from werkzeug.utils import secure_filename
+
+from alchemy.db.fs import RAW_DATA_DIR, TRAINING_DATA_DIR, filestore_base_dir
 from alchemy.shared.utils import (
-    gen_uuid, stem, file_len, load_json, load_jsonl, safe_getattr)
-from alchemy.db.fs import (
-    filestore_base_dir, RAW_DATA_DIR, TRAINING_DATA_DIR
-)
-from alchemy.train.no_deps.paths import (
-    _get_config_fname, _get_data_parser_fname, _get_metrics_fname,
-    _get_all_plots, _get_exported_data_fname, _get_all_inference_fnames,
-    _get_inference_fname, _get_metrics_v2_fname
+    _format_float_numbers,
+    file_len,
+    gen_uuid,
+    load_json,
+    load_jsonl,
+    safe_getattr,
+    stem,
 )
 from alchemy.train.no_deps.inference_results import InferenceResults
 from alchemy.train.no_deps.metrics import compute_metrics as _compute_metrics
+from alchemy.train.no_deps.paths import (
+    _get_all_inference_fnames,
+    _get_all_plots,
+    _get_config_fname,
+    _get_data_parser_fname,
+    _get_exported_data_fname,
+    _get_inference_fname,
+    _get_metrics_fname,
+    _get_metrics_v2_fname,
+)
 from alchemy.train.paths import _get_version_dir
 
-meta = MetaData(naming_convention={
-    "ix": "ix_%(column_0_label)s",
-    "uq": "uq_%(table_name)s_%(column_0_name)s",
-    "ck": "ck_%(table_name)s_%(constraint_name)s",
-    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-    "pk": "pk_%(table_name)s"
-})
+meta = MetaData(
+    naming_convention={
+        "ix": "ix_%(column_0_label)s",
+        "uq": "uq_%(table_name)s_%(column_0_name)s",
+        "ck": "ck_%(table_name)s_%(constraint_name)s",
+        "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+        "pk": "pk_%(table_name)s",
+    }
+)
 Base = declarative_base(metadata=meta)
 
 # =============================================================================
@@ -108,7 +115,7 @@ class AnnotationValue:
 
 # A dummy entity is used to store the value of a label that don't have any real
 # annotations yet, but we want to show it to the user as an option.
-DUMMY_ENTITY = '__dummy__'
+DUMMY_ENTITY = "__dummy__"
 
 
 # =============================================================================
@@ -116,49 +123,50 @@ DUMMY_ENTITY = '__dummy__'
 
 
 class User(Base):
-    __tablename__ = 'user'
+    __tablename__ = "user"
     id = Column(Integer, primary_key=True)
-    username = Column(String(64), index=True, unique=True,
-                      nullable=False)
+    username = Column(String(64), index=True, unique=True, nullable=False)
     # A user can do many annotations.
-    classification_annotations = relationship('ClassificationAnnotation',
-                                              back_populates='user',
-                                              lazy='dynamic')
+    classification_annotations = relationship(
+        "ClassificationAnnotation", back_populates="user", lazy="dynamic"
+    )
 
     def __repr__(self):
-        return '<User {}>'.format(self.username)
+        return "<User {}>".format(self.username)
 
     def fetch_ar_count_per_task(self):
         """Returns a list of tuples (name, task_id, count)
         """
         session = inspect(self).session
 
-        q = session.query(
-            Task.name, Task.id, func.count(Task.id)
-        ).join(AnnotationRequest) \
-            .filter(AnnotationRequest.task_id == Task.id) \
-            .filter(AnnotationRequest.user == self) \
-            .group_by(Task.id) \
+        q = (
+            session.query(Task.name, Task.id, func.count(Task.id))
+            .join(AnnotationRequest)
+            .filter(AnnotationRequest.task_id == Task.id)
+            .filter(AnnotationRequest.user == self)
+            .group_by(Task.id)
             .order_by(Task.id)
+        )
 
         return q.all()
 
-    def fetch_ar_for_task(self, task_id,
-                          status=AnnotationRequestStatus.Pending):
+    def fetch_ar_for_task(self, task_id, status=AnnotationRequestStatus.Pending):
         """Returns a list of AnnotationRequest objects"""
         session = inspect(self).session
 
-        q = session.query(AnnotationRequest) \
-            .filter(AnnotationRequest.task_id == task_id) \
-            .filter(AnnotationRequest.user == self) \
-            .filter(AnnotationRequest.status == status) \
+        q = (
+            session.query(AnnotationRequest)
+            .filter(AnnotationRequest.task_id == task_id)
+            .filter(AnnotationRequest.user == self)
+            .filter(AnnotationRequest.status == status)
             .order_by(AnnotationRequest.order)
+        )
 
         return q.all()
 
 
 class ClassificationAnnotation(Base):
-    __tablename__ = 'classification_annotation'
+    __tablename__ = "classification_annotation"
 
     id = Column(Integer, primary_key=True)
     value = Column(Integer, nullable=False)
@@ -171,7 +179,7 @@ class ClassificationAnnotation(Base):
 
     label = Column(String, index=True, nullable=False)
 
-    user_id = Column(Integer, ForeignKey('user.id'))
+    user_id = Column(Integer, ForeignKey("user.id"))
     user = relationship("User", back_populates="classification_annotations")
 
     context = Column(JSON)
@@ -204,18 +212,21 @@ class ClassificationAnnotation(Base):
             self.user_id,
             self.value,
             self.created_at,
-            self.updated_at
+            self.updated_at,
         )
 
     @staticmethod
     def create_dummy(dbsession, entity_type, label):
         """Create a dummy record to mark the existence of a label.
         """
-        return get_or_create(dbsession, ClassificationAnnotation,
-                             entity=DUMMY_ENTITY,
-                             entity_type=entity_type,
-                             label=label,
-                             value=AnnotationValue.NOT_ANNOTATED)
+        return get_or_create(
+            dbsession,
+            ClassificationAnnotation,
+            entity=DUMMY_ENTITY,
+            entity_type=entity_type,
+            label=label,
+            value=AnnotationValue.NOT_ANNOTATED,
+        )
 
 
 def majority_vote_annotations_query(dbsession, label):
@@ -232,19 +243,19 @@ def majority_vote_annotations_query(dbsession, label):
     Note: This query ignores annotation values of 0 - they are "Unknown"s.
     """
 
-    q1 = dbsession.query(
-        ClassificationAnnotation.entity,
-        ClassificationAnnotation.value,
-        func.sum(ClassificationAnnotation.weight).label('weight')
-    ) \
-        .filter_by(label=label) \
-        .filter(ClassificationAnnotation.value != AnnotationValue.UNSURE) \
-        .filter(
-        ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED) \
-        .group_by(ClassificationAnnotation.entity,
-                  ClassificationAnnotation.value)
+    q1 = (
+        dbsession.query(
+            ClassificationAnnotation.entity,
+            ClassificationAnnotation.value,
+            func.sum(ClassificationAnnotation.weight).label("weight"),
+        )
+        .filter_by(label=label)
+        .filter(ClassificationAnnotation.value != AnnotationValue.UNSURE)
+        .filter(ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED)
+        .group_by(ClassificationAnnotation.entity, ClassificationAnnotation.value)
+    )
 
-    q1 = q1.cte('weight_query')
+    q1 = q1.cte("weight_query")
     """
     q1 gives us this:
     Entity | Value | Weight
@@ -259,10 +270,11 @@ def majority_vote_annotations_query(dbsession, label):
         q1.c.entity,
         q1.c.value,
         q1.c.weight,
-        func.row_number().over(partition_by=q1.c.entity,
-                               order_by=desc(q1.c.weight)).label("row_number")
+        func.row_number()
+        .over(partition_by=q1.c.entity, order_by=desc(q1.c.weight))
+        .label("row_number"),
     )
-    q2 = q2.cte('weight_query_with_row_number')
+    q2 = q2.cte("weight_query_with_row_number")
     """
     q2 gives us this:
     Entity | Value | Weight | ROW Number
@@ -273,9 +285,9 @@ def majority_vote_annotations_query(dbsession, label):
     c.com  |   1   |   10   1     1
     """
 
-    query = dbsession.query(
-        q2.c.entity, q2.c.value, q2.c.weight
-    ).filter(q2.c.row_number == 1)
+    query = dbsession.query(q2.c.entity, q2.c.value, q2.c.weight).filter(
+        q2.c.row_number == 1
+    )
 
     return query
 
@@ -286,7 +298,7 @@ class ClassificationTrainingData(Base):
     This points to a jsonl file where each line is of the structure:
     {"text": "A quick brown fox", "labels": {"bear": -1}}
     """
-    __tablename__ = 'classification_training_data'
+    __tablename__ = "classification_training_data"
 
     id = Column(Integer, primary_key=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -294,8 +306,9 @@ class ClassificationTrainingData(Base):
     label = Column(String, index=True, nullable=False)
 
     @staticmethod
-    def create_for_label(dbsession, entity_type: str, label: str,
-                         entity_text_lookup_fn, batch_size=50):
+    def create_for_label(
+        dbsession, entity_type: str, label: str, entity_text_lookup_fn, batch_size=50
+    ):
         """
         Create a training data for the given label by taking a snapshot of all
         the annotations created with it so far.
@@ -311,10 +324,12 @@ class ClassificationTrainingData(Base):
 
         final = []
         for entity, anno_value, _ in query.yield_per(batch_size):
-            final.append({
-                'text': entity_text_lookup_fn(entity_type, entity),
-                'labels': {label: anno_value}
-            })
+            final.append(
+                {
+                    "text": entity_text_lookup_fn(entity_type, entity),
+                    "labels": {label: anno_value},
+                }
+            )
 
         # Save the database object, use it to generate filename, then save the
         # file on disk.
@@ -325,13 +340,17 @@ class ClassificationTrainingData(Base):
         output_fname = os.path.join(filestore_base_dir(), data.path())
         os.makedirs(os.path.dirname(output_fname), exist_ok=True)
         from alchemy.shared.utils import save_jsonl
+
         save_jsonl(output_fname, final)
 
         return data
 
     def path(self, abs=False):
-        p = os.path.join(TRAINING_DATA_DIR, secure_filename(self.label),
-                         str(int(self.created_at.timestamp())) + '.jsonl')
+        p = os.path.join(
+            TRAINING_DATA_DIR,
+            secure_filename(self.label),
+            str(int(self.created_at.timestamp())) + ".jsonl",
+        )
         if abs:
             p = os.path.join(filestore_base_dir(), p)
         return p
@@ -345,25 +364,28 @@ class ClassificationTrainingData(Base):
 
 
 class ModelDeploymentConfig(Base):
-    __tablename__ = 'model_deployment_config'
+    __tablename__ = "model_deployment_config"
     id = Column(Integer, primary_key=True)
-    model_id = Column(Integer, ForeignKey('model.id'), nullable=False)
-    is_approved = Column(Boolean(name='is_approved'), default=False)
+    model_id = Column(Integer, ForeignKey("model.id"), nullable=False)
+    is_approved = Column(Boolean(name="is_approved"), default=False)
     is_selected_for_deployment = Column(
-        Boolean(name='is_selected_for_deployment'), default=False)
+        Boolean(name="is_selected_for_deployment"), default=False
+    )
     threshold = Column(Float, default=0.5)
 
     @staticmethod
-    def get_selected_for_deployment(dbsession) -> List[
-        'ModelDeploymentConfig']:
+    def get_selected_for_deployment(dbsession) -> List["ModelDeploymentConfig"]:
         """Return all ModelDeploymentConfig's that are selected for deployment.
         """
-        return dbsession.query(ModelDeploymentConfig).filter_by(
-            is_selected_for_deployment=True).all()
+        return (
+            dbsession.query(ModelDeploymentConfig)
+            .filter_by(is_selected_for_deployment=True)
+            .all()
+        )
 
 
 class Model(Base):
-    __tablename__ = 'model'
+    __tablename__ = "model"
 
     id = Column(Integer, primary_key=True)
     type = Column(String(64), index=True, nullable=False)
@@ -374,8 +396,9 @@ class Model(Base):
     uuid = Column(String(64), index=True, nullable=False, default=gen_uuid)
     version = Column(Integer, index=True, nullable=False, default=1)
 
-    classification_training_data_id = Column(Integer, ForeignKey(
-        'classification_training_data.id'))
+    classification_training_data_id = Column(
+        Integer, ForeignKey("classification_training_data.id")
+    )
     classification_training_data = relationship("ClassificationTrainingData")
 
     config = Column(JSON)
@@ -383,26 +406,25 @@ class Model(Base):
     # Optionally associated with a Label
     label = Column(String, index=True, nullable=True)
 
-    entity_type = Column(String, index=True, nullable=True,
-                         default=EntityTypeEnum.COMPANY)
-
-    __mapper_args__ = {
-        'polymorphic_on': type,
-        'polymorphic_identity': 'model'
-    }
-
-    __table_args__ = (
-        UniqueConstraint('uuid', 'version', name='_uuid_version_uc'),
+    entity_type = Column(
+        String, index=True, nullable=True, default=EntityTypeEnum.COMPANY
     )
 
+    __mapper_args__ = {"polymorphic_on": type, "polymorphic_identity": "model"}
+
+    __table_args__ = (UniqueConstraint("uuid", "version", name="_uuid_version_uc"),)
+
     def __repr__(self):
-        return f'<Model:{self.type}:{self.uuid}:{self.version}>'
+        return f"<Model:{self.type}:{self.uuid}:{self.version}>"
 
     @staticmethod
     def get_latest_version(dbsession, uuid):
-        res = dbsession.query(Model.version) \
-            .filter(Model.uuid == uuid) \
-            .order_by(Model.version.desc()).first()
+        res = (
+            dbsession.query(Model.version)
+            .filter(Model.uuid == uuid)
+            .order_by(Model.version.desc())
+            .first()
+        )
         if res is None:
             version = None
         else:
@@ -453,8 +475,10 @@ class Model(Base):
 
     def get_inference_fnames(self):
         """Get the original filenames of the raw data for inference"""
-        return [stem(path) + '.jsonl'
-                for path in _get_all_inference_fnames(self.dir(abs=True))]
+        return [
+            stem(path) + ".jsonl"
+            for path in _get_all_inference_fnames(self.dir(abs=True))
+        ]
 
     def export_inference(self, fname: str, include_text: bool = False):
         """Exports the given inferenced file data_fname as a dataframe.
@@ -467,9 +491,9 @@ class Model(Base):
             'text' if include_text=True.
         """
 
-        cols = ['name', 'domain', 'probs']
+        cols = ["name", "domain", "probs"]
         if include_text:
-            cols = ['name', 'domain', 'text', 'probs']
+            cols = ["name", "domain", "text", "probs"]
 
         version_dir = self.dir(abs=True)
         return load_inference(version_dir, fname, columns=cols)
@@ -489,7 +513,7 @@ class Model(Base):
         metrics_path = _get_metrics_v2_fname(version_dir, threshold)
 
         if not os.path.isfile(metrics_path):
-            cols = ['text', 'probs']
+            cols = ["text", "probs"]
 
             inf_lookup = pd.DataFrame(columns=cols)
 
@@ -500,11 +524,9 @@ class Model(Base):
 
                 # inf_lookup can get very big, so only keep unique rows by text
                 inf_lookup = pd.concat([inf_lookup, df], axis=0)
-                inf_lookup = inf_lookup.drop_duplicates(
-                    subset=['text'], keep='first')
+                inf_lookup = inf_lookup.drop_duplicates(subset=["text"], keep="first")
 
-            metrics = _compute_metrics(
-                version_dir, inf_lookup, threshold=threshold)
+            metrics = _compute_metrics(version_dir, inf_lookup, threshold=threshold)
             pickle.dump(metrics, open(metrics_path, "wb"))
 
         metrics = pickle.load(open(metrics_path, "rb"))
@@ -515,16 +537,14 @@ class Model(Base):
 
 
 class TextClassificationModel(Model):
-    __mapper_args__ = {
-        'polymorphic_identity': 'text_classification_model'
-    }
+    __mapper_args__ = {"polymorphic_identity": "text_classification_model"}
 
     def __str__(self):
-        return f'TextClassificationModel:{self.uuid}:v{self.version}'
+        return f"TextClassificationModel:{self.uuid}:v{self.version}"
 
 
 class Task(Base):
-    __tablename__ = 'task'
+    __tablename__ = "task"
 
     id = Column(Integer, primary_key=True)
     name = Column(String(128), nullable=False)
@@ -555,60 +575,60 @@ class Task(Base):
 
     def __init__(self, *args, **kwargs):
         # Set default
-        default_params = kwargs.get('default_params', {})
-        if 'uuid' not in default_params:
-            default_params['uuid'] = gen_uuid()
-        kwargs['default_params'] = default_params
+        default_params = kwargs.get("default_params", {})
+        if "uuid" not in default_params:
+            default_params["uuid"] = gen_uuid()
+        kwargs["default_params"] = default_params
         super(Task, self).__init__(*args, **kwargs)
 
     def __str__(self):
         return self.name
 
     def set_labels(self, labels: List[str]):
-        self.default_params['labels'] = labels
-        flag_modified(self, 'default_params')
+        self.default_params["labels"] = labels
+        flag_modified(self, "default_params")
 
     def set_entity_type(self, entity_type: str):
-        self.default_params['entity_type'] = entity_type
-        flag_modified(self, 'default_params')
+        self.default_params["entity_type"] = entity_type
+        flag_modified(self, "default_params")
 
     def set_annotators(self, annotators: List[str]):
-        self.default_params['annotators'] = annotators
-        flag_modified(self, 'default_params')
+        self.default_params["annotators"] = annotators
+        flag_modified(self, "default_params")
 
     def set_patterns(self, patterns: List[str]):
-        self.default_params['patterns'] = patterns
-        flag_modified(self, 'default_params')
+        self.default_params["patterns"] = patterns
+        flag_modified(self, "default_params")
 
     def set_patterns_file(self, patterns_file: str):
         # TODO deprecate patterns_file?
-        self.default_params['patterns_file'] = patterns_file
-        flag_modified(self, 'default_params')
+        self.default_params["patterns_file"] = patterns_file
+        flag_modified(self, "default_params")
 
     def set_data_filenames(self, data_filenames: List[str]):
-        self.default_params['data_filenames'] = data_filenames
-        flag_modified(self, 'default_params')
+        self.default_params["data_filenames"] = data_filenames
+        flag_modified(self, "default_params")
 
     def get_uuid(self):
-        return self.default_params.get('uuid')
+        return self.default_params.get("uuid")
 
     # TODO remember to write a script to backfill this field into existing
     #  task. remember to remove the default value since this is only for
     #  testing purpose.
     def get_entity_type(self):
-        return self.default_params.get('entity_type', EntityTypeEnum.COMPANY)
+        return self.default_params.get("entity_type", EntityTypeEnum.COMPANY)
 
     def get_labels(self):
-        return self.default_params.get('labels', [])
+        return self.default_params.get("labels", [])
 
     def get_annotators(self):
-        return self.default_params.get('annotators', [])
+        return self.default_params.get("annotators", [])
 
     def get_patterns(self):
-        return self.default_params.get('patterns', [])
+        return self.default_params.get("patterns", [])
 
     def get_data_filenames(self, abs=False):
-        fnames = self.default_params.get('data_filenames', [])
+        fnames = self.default_params.get("data_filenames", [])
         if abs:
             fnames = [_raw_data_file_path(f) for f in fnames]
         return fnames
@@ -617,13 +637,12 @@ class Task(Base):
         from alchemy.inference.pattern_model import PatternModel
         from alchemy.db._task import _convert_to_spacy_patterns
 
-        if safe_getattr(self, '__cached_pattern_model') is None:
+        if safe_getattr(self, "__cached_pattern_model") is None:
             patterns = []
 
-            _patterns_file = self.default_params.get('patterns_file')
+            _patterns_file = self.default_params.get("patterns_file")
             if _patterns_file:
-                patterns += load_jsonl(_raw_data_file_path(_patterns_file),
-                                       to_df=False)
+                patterns += load_jsonl(_raw_data_file_path(_patterns_file), to_df=False)
 
             _patterns = self.get_patterns()
             if _patterns is not None:
@@ -635,11 +654,12 @@ class Task(Base):
 
     def __repr__(self):
         return "<Task with id {}, \nname {}, \ndefault_params {}>".format(
-            self.id, self.name, self.default_params)
+            self.id, self.name, self.default_params
+        )
 
 
 class AnnotationRequest(Base):
-    __tablename__ = 'annotation_request'
+    __tablename__ = "annotation_request"
 
     # --------- REQUIRED ---------
 
@@ -647,7 +667,7 @@ class AnnotationRequest(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Who should annotate.
-    user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
     user = relationship("User")
 
     entity = Column(String, index=True, nullable=False)
@@ -661,14 +681,15 @@ class AnnotationRequest(Base):
     annotation_type = Column(Integer, nullable=False)
 
     # AnnotationRequestStatus
-    status = Column(Integer, index=True, nullable=False,
-                    default=AnnotationRequestStatus.Pending)
+    status = Column(
+        Integer, index=True, nullable=False, default=AnnotationRequestStatus.Pending
+    )
 
     # --------- OPTIONAL ---------
 
     # Which task this request belongs to, so we can list all requests per task.
     # (If null, this request does not belong to any task)
-    task_id = Column(Integer, ForeignKey('task.id'))
+    task_id = Column(Integer, ForeignKey("task.id"))
     task = relationship("Task")
 
     # How the user should prioritize among many requests.
@@ -687,7 +708,7 @@ class AnnotationRequest(Base):
 
 
 class AnnotationGuide(Base):
-    __tablename__ = 'annotation_guide'
+    __tablename__ = "annotation_guide"
 
     id = Column(Integer, primary_key=True)
 
@@ -697,40 +718,37 @@ class AnnotationGuide(Base):
 
     @staticmethod
     def plaintext_to_html(plaintext):
-        return '<br />'.join(plaintext.split('\n'))
+        return "<br />".join(plaintext.split("\n"))
 
     def set_text(self, text):
-        self.data = {
-            'text': text,
-            'html': AnnotationGuide.plaintext_to_html(text)
-        }
+        self.data = {"text": text, "html": AnnotationGuide.plaintext_to_html(text)}
 
     def get_text(self):
-        if self.data and self.data.get('text'):
-            return self.data.get('text')
+        if self.data and self.data.get("text"):
+            return self.data.get("text")
         else:
-            return ''
+            return ""
 
     def get_html(self):
-        if self.data and self.data.get('html'):
-            return self.data.get('html')
+        if self.data and self.data.get("html"):
+            return self.data.get("html")
         else:
-            return ''
+            return ""
 
 
 class LabelOwner(Base):
-    __tablename__ = 'label_owner'
+    __tablename__ = "label_owner"
 
     id = Column(Integer, primary_key=True)
 
     label = Column(String, index=True, unique=True, nullable=False)
 
-    owner_id = Column(Integer, ForeignKey('user.id'))
+    owner_id = Column(Integer, ForeignKey("user.id"))
     owner = relationship("User")
 
 
 class LabelPatterns(Base):
-    __tablename__ = 'label_patterns'
+    __tablename__ = "label_patterns"
 
     id = Column(Integer, primary_key=True)
 
@@ -743,21 +761,19 @@ class LabelPatterns(Base):
         patterns = sorted(list(set(patterns)))
 
         data = self.data or {}
-        data.update({
-            'positive_patterns': patterns
-        })
+        data.update({"positive_patterns": patterns})
         self.data = data
-        flag_modified(self, 'data')
+        flag_modified(self, "data")
 
     def get_positive_patterns(self):
         if self.data:
-            return self.data.get('positive_patterns', [])
+            return self.data.get("positive_patterns", [])
         else:
             return []
 
     def count(self):
         if self.data:
-            return len(self.data.get('positive_patterns', []))
+            return len(self.data.get("positive_patterns", []))
         else:
             return 0
 
@@ -788,8 +804,7 @@ def get_or_create(dbsession, model, exclude_keys_in_retrieve=None, **kwargs):
         read_kwargs.pop(key, None)
 
     try:
-        instance = dbsession.query(model). \
-            filter_by(**read_kwargs).one_or_none()
+        instance = dbsession.query(model).filter_by(**read_kwargs).one_or_none()
         if instance:
             return instance
         else:
@@ -809,9 +824,11 @@ def fetch_labels_by_entity_type(dbsession, entity_type: str):
     :param entity_type: the entity type
     :return: all the labels under the entity type
     """
-    res = dbsession.query(func.distinct(ClassificationAnnotation.label)) \
-        .filter_by(entity_type=entity_type) \
+    res = (
+        dbsession.query(func.distinct(ClassificationAnnotation.label))
+        .filter_by(entity_type=entity_type)
         .all()
+    )
     res = [x[0] for x in res]
     return res
 
@@ -829,9 +846,12 @@ def save_labels_by_entity_type(dbsession, entity_type: str, labels: List[str]):
 
 
 def fetch_ar_ids_by_task_and_user(dbsession, task_id, username):
-    res = dbsession.query(AnnotationRequest). \
-        filter(AnnotationRequest.task_id == task_id,
-               User.username == username).join(User).all()
+    res = (
+        dbsession.query(AnnotationRequest)
+        .filter(AnnotationRequest.task_id == task_id, User.username == username)
+        .join(User)
+        .all()
+    )
     return [ar.id for ar in res]
 
 
@@ -844,82 +864,81 @@ def _raw_data_file_path(fname):
 #  fetch annotations with the labels under a task. If we are looking for
 #  annotations created inside Alchemy website, we'd better add a source column.
 def fetch_annotation_entity_and_ids_done_by_user_under_labels(
-        dbsession, username, labels):
-    res = dbsession.query(
-        ClassificationAnnotation.entity,
-        ClassificationAnnotation.id,
-        ClassificationAnnotation.created_at,
-        ClassificationAnnotation.label,
-        ClassificationAnnotation.value).join(User). \
-        filter(
-        User.username == username,
-        ClassificationAnnotation.label.in_(labels),
-        ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED). \
-        order_by(ClassificationAnnotation.created_at.desc()). \
-        all()
+    dbsession, username, labels
+):
+    res = (
+        dbsession.query(
+            ClassificationAnnotation.entity,
+            ClassificationAnnotation.id,
+            ClassificationAnnotation.created_at,
+            ClassificationAnnotation.label,
+            ClassificationAnnotation.value,
+        )
+        .join(User)
+        .filter(
+            User.username == username,
+            ClassificationAnnotation.label.in_(labels),
+            ClassificationAnnotation.value != AnnotationValue.NOT_ANNOTATED,
+        )
+        .order_by(ClassificationAnnotation.created_at.desc())
+        .all()
+    )
     return res
 
 
-def delete_requests_under_task_with_condition(dbsession, task_id,
-                                              **kwargs):
+def delete_requests_under_task_with_condition(dbsession, task_id, **kwargs):
     # Can't call Query.update() or Query.delete() when join(),
     # outerjoin(), select_from(), or from_self() has been called. So we have
     # to get the user instance first.
     if kwargs is None:
-        kwargs = {
-            "task_id": task_id
-        }
+        kwargs = {"task_id": task_id}
     else:
-        kwargs.update({
-            "task_id": task_id
-        })
+        kwargs.update({"task_id": task_id})
         print(kwargs)
 
-    dbsession.query(AnnotationRequest). \
-        filter_by(**kwargs). \
-        delete(synchronize_session=False)
+    dbsession.query(AnnotationRequest).filter_by(**kwargs).delete(
+        synchronize_session=False
+    )
 
 
 def delete_requests_for_user_under_task(dbsession, username, task_id):
-    user = dbsession.query(User).filter(
-        User.username == username).one_or_none()
+    user = dbsession.query(User).filter(User.username == username).one_or_none()
     if not user:
         logging.info("No such user {} exists. Ignored.".format(username))
         return None
-    delete_requests_under_task_with_condition(dbsession,
-                                              task_id=task_id,
-                                              user_id=user.id)
+    delete_requests_under_task_with_condition(
+        dbsession, task_id=task_id, user_id=user.id
+    )
 
 
 def delete_requests_for_label_under_task(dbsession, label, task_id):
-    delete_requests_under_task_with_condition(dbsession,
-                                              task_id=task_id,
-                                              label=label)
+    delete_requests_under_task_with_condition(dbsession, task_id=task_id, label=label)
 
 
-def delete_requests_for_entity_type_under_task(dbsession, task_id,
-                                               entity_type):
-    delete_requests_under_task_with_condition(dbsession,
-                                              task_id=task_id,
-                                              entity_type=entity_type)
+def delete_requests_for_entity_type_under_task(dbsession, task_id, entity_type):
+    delete_requests_under_task_with_condition(
+        dbsession, task_id=task_id, entity_type=entity_type
+    )
 
 
 def delete_requests_under_task(dbsession, task_id):
-    delete_requests_under_task_with_condition(dbsession,
-                                              task_id=task_id)
+    delete_requests_under_task_with_condition(dbsession, task_id=task_id)
 
 
-def get_latest_model_for_label(dbsession, label,
-                               model_type="text_classification_model"):
-    return dbsession.query(Model) \
-        .filter_by(label=label,
-                   type=model_type) \
-        .order_by(Model.version.desc(), Model.created_at.desc()) \
+def get_latest_model_for_label(
+    dbsession, label, model_type="text_classification_model"
+):
+    return (
+        dbsession.query(Model)
+        .filter_by(label=label, type=model_type)
+        .order_by(Model.version.desc(), Model.created_at.desc())
         .first()
+    )
 
 
-def load_inference(version_dir: str, dataset_filename: str,
-                   columns: Optional[List[str]] = None):
+def load_inference(
+    version_dir: str, dataset_filename: str, columns: Optional[List[str]] = None
+):
     """
     Inputs:
         version_dir: The model version dir
@@ -931,12 +950,12 @@ def load_inference(version_dir: str, dataset_filename: str,
         A pandas dataframe of the result with the cols
     """
     if columns is None:
-        columns = ['name', 'domain', 'text', 'probs']
+        columns = ["name", "domain", "text", "probs"]
 
     assert columns, "At least 1 column is required"
 
     # Make sure we only get the _dataset name_, in case a path was passed in
-    dataset_filename = stem(dataset_filename) + '.jsonl'
+    dataset_filename = stem(dataset_filename) + ".jsonl"
 
     # Load Inference Results
     path = _get_inference_fname(version_dir, dataset_filename)
@@ -953,13 +972,13 @@ def load_inference(version_dir: str, dataset_filename: str,
     assert len(df) == len(ir.probs), "Inference size != Raw data size"
 
     # Combine the two together.
-    df['probs'] = ir.probs
+    df["probs"] = ir.probs
 
-    if 'domain' in columns:
-        df['domain'] = df['meta'].apply(lambda x: x.get('domain'))
+    if "domain" in columns:
+        df["domain"] = df["meta"].apply(lambda x: x.get("domain"))
 
-    if 'name' in columns:
-        df['name'] = df['meta'].apply(lambda x: x.get('name'))
+    if "name" in columns:
+        df["name"] = df["meta"].apply(lambda x: x.get("name"))
 
     return df[columns]
 
