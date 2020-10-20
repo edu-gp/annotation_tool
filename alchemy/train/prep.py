@@ -1,26 +1,27 @@
-import time
+import hashlib
 import os
 import shutil
+import time
 import hashlib
 
 from envparse import env
-from .no_deps.paths import (
-    _get_config_fname, _get_exported_data_fname
-)
 
 from alchemy.db.model import (
-    TextClassificationModel, ClassificationTrainingData,
-    EntityTypeEnum
+    ClassificationTrainingData,
+    EntityTypeEnum,
+    TextClassificationModel,
 )
-from alchemy.train.text_lookup import get_entity_text_lookup_function
 from alchemy.shared.utils import save_json
+from alchemy.train.text_lookup import get_entity_text_lookup_function
+
+from .no_deps.paths import _get_config_fname, _get_exported_data_fname
 
 
 def generate_config():
     return {
-        'created_at': time.time(),
-        'test_size': 0.3,
-        'random_state': 42,
+        "created_at": time.time(),
+        "test_size": 0.3,
+        "random_state": 42,
         # TODO: Rename "train_config" to "model_config", or something more generic.
         # since train_config also includes config for inference...
         # NOTE: Env vars are used as global defaults. Eventually let user pass in
@@ -39,8 +40,8 @@ def generate_config():
 
 
 def prepare_next_model_for_label(
-        dbsession, label, raw_file_path,
-        entity_type=EntityTypeEnum.COMPANY) -> TextClassificationModel:
+    dbsession, label, raw_file_path, entity_type=EntityTypeEnum.COMPANY
+) -> TextClassificationModel:
     """Exports the model and save config when the model is training it does
     not need access to the Task object.
 
@@ -52,19 +53,23 @@ def prepare_next_model_for_label(
     version = TextClassificationModel.get_next_version(dbsession, model_id)
 
     entity_text_lookup_fn = get_entity_text_lookup_function(
-        raw_file_path, 'meta.domain', 'text', entity_type
+        raw_file_path, "meta.domain", "text", entity_type
     )
 
     data = ClassificationTrainingData.create_for_label(
-        dbsession, entity_type, label, entity_text_lookup_fn)
+        dbsession, entity_type, label, entity_text_lookup_fn
+    )
 
     config = generate_config()
 
-    model = TextClassificationModel(uuid=model_id, version=version,
-                                    label=label,
-                                    classification_training_data=data,
-                                    config=config,
-                                    entity_type=entity_type)
+    model = TextClassificationModel(
+        uuid=model_id,
+        version=version,
+        label=label,
+        classification_training_data=data,
+        config=config,
+        entity_type=entity_type,
+    )
     dbsession.add(model)
     dbsession.commit()
 

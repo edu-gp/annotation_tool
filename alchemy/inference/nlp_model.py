@@ -1,12 +1,13 @@
 import hashlib
+
 import numpy as np
 
-from alchemy.inference import ITextCatModel
 from alchemy.db.model import Model
+from alchemy.inference import ITextCatModel
 
 
 def _hash_text(text):
-    text = text or ''
+    text = text or ""
     return hashlib.md5(text.strip().encode()).hexdigest()
 
 
@@ -32,14 +33,14 @@ class NLPModel(ITextCatModel):
 
             self._cache = {}
 
-            model = self.dbsession.query(Model).filter_by(
-                id=self.model_id).one_or_none()
+            model = (
+                self.dbsession.query(Model).filter_by(id=self.model_id).one_or_none()
+            )
 
             for fname in model.get_inference_fnames():
                 df = model.export_inference(fname, include_text=True)
-                df['hashed_text'] = df['text'].apply(_hash_text)
-                self._cache.update(
-                    dict(zip(df['hashed_text'], df['probs'])))
+                df["hashed_text"] = df["text"].apply(_hash_text)
+                self._cache.update(dict(zip(df["hashed_text"], df["probs"])))
 
         return self._cache
 
@@ -51,9 +52,9 @@ class NLPModel(ITextCatModel):
             prob = self._cache.get(_hash_text(text))
             if prob is None:
                 # TODO run any inferences that have not been ran, instead of silently erroring out
-                res.append({'score': 0., 'prob': None})
+                res.append({"score": 0.0, "prob": None})
             else:
-                res.append({'score': self._score_fn(prob), 'prob': prob})
+                res.append({"score": self._score_fn(prob), "prob": prob})
 
         return res
 

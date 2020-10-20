@@ -4,7 +4,7 @@ import abc
 class ITextCatModel(abc.ABC):
     @abc.abstractmethod
     def predict(self, text_list):
-        '''
+        """
         Inputs:
             text_list: A list of strings.
 
@@ -15,5 +15,5 @@ class ITextCatModel(abc.ABC):
                 [ {'score': 0.324} , {'score': 3.434}, ... ]
 
         Higher scores are more likely to be selected for annotation.
-        '''
+        """
         pass

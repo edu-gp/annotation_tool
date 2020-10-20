@@ -3,7 +3,7 @@ from alchemy.db.model import ModelDeploymentConfig, TextClassificationModel
 
 def test_get_selected_for_deployment(dbsession):
     # TODO mock out a fully trained model
-    model = TextClassificationModel(uuid='123', version=1)
+    model = TextClassificationModel(uuid="123", version=1)
     dbsession.add(model)
     dbsession.commit()
 
@@ -11,19 +11,19 @@ def test_get_selected_for_deployment(dbsession):
         model_id=model.id,
         is_approved=False,
         is_selected_for_deployment=False,
-        threshold=0.7
+        threshold=0.7,
     )
     config_b = ModelDeploymentConfig(
         model_id=model.id,
         is_approved=True,
         is_selected_for_deployment=False,
-        threshold=0.8
+        threshold=0.8,
     )
     config_c = ModelDeploymentConfig(
         model_id=model.id,
         is_approved=True,
         is_selected_for_deployment=True,
-        threshold=0.9
+        threshold=0.9,
     )
 
     dbsession.add_all([config_a, config_b, config_c])

@@ -1,7 +1,7 @@
 import logging
 
 from alchemy.db.config import DevelopmentConfig
-from alchemy.db.model import Database, ClassificationAnnotation
+from alchemy.db.model import ClassificationAnnotation, Database
 
 if __name__ == "__main__":
     logging.root.setLevel(logging.INFO)

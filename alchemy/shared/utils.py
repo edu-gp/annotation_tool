@@ -2,17 +2,17 @@ import hashlib
 import json
 import logging
 import os
-import numpy
+import typing
 import uuid
-from collections import defaultdict, Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
+import numpy
 from envparse import env
 import numpy as np
 import pandas as pd
-import typing
 
 
 def load_json(fname):
@@ -24,8 +24,8 @@ def load_json(fname):
 
 
 def save_json(fname, data):
-    assert fname.endswith('.json')
-    with open(fname, 'w') as outfile:
+    assert fname.endswith(".json")
+    with open(fname, "w") as outfile:
         json.dump(data, outfile)
 
 
@@ -43,15 +43,15 @@ def load_jsonl(jsonl_fname, to_df=True):
 
 
 def save_jsonl(fname, data):
-    assert fname.endswith('.jsonl')
-    with open(fname, 'w') as outfile:
+    assert fname.endswith(".jsonl")
+    with open(fname, "w") as outfile:
         for entry in data:
             json.dump(entry, outfile)
-            outfile.write('\n')
+            outfile.write("\n")
 
 
 def mkf(*file_path):
-    '''Return file path, make sure the parent dir exists'''
+    """Return file path, make sure the parent dir exists"""
     file_path = [str(x) for x in file_path]
     d = os.path.join(*file_path[:-1])
     os.makedirs(d, exist_ok=True)
@@ -60,7 +60,7 @@ def mkf(*file_path):
 
 
 def mkd(*dir_path):
-    '''Return dir path, make sure it exists'''
+    """Return dir path, make sure it exists"""
     dir_path = [str(x) for x in dir_path]
     d = os.path.join(*dir_path)
     os.makedirs(d, exist_ok=True)
@@ -73,10 +73,10 @@ def stem(fname, include_suffix=False):
     stem = path.stem
 
     # If a filename has multiple suffixes, take them all off.
-    stem = stem[:stem.index('.')] if '.' in stem else stem
+    stem = stem[: stem.index(".")] if "." in stem else stem
 
     if include_suffix:
-        stem = stem + ''.join(path.suffixes)
+        stem = stem + "".join(path.suffixes)
 
     return stem
 
@@ -93,6 +93,7 @@ def generate_md5_hash(data: str):
 class PrettyDefaultDict(defaultdict):
     """An wrapper around defaultdict so the print out looks like
     a normal dict."""
+
     __repr__ = dict.__repr__
 
 
@@ -129,7 +130,7 @@ def textarea_to_list(text: str):
     """Converts a textarea into a list of strings, assuming each line is an
     item. This is meant to be the inverse of `list_to_textarea`.
     """
-    res = [x.strip() for x in text.split('\n')]
+    res = [x.strip() for x in text.split("\n")]
     res = [x for x in res if len(x) > 0]
     return res
 
@@ -140,7 +141,7 @@ def json_lookup(json_data, key):
     Returns None if any of the keys were not found.
     """
     sofar = json_data
-    for k in key.split('.'):
+    for k in key.split("."):
         try:
             sofar = sofar[k]
         except:
@@ -171,12 +172,13 @@ def get_entropy(annos: List[Optional[int]], eps=0.0001):
 
 @dataclass
 class WeightedVote:
-    value: 'typing.Any'
+    value: "typing.Any"
     weight: float = 1.0
 
 
-def get_weighted_majority_vote(annos: List[WeightedVote],
-                               invalid_values: Optional[typing.Tuple] = (0, -2, None)):
+def get_weighted_majority_vote(
+    annos: List[WeightedVote], invalid_values: Optional[typing.Tuple] = (0, -2, None)
+):
     """Calculate the weighted majority votes.
 
     :param annos: a list of WeightedVote(value, weight) objects
@@ -215,10 +217,11 @@ def __is_valid(anno, invalid_values):
 
 def _format_float_numbers(nums, precision_format="{:.2f}"):
     if isinstance(nums, list):
-        return [float(precision_format.format(num)) if not numpy.isnan(num)
-                else num for num in nums]
+        return [
+            float(precision_format.format(num)) if not numpy.isnan(num) else num
+            for num in nums
+        ]
     elif isinstance(nums, float):
-        return float(precision_format.format(nums)) if not numpy.isnan(nums) \
-            else nums
+        return float(precision_format.format(nums)) if not numpy.isnan(nums) else nums
     else:
         return nums

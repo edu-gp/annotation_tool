@@ -1,15 +1,19 @@
+import logging
+import os
+import sys
 from envparse import env
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
+# add your model's MetaData object here
+# for 'autogenerate' support
+# from myapp import mymodel
+# target_metadata = mymodel.Base.metadata
+from alchemy.db.model import metadata
 from alembic import context
 
-import sys
-import logging
-
-sys.path = ['', '..'] + sys.path[1:]
+sys.path = ["", ".."] + sys.path[1:]
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -17,7 +21,7 @@ config = context.config
 db_url = env("DB_URL_FOR_MIGRATION", None)
 if db_url:
     logging.info("DB_URL is {}".format(db_url))
-    config.set_main_option('sqlalchemy.url', db_url)
+    config.set_main_option("sqlalchemy.url", db_url)
 else:
     raise ValueError("DB URL is not specified.")
 
@@ -25,11 +29,6 @@ else:
 # This line sets up loggers basically.
 fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
-from alchemy.db.model import metadata
 target_metadata = metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -83,8 +82,7 @@ def run_migrations_online():
     # -autogenerate
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata,
-            render_as_batch=True
+            connection=connection, target_metadata=target_metadata, render_as_batch=True
         )
 
         with context.begin_transaction():

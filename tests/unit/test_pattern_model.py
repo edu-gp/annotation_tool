@@ -1,9 +1,12 @@
 from functools import cmp_to_key
 
-from alchemy.inference.pattern_model import PatternModel, \
-    _maximize_non_overlapping_matches, _compare_matches
-
 import pytest
+
+from alchemy.inference.pattern_model import (
+    PatternModel,
+    _compare_matches,
+    _maximize_non_overlapping_matches,
+)
 
 
 def test_pattern_model():
@@ -13,9 +16,14 @@ def test_pattern_model():
     ]
 
     model = PatternModel(patterns)
-    preds = model.predict(['my dog is healthy'], fancy=True)
-    assert preds == [{'tokens': ['my', 'dog', 'is', 'healthy'],
-                      'matches': [(3, 4, 'healthy')], 'score': 0.25}]
+    preds = model.predict(["my dog is healthy"], fancy=True)
+    assert preds == [
+        {
+            "tokens": ["my", "dog", "is", "healthy"],
+            "matches": [(3, 4, "healthy")],
+            "score": 0.25,
+        }
+    ]
 
 
 def test_pattern_model_phrase():
@@ -27,10 +35,14 @@ def test_pattern_model_phrase():
     ]
 
     model = PatternModel(patterns)
-    preds = model.predict(['my dog is healthy and happy'], fancy=True)
-    assert preds == [{'tokens': ['my', 'dog', 'is', 'healthy', 'and', 'happy'],
-                      'matches': [(0, 1, 'my'), (3, 6, 'healthy and happy')],
-                      'score': 4.0 / 6}]
+    preds = model.predict(["my dog is healthy and happy"], fancy=True)
+    assert preds == [
+        {
+            "tokens": ["my", "dog", "is", "healthy", "and", "happy"],
+            "matches": [(0, 1, "my"), (3, 6, "healthy and happy")],
+            "score": 4.0 / 6,
+        }
+    ]
 
 
 @pytest.mark.parametrize(
@@ -42,7 +54,8 @@ def test_pattern_model_phrase():
         ([("", 3, 5), ("", 3, 6)], [("", 3, 5), ("", 3, 6)]),
         ([("", 3, 7), ("", 3, 5)], [("", 3, 5), ("", 3, 7)]),
         ([("", 3, 5), ("", 3, 5)], [("", 3, 5), ("", 3, 5)]),
-    ])
+    ],
+)
 def test_compare_matches(matches, expected):
     # format: ("", match_start_index, match_end_index_exclusive)
     sorted_matches = sorted(matches, key=cmp_to_key(_compare_matches))
@@ -58,14 +71,10 @@ def test_maximize_non_overlapping_matches():
         ("", 3, 5),
         ("", 4, 5),
         ("", 4, 6),
-        ("", 8, 9)
+        ("", 8, 9),
     ]
     selected_matches = _maximize_non_overlapping_matches(matches=matches)
-    assert selected_matches == {
-        ("", 1, 2),
-        ("", 4, 6),
-        ("", 8, 9)
-    }
+    assert selected_matches == {("", 1, 2), ("", 4, 6), ("", 8, 9)}
 
     matches2 = [
         ("", 1, 2),
@@ -77,15 +86,12 @@ def test_maximize_non_overlapping_matches():
         ("", 4, 6),
     ]
     selected_matches = _maximize_non_overlapping_matches(matches=matches2)
-    assert selected_matches == {
-        ("", 1, 2),
-        ("", 4, 6),
-    }
+    assert selected_matches == {("", 1, 2), ("", 4, 6)}
 
     matches3 = []
     selected_matches = _maximize_non_overlapping_matches(matches=matches3)
     assert selected_matches == {}
 
-    matches4 = [("", 1, 2),]
+    matches4 = [("", 1, 2)]
     selected_matches = _maximize_non_overlapping_matches(matches=matches4)
     assert selected_matches == {("", 1, 2)}

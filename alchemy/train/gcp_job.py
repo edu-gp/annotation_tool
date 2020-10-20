@@ -28,8 +28,8 @@ trainingInput:
 '''
 """
 
-import os
 import json
+import os
 import tempfile
 import uuid
 import re
@@ -37,18 +37,20 @@ from envparse import env
 from collections import namedtuple
 from pathlib import Path
 from typing import List, Optional
-from alchemy.train import gs_url
+
 from alchemy.db.fs import raw_data_dir
-from .paths import _get_version_dir
-from .no_deps.utils import run_cmd
+from alchemy.train import gs_url
+
 from .no_deps.storage_manager import DatasetStorageManager, ModelStorageManager
+from .no_deps.utils import run_cmd
+from .paths import _get_version_dir
 
 ModelDefn = namedtuple("ModelDefn", ("uuid", "version"))
 
-VERSION = '2'
+VERSION = "2"
 
 # n1-standard-4 + NVIDIA_TESLA_P100 gives us the best bang for the buck.
-JOB_CONFIG_TEMPLATE = '''
+JOB_CONFIG_TEMPLATE = """
 labels:
   type: "{label_type}"
   owner: "{label_owner}"
@@ -67,30 +69,31 @@ trainingInput:
       count: '1'
       type: NVIDIA_TESLA_P100
     imageUri: "{docker_image_uri}"
-'''
+"""
 
 
 def __fmt_yaml_list(key, values: List[str], nspaces=0):
     """Spacing matters since we're constructing a yaml file. This function
     creates a string that represents a list of values in yaml."""
-    result = ''
+    result = ""
     if isinstance(values, list) and len(values) > 0:
         result = []
-        prefix = ' '*nspaces
+        prefix = " " * nspaces
         result.append(f'{prefix}- "--{key}"')
         for v in values:
-            result.append(f'{prefix}- {v}')
-        result = '\n' + '\n'.join(result)
+            result.append(f"{prefix}- {v}")
+        result = "\n" + "\n".join(result)
     return result
 
 
 def build_job_config(
-        model_dirs: List[str],
-        files_for_inference: List[str] = None,
-        docker_image_uri: str = None,
-        label_type: str = 'production',
-        label_owner: str = 'alchemy',
-        version: str = VERSION):
+    model_dirs: List[str],
+    files_for_inference: List[str] = None,
+    docker_image_uri: str = None,
+    label_type: str = "production",
+    label_owner: str = "alchemy",
+    version: str = VERSION,
+):
     """
     Inputs:
         model_dirs: The list of gs:// location of the models (Also known as the
@@ -108,9 +111,10 @@ def build_job_config(
     assert docker_image_uri
 
     # Format lists into proper yaml.
-    formatted_model_dirs = __fmt_yaml_list('dirs', model_dirs, nspaces=4)
+    formatted_model_dirs = __fmt_yaml_list("dirs", model_dirs, nspaces=4)
     formatted_files_for_inference = __fmt_yaml_list(
-        'infer', files_for_inference, nspaces=4)
+        "infer", files_for_inference, nspaces=4
+    )
 
     return JOB_CONFIG_TEMPLATE.format(
         model_dirs=formatted_model_dirs,
@@ -119,7 +123,8 @@ def build_job_config(
         docker_image_uri=docker_image_uri,
         label_type=label_type,
         label_owner=label_owner,
-        version=version)
+        version=version,
+    )
 
 
 class GoogleAIPlatformJob:
@@ -141,11 +146,11 @@ class GoogleAIPlatformJob:
         return self.data_ or {}
 
     def get_state(self):
-        return self.get_data().get('state')
+        return self.get_data().get("state")
 
     def get_model_defns(self) -> List[ModelDefn]:
         try:
-            training_args = self.get_data()['trainingInput']['args']
+            training_args = self.get_data()["trainingInput"]["args"]
         except KeyError:
             # self.get_data()['trainingInput']['args'] does not exist
             return []
@@ -156,7 +161,7 @@ class GoogleAIPlatformJob:
 
             for el in training_args:
                 if in_region:
-                    if el.startswith('--'):
+                    if el.startswith("--"):
                         # We've exited the region with model dirs.
                         in_region = False
                         # There should be no more.
@@ -165,7 +170,7 @@ class GoogleAIPlatformJob:
                         res.append(el)
                 else:
                     # v2 is called --dirs, v1 is called --dir
-                    if el == '--dirs' or el == '--dir':
+                    if el == "--dirs" or el == "--dir":
                         # We hit the region with model dirs.
                         in_region = True
 
@@ -188,16 +193,17 @@ class GoogleAIPlatformJob:
         cancel_ai_platform_job(self.id)
 
 
-def submit_job(model_defns: List[ModelDefn],
-               files_for_inference: Optional[List[str]] = None,
-               force_retrain: bool = False,
-               submit_job_fn: callable = None) -> GoogleAIPlatformJob:
+def submit_job(
+    model_defns: List[ModelDefn],
+    files_for_inference: Optional[List[str]] = None,
+    force_retrain: bool = False,
+    submit_job_fn: callable = None,
+) -> GoogleAIPlatformJob:
     """Submits a job and returns the corresponding GoogleAIPlatformJob."""
     # TODO pass through the force_retrain parameter.
 
     # Make sure each dataset is a file name, not a path.
-    datasets_for_inference = [Path(dataset).name
-                              for dataset in files_for_inference]
+    datasets_for_inference = [Path(dataset).name for dataset in files_for_inference]
 
     print("Upload model assets for training")
     gcs_model_dirs = []
@@ -220,8 +226,8 @@ def submit_job(model_defns: List[ModelDefn],
     print(f"Submit job: {job_id}")
 
     model_config = build_job_config(
-        model_dirs=gcs_model_dirs,
-        files_for_inference=datasets_for_inference)
+        model_dirs=gcs_model_dirs, files_for_inference=datasets_for_inference
+    )
 
     with tempfile.NamedTemporaryFile(mode="w") as fp:
         fp.write(model_config)
@@ -237,7 +243,7 @@ def submit_job(model_defns: List[ModelDefn],
 def __generate_job_id():
     # A valid job_id only contains letters, numbers and underscores,
     # AND must start with a letter.
-    return 't_' + str(uuid.uuid4()).replace('-', '_')
+    return "t_" + str(uuid.uuid4()).replace("-", "_")
 
 
 def build_model_storage_manager(uuid, version) -> ModelStorageManager:
@@ -260,8 +266,9 @@ def submit_ai_platform_job(job_id, config_file):
         job_id: The id of the new job.
         config_file: Path to a config file on disk.
     """
-    run_cmd(f'gcloud ai-platform jobs submit training {job_id}'
-            f' --config {config_file}')
+    run_cmd(
+        f"gcloud ai-platform jobs submit training {job_id}" f" --config {config_file}"
+    )
 
 
 def describe_ai_platform_job(job_id: str) -> dict:
@@ -314,11 +321,11 @@ def describe_ai_platform_job(job_id: str) -> dict:
 
 
 def cancel_ai_platform_job(job_id: str):
-    run_cmd(f'gcloud ai-platform jobs cancel {job_id}')
+    run_cmd(f"gcloud ai-platform jobs cancel {job_id}")
 
 
-if __name__ == '__main__':
-    md = ModelDefn('229a971a-2a1c-47ec-9934-4e4abcef5bd6', '6')
+if __name__ == "__main__":
+    md = ModelDefn("229a971a-2a1c-47ec-9934-4e4abcef5bd6", "6")
 
     # Part 1. Submit job
     # '''
@@ -334,10 +341,10 @@ if __name__ == '__main__':
     #            submit_job_fn=dummy_submit_job)
 
     # Part 2. Train & Inference (simulating it locally)
-    '''
+    """
     Then, you can run the training & inference locally (this would be what's triggered automatically on GCP):
     python -m train.no_deps.gcp_run --dirs gs://alchemy-gp/tasks/229a971a-2a1c-47ec-9934-4e4abcef5bd6/models/6 --data-dir gs://alchemy-gp/data --infer spring_jan_2020_small.jsonl spring_jan_2020_small_v2.jsonl --eval-batch-size 16
-    '''
+    """
 
     # # Part 3. Download the result to local
     # from train.gcp_job import download

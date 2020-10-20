@@ -1,8 +1,11 @@
 from functools import cmp_to_key
 from typing import List
+
 import spacy
+
 # from spacy.matcher import Matcher
 from spacy.matcher import PhraseMatcher
+
 from .base import ITextCatModel
 
 
@@ -84,7 +87,7 @@ class PatternModel(ITextCatModel):
 
     def __str__(self):
         # Note: This is also used as a cache key.
-        return f'PatternModel <{len(self.spacy_patterns)} patterns>'
+        return f"PatternModel <{len(self.spacy_patterns)} patterns>"
 
     def _load(self):
         if not self._loaded:
@@ -97,9 +100,10 @@ class PatternModel(ITextCatModel):
 
                 # TODO temporary fix:
                 # Assuming it's of the form "pattern": [{"lower": "my phrase"}]
-                if len(row['pattern']) == 1 and 'lower' in row['pattern'][0]:
-                    matcher.add(row['label'], None, nlp(
-                        row['pattern'][0]['lower'].lower()))
+                if len(row["pattern"]) == 1 and "lower" in row["pattern"][0]:
+                    matcher.add(
+                        row["label"], None, nlp(row["pattern"][0]["lower"].lower())
+                    )
                 else:
                     raise Exception(f"Cannot load pattern: {row['pattern']}")
 
@@ -120,8 +124,7 @@ class PatternModel(ITextCatModel):
 
         res = []
 
-        text_list = ['' if x is None else x
-                     for x in text_list]
+        text_list = ["" if x is None else x for x in text_list]
 
         # TODO disable the right things for speed
         for doc in self.nlp.pipe(text_list, disable=["tagger", "parser"]):
@@ -129,21 +132,21 @@ class PatternModel(ITextCatModel):
             selected_matches = _maximize_non_overlapping_matches(matches)
             # m[2] and m[1] are start and end of matches
             len_of_matches = [m[2] - m[1] for m in selected_matches]
-            score = sum(len_of_matches) / len(doc) if len(doc) > 0 else 0.
+            score = sum(len_of_matches) / len(doc) if len(doc) > 0 else 0.0
 
             if fancy:
                 _matches = []
                 for match_id, start, end in selected_matches:
                     span = doc[start:end]
                     _matches.append((start, end, span.text))
-                res.append({
-                    'tokens': [str(x) for x in list(doc)],
-                    'matches': _matches,
-                    'score': score
-                })
+                res.append(
+                    {
+                        "tokens": [str(x) for x in list(doc)],
+                        "matches": _matches,
+                        "score": score,
+                    }
+                )
             else:
-                res.append({
-                    'score': score
-                })
+                res.append({"score": score})
 
         return res

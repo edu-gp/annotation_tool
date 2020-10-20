@@ -1,8 +1,9 @@
-from alchemy.shared.utils import load_jsonl, json_lookup
+from alchemy.shared.utils import json_lookup, load_jsonl
 
 
-def get_entity_text_lookup_function(jsonl_file_path, entity_name_key,
-                                    entity_text_key, entity_type):
+def get_entity_text_lookup_function(
+    jsonl_file_path, entity_name_key, entity_text_key, entity_type
+):
     """
     Inputs:
         jsonl_file_path: Path to a jsonl file
@@ -43,13 +44,13 @@ def get_entity_text_lookup_function(jsonl_file_path, entity_name_key,
     for row in data:
         name = json_lookup(row, entity_name_key)
         if name:
-            text = json_lookup(row, entity_text_key) or ''
+            text = json_lookup(row, entity_text_key) or ""
             lookup[name] = text
 
     def fn(_entity_type, _entity_name):
         if entity_type == _entity_type:
-            return lookup.get(_entity_name, '')
+            return lookup.get(_entity_name, "")
         else:
-            return ''
+            return ""
 
     return fn

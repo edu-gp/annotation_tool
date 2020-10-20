@@ -10,13 +10,14 @@ def make_data_file(tmpdir):
 def make_pattern_file(tmpdir):
     f = tmpdir.join("pattern.jsonl")
     f.write(
-        '{"label": "LifeSciences", "pattern": [{"lower": "drug"}]}\n{"label": "LifeSciences", "pattern": [{"lower": "medicine"}]}')
+        '{"label": "LifeSciences", "pattern": [{"lower": "drug"}]}\n{"label": "LifeSciences", "pattern": [{"lower": "medicine"}]}'
+    )
     return str(f)
 
 
 def make_invalid_file(tmpdir):
     f = tmpdir.join("invalid.jsonl")
-    f.write('blah\nblah')
+    f.write("blah\nblah")
     return str(f)
 
 

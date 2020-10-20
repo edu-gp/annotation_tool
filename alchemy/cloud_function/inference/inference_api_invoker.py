@@ -5,7 +5,7 @@ import uuid
 
 from envparse import env
 import requests
-from google.cloud import storage, secretmanager
+from google.cloud import secretmanager, storage
 
 
 def handler(request):
@@ -16,20 +16,20 @@ def handler(request):
     """
     request_json = request.get_json()
     message = None
-    if request.args and 'message' in request.args:
-        message = request.args.get('message')
-    elif request_json and 'message' in request_json:
-        message = request_json['message']
+    if request.args and "message" in request.args:
+        message = request.args.get("message")
+    elif request_json and "message" in request_json:
+        message = request_json["message"]
     try:
-        raw_data_str = base64.b64decode(message['data']).decode('utf-8')
+        raw_data_str = base64.b64decode(message["data"]).decode("utf-8")
         data_dict = json.loads(raw_data_str)
-        path = data_dict['path']
+        path = data_dict["path"]
         print(path)
 
         storage_client = storage.Client()
 
         source_bucket_name = path.split("/")[0]
-        source_blob_name = path[len(source_bucket_name) + 1:]
+        source_blob_name = path[len(source_bucket_name) + 1 :]
         print("Source bucket is " + source_blob_name)
 
         source_bucket = storage_client.bucket(source_bucket_name)
@@ -38,8 +38,7 @@ def handler(request):
         destination_bucket_name = env('ALCHEMY_BUCKET')
         print("Destination bucket is " + destination_bucket_name)
         destination_file_name = "_".join(source_blob_name.split("/")[1:])
-        destination_blob_name = os.path.join(
-            'data', destination_file_name)
+        destination_blob_name = os.path.join("data", destination_file_name)
 
         destination_bucket = storage_client.bucket(destination_bucket_name)
         blob_copy = source_bucket.copy_blob(
@@ -59,7 +58,7 @@ def handler(request):
         print(f"URL to call is: {url}")
         payload = {
             "request_id": str(uuid.uuid1()),
-            "dataset_name": destination_file_name
+            "dataset_name": destination_file_name,
         }
         print(f"Payload to the inference api: {payload}")
 
@@ -70,8 +69,8 @@ def handler(request):
             secret_id=env('API_TOKEN_NAME')
         )
         headers = {
-            'Authorization': 'Bearer ' + api_token,
-            'Content-Type': 'application/json'
+            "Authorization": "Bearer " + api_token,
+            "Content-Type": "application/json",
         }
         print(json.dumps(payload))
         r = requests.post(url, json=payload, headers=headers)
@@ -85,7 +84,7 @@ def create_gcp_client():
     return client
 
 
-def get_secret(client, project_id, secret_id, version_id='latest'):
+def get_secret(client, project_id, secret_id, version_id="latest"):
     name = client.secret_version_path(project_id, secret_id, version_id)
     response = client.access_secret_version(name)
-    return response.payload.data.decode('UTF-8')
+    return response.payload.data.decode("UTF-8")

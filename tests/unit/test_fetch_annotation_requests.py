@@ -1,4 +1,4 @@
-from alchemy.db.model import AnnotationRequest, User, Task, AnnotationType
+from alchemy.db.model import AnnotationRequest, AnnotationType, Task, User
 
 
 def _populate_db(dbsession):
@@ -15,33 +15,28 @@ def _populate_db(dbsession):
         return AnnotationRequest(
             user=user,
             entity=1,
-            entity_type='blah',
-            label='blah',
-            context={'foo': 'bar'},
+            entity_type="blah",
+            label="blah",
+            context={"foo": "bar"},
             task=task,
             annotation_type=AnnotationType.ClassificationAnnotation,
             order=order,
-            name=name
+            name=name,
         )
 
     reqs = [
-        _req('1', user_1, task_1, order=1),
-
-        _req('2', user_1, task_2, order=3),
-        _req('3', user_1, task_2, order=2),
-        _req('4', user_1, task_2, order=1),
-
-        _req('5', user_2, task_1, order=1),
-        _req('6', user_2, task_1, order=2),
-
-        _req('7', user_2, task_2, order=1),
-
-        _req('8', user_2, task_3, order=1),
-
+        _req("1", user_1, task_1, order=1),
+        _req("2", user_1, task_2, order=3),
+        _req("3", user_1, task_2, order=2),
+        _req("4", user_1, task_2, order=1),
+        _req("5", user_2, task_1, order=1),
+        _req("6", user_2, task_1, order=2),
+        _req("7", user_2, task_2, order=1),
+        _req("8", user_2, task_3, order=1),
         # We also include some requests that do not come from tasks.
-        _req('x', user_2, None),
-        _req('y', user_2, None),
-        _req('z', user_2, None),
+        _req("x", user_2, None),
+        _req("y", user_2, None),
+        _req("z", user_2, None),
     ]
     dbsession.add_all(reqs)
 
@@ -64,15 +59,15 @@ def test_fetch_ar_count_per_task(dbsession):
     user_1, user_2 = _populate_db(dbsession)
 
     assert user_1.fetch_ar_count_per_task() == [
-        ('task 1', 1, 1),  # First task has 1 request.
-        ('task 2', 2, 3),  # Second task has 3 requests.
+        ("task 1", 1, 1),  # First task has 1 request.
+        ("task 2", 2, 3),  # Second task has 3 requests.
         # Third task has none and so is not shown.
     ]
 
     assert user_2.fetch_ar_count_per_task() == [
-        ('task 1', 1, 2),  # First task has 2 requests.
-        ('task 2', 2, 1),  # Second task has 1 request.
-        ('task 3', 3, 1),  # Third task has 1 request.
+        ("task 1", 1, 2),  # First task has 2 requests.
+        ("task 2", 2, 1),  # Second task has 1 request.
+        ("task 3", 3, 1),  # Third task has 1 request.
     ]
 
 

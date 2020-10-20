@@ -6,8 +6,10 @@ from flask import (
     Flask, render_template, g
 )
 
-from alchemy.db.model import db
+from alchemy.ar.data import fetch_tasks_for_user_from_db
 from alchemy.db.config import DevelopmentConfig
+from alchemy.db.model import db
+
 from .auth import login_required
 
 from alchemy.ar.data import fetch_tasks_for_user_from_db
@@ -50,37 +52,39 @@ def create_app(test_config=None):
 
     db.init_app(app)
 
-    @app.route('/ok')
+    @app.route("/ok")
     def hello():
-        return 'ok'
+        return "ok"
 
-    @app.route('/')
+    @app.route("/")
     @login_required
     def index():
-        username = g.user['username']
-        task_id_and_name_pairs = fetch_tasks_for_user_from_db(
-            db.session, username)
-        return render_template('index.html', tasks=task_id_and_name_pairs)
+        username = g.user["username"]
+        task_id_and_name_pairs = fetch_tasks_for_user_from_db(db.session, username)
+        return render_template("index.html", tasks=task_id_and_name_pairs)
 
-    @app.route('/secret')
+    @app.route("/secret")
     @login_required
     def secret():
-        return render_template('secret.html')
+        return render_template("secret.html")
 
     from . import auth
+
     app.register_blueprint(auth.bp)
 
     from . import tasks
+
     app.register_blueprint(tasks.bp)
 
     from . import labels
+
     app.register_blueprint(labels.bp)
 
     return app
 
 
-'''
+"""
 env FLASK_APP=annotation_server FLASK_ENV=development flask init-db
 
 env FLASK_APP=annotation_server FLASK_ENV=development flask run
-'''
+"""

@@ -3,10 +3,14 @@ Patterns used to be stored on Tasks.
 This script migrates all the patterns from binary-classification tasks
 to individual labels (by storing them in LabelPatterns).
 """
-from alchemy.db.model import (
-    Database, get_or_create, Task, LabelPatterns, _raw_data_file_path
-)
 from alchemy.db.config import DevelopmentConfig
+from alchemy.db.model import (
+    Database,
+    LabelPatterns,
+    Task,
+    _raw_data_file_path,
+    get_or_create,
+)
 from alchemy.shared.utils import load_jsonl
 
 db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
@@ -20,29 +24,32 @@ if __name__ == "__main__":
 
             patterns = task.get_patterns() or []
 
-            patterns_file = task.default_params.get('patterns_file')
+            patterns_file = task.default_params.get("patterns_file")
             if patterns_file:
-                spacy_patterns = load_jsonl(_raw_data_file_path(patterns_file),
-                                            to_df=False)
+                spacy_patterns = load_jsonl(
+                    _raw_data_file_path(patterns_file), to_df=False
+                )
                 """
                 These are usually in the format of:
                 [{'label': 'HEALTHCARE', 'pattern': [{'lower': 'health'}]}, ..]
                 """
                 for pat in spacy_patterns:
-                    patterns += [list(x.values())[0] for x in pat['pattern']]
+                    patterns += [list(x.values())[0] for x in pat["pattern"]]
 
-            print(f'Add {len(patterns)} patterns to label={label}')
+            print(f"Add {len(patterns)} patterns to label={label}")
             print(patterns)
 
             pat = get_or_create(db.session, LabelPatterns, label=label)
-            patterns += (pat.get_positive_patterns() or [])
+            patterns += pat.get_positive_patterns() or []
             pat.set_positive_patterns(patterns)
             db.session.add(pat)
             db.session.commit()
 
-            print(f'Now there are {pat.count()} patterns for label={label}')
+            print(f"Now there are {pat.count()} patterns for label={label}")
             print(pat.get_positive_patterns())
         else:
-            print(f'** Skip task name="{task.name}" id={task.id}, '
-                  f'it has {len(labels)} labels.')
-        print('-'*80)
+            print(
+                f'** Skip task name="{task.name}" id={task.id}, '
+                f"it has {len(labels)} labels."
+            )
+        print("-" * 80)

@@ -1,6 +1,7 @@
 from alchemy.db.model import (
     ClassificationAnnotation,
-    fetch_labels_by_entity_type, save_labels_by_entity_type
+    fetch_labels_by_entity_type,
+    save_labels_by_entity_type,
 )
 
 test_labels = ["B2C", "HEALTHCARE"]
@@ -8,7 +9,7 @@ test_labels = ["B2C", "HEALTHCARE"]
 
 def _populate_db(dbsession):
     for label in test_labels:
-        ClassificationAnnotation.create_dummy(dbsession, 'company', label)
+        ClassificationAnnotation.create_dummy(dbsession, "company", label)
 
 
 def test_fetch_labels_by_entity_type(dbsession):

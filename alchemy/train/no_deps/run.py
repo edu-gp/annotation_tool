@@ -3,23 +3,27 @@ This file is designed to have minimal dependency on the rest of the codebase,
 so we can use it for distributed model training.
 """
 
-import re
-import os
 import json
+import os
+import re
 from pathlib import Path
 
 from envparse import env
 
+from .inference_results import InferenceResults
 from .paths import (
-    _get_config_fname, _get_data_parser_fname,
-    _get_exported_data_fname, _get_metrics_fname,
-    _get_model_output_dir, _get_inference_fname,
+    _get_all_inference_fnames,
+    _get_config_fname,
+    _get_data_parser_fname,
+    _get_exported_data_fname,
     _get_inference_density_plot_fname,
-    _get_all_inference_fnames, _inference_fnames_to_datasets
+    _get_inference_fname,
+    _get_metrics_fname,
+    _get_model_output_dir,
+    _inference_fnames_to_datasets,
 )
 from .storage_manager import DatasetStorageManager
-from .transformers_textcat import train, evaluate_model, build_model
-from .inference_results import InferenceResults
+from .transformers_textcat import build_model, evaluate_model, train
 from .utils import (
     BINARY_CLASSIFICATION, load_original_data_text,
     _load_config, _prepare_data
@@ -27,8 +31,8 @@ from .utils import (
 
 
 def save_json(fname, data):
-    assert fname.endswith('.json')
-    with open(fname, 'w') as outfile:
+    assert fname.endswith(".json")
+    with open(fname, "w") as outfile:
         json.dump(data, outfile)
 
 
@@ -58,18 +62,20 @@ def train_model(version_dir, train_fn=None, force_retrain=False):
     data_parser_fname = _get_data_parser_fname(version_dir)
     metrics_fname = _get_metrics_fname(version_dir)
 
-    problem_type, class_order, X_train, y_train, X_test, y_test = \
-        _prepare_data(config_fname, data_fname)
+    problem_type, class_order, X_train, y_train, X_test, y_test = _prepare_data(
+        config_fname, data_fname
+    )
 
     print(f"Detected problem type: {problem_type}")
     print(f"Detected classes: {class_order}")
 
-    save_json(data_parser_fname, {
-        'problem_type': problem_type,
-        'class_order': class_order
-    })
+    save_json(
+        data_parser_fname, {"problem_type": problem_type, "class_order": class_order}
+    )
 
-    assert problem_type == BINARY_CLASSIFICATION, 'Currently Only Supporting Binary Classification'
+    assert (
+        problem_type == BINARY_CLASSIFICATION
+    ), "Currently Only Supporting Binary Classification"
 
     # Train
     print("Train model...")
@@ -77,10 +83,10 @@ def train_model(version_dir, train_fn=None, force_retrain=False):
         train_fn = train
 
     config = _load_config(config_fname)
-    train_config = config['train_config']
+    train_config = config["train_config"]
     # Depending on where we're training the model,
     # the output is relative to the version_dir.
-    train_config['model_output_dir'] = _get_model_output_dir(version_dir)
+    train_config["model_output_dir"] = _get_model_output_dir(version_dir)
     model = train_fn(X_train, y_train, config=train_config)
 
     # Evaluate
@@ -94,10 +100,7 @@ def train_model(version_dir, train_fn=None, force_retrain=False):
     else:
         test_result = {}
 
-    save_json(metrics_fname, {
-        'train': train_result,
-        'test': test_result,
-    })
+    save_json(metrics_fname, {"train": train_result, "test": test_result})
 
 
 def load_model(version_dir, build_model_fn=None):
@@ -109,8 +112,9 @@ def load_model(version_dir, build_model_fn=None):
 
     if build_model_fn is None:
         build_model_fn = build_model
-    model = build_model_fn(config['train_config'],
-                           model_dir=_get_model_output_dir(version_dir))
+    model = build_model_fn(
+        config["train_config"], model_dir=_get_model_output_dir(version_dir)
+    )
 
     return model
 
@@ -118,14 +122,12 @@ def load_model(version_dir, build_model_fn=None):
 def plot_results(version_dir, fname, inference_results) -> None:
     data_parser = load_json(_get_data_parser_fname(version_dir))
 
-    if data_parser['problem_type'] == BINARY_CLASSIFICATION:
+    if data_parser["problem_type"] == BINARY_CLASSIFICATION:
         # Plot positive class for binary classification
-        class_name = data_parser['class_order'][0]
-        class_name = re.sub('[^0-9a-zA-Z]+', '_', class_name)
-        outname = _get_inference_density_plot_fname(
-            version_dir, fname, class_name)
-        _plot(outname, inference_results.probs,
-              f'{class_name} : {Path(fname).name}')
+        class_name = data_parser["class_order"][0]
+        class_name = re.sub("[^0-9a-zA-Z]+", "_", class_name)
+        outname = _get_inference_density_plot_fname(version_dir, fname, class_name)
+        _plot(outname, inference_results.probs, f"{class_name} : {Path(fname).name}")
     else:
         raise Exception("generate_plots only supports binary classification")
 
@@ -133,6 +135,7 @@ def plot_results(version_dir, fname, inference_results) -> None:
 def _plot(outname, data, title):
     import seaborn as sns
     import matplotlib.pyplot as plt
+
     print("Creating density plot:", outname)
     sns_plot = sns.distplot(data)
     plt.title(title)
@@ -155,8 +158,9 @@ class InferenceCache:
         return text
 
 
-def build_inference_cache(version_dir: str,
-                          dsm: DatasetStorageManager) -> InferenceCache:
+def build_inference_cache(
+    version_dir: str, dsm: DatasetStorageManager
+) -> InferenceCache:
     """Build an inference cache from the previous inference results by the
     model in version_dir on the files in fnames.
     """
@@ -168,8 +172,7 @@ def build_inference_cache(version_dir: str,
     for dataset in prev_inf_datasets:
         dataset_path = dsm.download(dataset)
         text = load_original_data_text(dataset_path)
-        inf = InferenceResults.load(
-            _get_inference_fname(version_dir, dataset_path))
+        inf = InferenceResults.load(_get_inference_fname(version_dir, dataset_path))
 
         if text and inf:
             for x, y in zip(text, inf.raw):
@@ -179,9 +182,13 @@ def build_inference_cache(version_dir: str,
     return cache
 
 
-def inference(version_dir, dataset_local_path,
-              build_model_fn=None, generate_plots=True,
-              inference_cache: InferenceCache = None):
+def inference(
+    version_dir,
+    dataset_local_path,
+    build_model_fn=None,
+    generate_plots=True,
+    inference_cache: InferenceCache = None,
+):
     """
     Inputs:
         dataset_local_path: A .jsonl file to run inference on.
@@ -219,8 +226,7 @@ def inference(version_dir, dataset_local_path,
     inference_results = InferenceResults(raw)
 
     # Make sure the output dir exists and save it
-    inference_results.save(_get_inference_fname(
-        version_dir, dataset_local_path))
+    inference_results.save(_get_inference_fname(version_dir, dataset_local_path))
 
     # Generate Plots
     if generate_plots:

@@ -1,6 +1,7 @@
 import os
-from alchemy.shared.utils import mkd
+
 from alchemy.shared.config import Config
+from alchemy.shared.utils import mkd
 
 
 def _data_dir():

@@ -1,7 +1,10 @@
 from alchemy.shared import celery_job_status
 from alchemy.shared.celery_job_status import (
-    create_status, delete_status, set_status,
-    CeleryJobStatus, JobStatus
+    CeleryJobStatus,
+    JobStatus,
+    create_status,
+    delete_status,
+    set_status,
 )
 
 
@@ -30,12 +33,12 @@ class FakeRedis:
 def test_celery_job_status(monkeypatch):
     fake_redis = FakeRedis()
 
-    monkeypatch.setattr(celery_job_status, 'get_redis', lambda: fake_redis)
+    monkeypatch.setattr(celery_job_status, "get_redis", lambda: fake_redis)
 
     # Job is kicked off from the application, a celery_id is received
     # asynchronously from the celery worker.
-    celery_id = 'test_12345'
-    context_id = 'myapp:blah'
+    celery_id = "test_12345"
+    context_id = "myapp:blah"
 
     # Application creates a status.
     create_status(celery_id, context_id)
@@ -51,22 +54,22 @@ def test_celery_job_status(monkeypatch):
     set_status(celery_id, JobStatus.STARTED, progress=0.0)
 
     cjs = CeleryJobStatus.fetch_by_celery_id(celery_id)
-    assert str(cjs) == 'STARTED - 0.00% complete'
+    assert str(cjs) == "STARTED - 0.00% complete"
 
     set_status(celery_id, JobStatus.STARTED, progress=0.5)
 
     cjs = CeleryJobStatus.fetch_by_celery_id(celery_id)
-    assert str(cjs) == 'STARTED - 50.00% complete'
+    assert str(cjs) == "STARTED - 50.00% complete"
 
     set_status(celery_id, JobStatus.STARTED, progress=0.99)
 
     cjs = CeleryJobStatus.fetch_by_celery_id(celery_id)
-    assert str(cjs) == 'STARTED - 99.00% complete'
+    assert str(cjs) == "STARTED - 99.00% complete"
 
     set_status(celery_id, JobStatus.DONE)
 
     cjs = CeleryJobStatus.fetch_by_celery_id(celery_id)
-    assert str(cjs) == 'DONE'
+    assert str(cjs) == "DONE"
 
     # Finally, the application deletes the job status.
     delete_status(celery_id, context_id)

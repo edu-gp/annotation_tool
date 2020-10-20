@@ -1,30 +1,29 @@
-from typing import List
 import os
+from typing import List
+
 import numpy as np
 
-from alchemy.db.model import (
-    Task, ClassificationAnnotation, User, EntityTypeEnum,
-    majority_vote_annotations_query)
 from alchemy.db.fs import RAW_DATA_DIR
-
-from alchemy.train.no_deps.run import (
-    train_model, inference, build_inference_cache
+from alchemy.db.model import (
+    ClassificationAnnotation,
+    EntityTypeEnum,
+    Task,
+    User,
+    majority_vote_annotations_query,
 )
-from alchemy.train.no_deps.paths import (
-    # Train Model
-    _get_data_parser_fname,
-    _get_metrics_fname,
-    # Model Inference
-    _get_inference_fname,
-)
+from alchemy.shared.utils import load_json, load_jsonl, save_jsonl
 from alchemy.train.no_deps.inference_results import InferenceResults
+from alchemy.train.no_deps.run import build_inference_cache, inference, train_model
 from alchemy.train.no_deps.utils import BINARY_CLASSIFICATION
-
 from alchemy.train.prep import prepare_next_model_for_label
 
-from alchemy.shared.utils import save_jsonl, load_jsonl, load_json
+from alchemy.train.no_deps.paths import (  # Train Model; Model Inference
+    _get_data_parser_fname,
+    _get_inference_fname,
+    _get_metrics_fname,
+)
 
-LABEL = 'IsTall'
+LABEL = "IsTall"
 
 # TODO add a case to cover only 1 class present in the data.
 # This is easy to do, just set N=2.
@@ -39,8 +38,7 @@ class stub_model:
         self.history.append(text)
         preds = np.array([1] * len(text))
         # This is the style when "Sliding Window" is enabled
-        probs = [np.array([[-0.48803285,  0.56392884]],
-                          dtype=np.float32)] * len(text)
+        probs = [np.array([[-0.48803285, 0.56392884]], dtype=np.float32)] * len(text)
         return preds, probs
 
 
@@ -55,8 +53,13 @@ def stub_build_fn(config, model_dir):
 # Create many Annotations for a Label
 def _create_anno(ent, v, user, weight=1):
     return ClassificationAnnotation(
-        entity_type=EntityTypeEnum.COMPANY, entity=ent, user=user,
-        label=LABEL, value=v, weight=weight)
+        entity_type=EntityTypeEnum.COMPANY,
+        entity=ent,
+        user=user,
+        label=LABEL,
+        value=v,
+        weight=weight,
+    )
 
 
 def _populate_db_and_fs(dbsession, tmp_path, N, weight=1):
@@ -64,21 +67,22 @@ def _populate_db_and_fs(dbsession, tmp_path, N, weight=1):
     # Add in a fake data file
     d = tmp_path / RAW_DATA_DIR
     d.mkdir(parents=True)
-    p = d / 'data.jsonl'
-    data = [{'text': f'item {i} text', 'meta': {'domain': f'{i}.com'}}
-            for i in range(N)]
+    p = d / "data.jsonl"
+    data = [
+        {"text": f"item {i} text", "meta": {"domain": f"{i}.com"}} for i in range(N)
+    ]
     save_jsonl(str(p), data)
 
     # =========================================================================
     # Create dummy data
 
     # Create many Users
-    user = User(username=f'someuser')
+    user = User(username=f"someuser")
     dbsession.add(user)
 
     dbsession.commit()
 
-    ents = [d['meta']['domain'] for d in data]
+    ents = [d["meta"]["domain"] for d in data]
     annos = [
         # Create a few annotations for the first 2 entities.
         _create_anno(ents[0], 1, user),
@@ -89,7 +93,6 @@ def _populate_db_and_fs(dbsession, tmp_path, N, weight=1):
         _create_anno(ents[0], 0, user),
         _create_anno(ents[0], 0, user),
         _create_anno(ents[0], 0, user),
-
         _create_anno(ents[1], 1, user, weight=weight),
         _create_anno(ents[1], 1, user),
         _create_anno(ents[1], -1, user),
@@ -107,27 +110,27 @@ def _populate_db_and_fs(dbsession, tmp_path, N, weight=1):
     dbsession.commit()
 
     # Create a Task
-    task = Task(name='Bball')
+    task = Task(name="Bball")
     task.set_labels([LABEL])
     task.set_annotators([user.username])
     task.set_patterns_file(None)
-    task.set_patterns(['Shaq', 'Lebron'])
-    task.set_data_filenames(['data.jsonl'])
+    task.set_patterns(["Shaq", "Lebron"])
+    task.set_data_filenames(["data.jsonl"])
     dbsession.add(task)
     dbsession.commit()
 
 
 def test_train_flow_simple(dbsession, monkeypatch, tmp_path):
-    monkeypatch.setenv('ALCHEMY_FILESTORE_DIR', str(tmp_path))
+    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
     N = 2
     _populate_db_and_fs(dbsession, tmp_path, N, weight=100)
     query = majority_vote_annotations_query(dbsession, LABEL)
     res = query.all()
-    assert sorted(res) == [('0.com', -1, 100), ('1.com', 1, 101)]
+    assert sorted(res) == [("0.com", -1, 100), ("1.com", 1, 101)]
 
 
 def test_train_flow_simple_equal_weight(dbsession, monkeypatch, tmp_path):
-    monkeypatch.setenv('ALCHEMY_FILESTORE_DIR', str(tmp_path))
+    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
     N = 2
     _populate_db_and_fs(dbsession, tmp_path, N, weight=3)
     query = majority_vote_annotations_query(dbsession, LABEL)
@@ -144,7 +147,7 @@ def test_train_flow_simple_equal_weight(dbsession, monkeypatch, tmp_path):
 
 
 def test_train_flow(dbsession, monkeypatch, tmp_path):
-    monkeypatch.setenv('ALCHEMY_FILESTORE_DIR', str(tmp_path))
+    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
     N = 20
     _populate_db_and_fs(dbsession, tmp_path, N)
     task = dbsession.query(Task).first()
@@ -157,66 +160,71 @@ def test_train_flow(dbsession, monkeypatch, tmp_path):
 
     # These are all the files we need to train a model.
     files = os.listdir(model_dir)
-    assert set(files) == set(['data.jsonl', 'config.json'])
+    assert set(files) == set(["data.jsonl", "config.json"])
 
-    data = load_jsonl(os.path.join(model_dir, 'data.jsonl'), to_df=False)
-    data = sorted(data, key=lambda d: d['text'])
+    data = load_jsonl(os.path.join(model_dir, "data.jsonl"), to_df=False)
+    data = sorted(data, key=lambda d: d["text"])
     print(data[0])
     print(data[1])
     print(len(data))
-    assert data[0] == {'text': 'item 0 text', 'labels': {'IsTall': 1}}
-    assert data[1] == {'text': 'item 1 text', 'labels': {'IsTall': -1}}
+    assert data[0] == {"text": "item 0 text", "labels": {"IsTall": 1}}
+    assert data[1] == {"text": "item 1 text", "labels": {"IsTall": -1}}
     assert len(data) == 20
 
-    config = load_json(os.path.join(model_dir, 'config.json'))
+    config = load_json(os.path.join(model_dir, "config.json"))
     assert config is not None
-    assert config['train_config'] is not None
+    assert config["train_config"] is not None
 
     # Part 2. Train model.
     train_model(model_dir, train_fn=stub_train_fn)
 
     data_parser_results = load_json(_get_data_parser_fname(model_dir))
-    assert data_parser_results['problem_type'] == BINARY_CLASSIFICATION
+    assert data_parser_results["problem_type"] == BINARY_CLASSIFICATION
 
     metrics = load_json(_get_metrics_fname(model_dir))
-    assert metrics['test'] is not None
-    assert metrics['train'] is not None
+    assert metrics["test"] is not None
+    assert metrics["train"] is not None
 
     # Part 3. Post-training Inference.
-    f = tmp_path / 'tmp_file_for_inference.jsonl'
-    save_jsonl(str(f), [
-        {'text': 'hello'},
-        {'text': 'world'}
-    ])
+    f = tmp_path / "tmp_file_for_inference.jsonl"
+    save_jsonl(str(f), [{"text": "hello"}, {"text": "world"}])
 
-    inference(model_dir, str(f),
-              build_model_fn=stub_build_fn, generate_plots=False)
+    inference(model_dir, str(f), build_model_fn=stub_build_fn, generate_plots=False)
 
     ir = InferenceResults.load(_get_inference_fname(model_dir, str(f)))
     assert np.isclose(ir.probs, [0.7411514, 0.7411514]).all()
 
     # Part 4. New data update, run inference on the new data.
-    f2 = tmp_path / 'tmp_file_for_inference_v2.jsonl'
-    save_jsonl(str(f2), [
-        {'text': 'hello'},
-        {'text': 'world'},
-        {'text': 'newline_1'},
-        {'text': 'newline_2'}
-    ])
+    f2 = tmp_path / "tmp_file_for_inference_v2.jsonl"
+    save_jsonl(
+        str(f2),
+        [
+            {"text": "hello"},
+            {"text": "world"},
+            {"text": "newline_1"},
+            {"text": "newline_2"},
+        ],
+    )
 
     class Mock_DatasetStorageManager:
         def download(self, url):
             # Return the one data file we have locally.
             return str(f)
+
     mock_dsm = Mock_DatasetStorageManager()
 
     inference_cache = build_inference_cache(model_dir, mock_dsm)
-    model, _ = inference(model_dir, str(f2),
-                         build_model_fn=stub_build_fn, generate_plots=False,
-                         inference_cache=inference_cache)
+    model, _ = inference(
+        model_dir,
+        str(f2),
+        build_model_fn=stub_build_fn,
+        generate_plots=False,
+        inference_cache=inference_cache,
+    )
 
-    assert model.history == [['newline_1', 'newline_2']], \
-        "Model should have only been ran on the new lines"
+    assert model.history == [
+        ["newline_1", "newline_2"]
+    ], "Model should have only been ran on the new lines"
 
     ir2 = InferenceResults.load(_get_inference_fname(model_dir, str(f2)))
     assert len(ir2.probs) == 4, "Inference should have 4 elements"
@@ -224,7 +232,7 @@ def test_train_flow(dbsession, monkeypatch, tmp_path):
 
 
 def test_majority_vote_annotations_query(dbsession):
-    user = User(username='fake_user')
+    user = User(username="fake_user")
     dbsession.add(user)
 
     dbsession.commit()
@@ -240,7 +248,6 @@ def test_majority_vote_annotations_query(dbsession):
         _create_anno(ents[0], 0, user),
         _create_anno(ents[0], 0, user),
         _create_anno(ents[0], 0, user),
-
         # for this entity, the weighted vote is a tie between 1 and -1.
         _create_anno(ents[1], 1, user, weight=3),
         _create_anno(ents[1], 1, user),
@@ -250,9 +257,7 @@ def test_majority_vote_annotations_query(dbsession):
         _create_anno(ents[1], -1, user),
         _create_anno(ents[1], 0, user),
         _create_anno(ents[1], 0, user),
-
-
-        _create_anno(ents[2], 1, user)
+        _create_anno(ents[2], 1, user),
     ]
 
     dbsession.add_all(annos)
@@ -264,10 +269,10 @@ def test_majority_vote_annotations_query(dbsession):
     res = sorted(res, key=lambda x: x[0])
     for i in range(3):
         if i == 0:
-            assert res[0] == ('0.com', -1, 100)
+            assert res[0] == ("0.com", -1, 100)
         elif i == 1:
-            assert res[1][0] == '1.com'
+            assert res[1][0] == "1.com"
             assert res[1][1] in [1, -1]
             assert res[1][2] == 4
         else:
-            assert res[2] == ('2.com', 1, 1)
+            assert res[2] == ("2.com", 1, 1)

@@ -8,6 +8,7 @@ class Config:
 
     This module is designed to fail loudly when a required env var is not found.
     """
+
     @staticmethod
     def get_admin_server_password():
         return env('ANNOTATION_TOOL_ADMIN_SERVER_PASSWORD')
