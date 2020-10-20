@@ -229,6 +229,7 @@ class ClassificationAnnotation(Base):
         )
 
 
+# TODO this should not live here. It should be in a separate service.
 def majority_vote_annotations_query(dbsession, label):
     """
     Returns a query that fetches a list of 3-tuples
@@ -373,6 +374,7 @@ class ModelDeploymentConfig(Base):
     )
     threshold = Column(Float, default=0.5)
 
+    # TODO this should not live here. It should be in a DAO service layer
     @staticmethod
     def get_selected_for_deployment(dbsession) -> List["ModelDeploymentConfig"]:
         """Return all ModelDeploymentConfig's that are selected for deployment.
@@ -417,6 +419,8 @@ class Model(Base):
     def __repr__(self):
         return f"<Model:{self.type}:{self.uuid}:{self.version}>"
 
+    # TODO none of the following methods should live here.
+    #  They belong to a Dao layer.
     @staticmethod
     def get_latest_version(dbsession, uuid):
         res = (
@@ -505,6 +509,7 @@ class Model(Base):
         """
         return file_len(_get_exported_data_fname(self.dir(abs=True)))
 
+    # TODO we may want to move it to a metric calculation layer to handle this.
     def compute_metrics(self, threshold: float = 0.5):
         """See train.no_deps.compute_metrics"""
         version_dir = self.dir(abs=True)
@@ -781,6 +786,8 @@ class LabelPatterns(Base):
 # =============================================================================
 # Convenience Functions
 
+# TODO all the convience functions should live in a Dao layer.
+
 
 def update_instance(dbsession, model, filter_by_dict, update_dict):
     dbsession.query(model).filter_by(**filter_by_dict).update(update_dict)
@@ -983,6 +990,7 @@ def load_inference(
     return df[columns]
 
 
+# TODO this should live in a utility class.
 def _reformat_metrics(metrics):
     logging.info("Reformatting metrics")
     train_metrics = metrics["train"]

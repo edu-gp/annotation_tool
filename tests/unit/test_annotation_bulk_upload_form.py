@@ -1,6 +1,6 @@
 import pytest
 
-from alchemy.admin_server.annotations import _upsert_annotations
+from alchemy.admin_server.annotations import _upsert_annotation
 from alchemy.admin_server.annotations_utils import (
     _parse_list,
     parse_bulk_upload_v2_form,
@@ -175,7 +175,7 @@ def test__upsert_annotations(dbsession):
     )
     dbsession.add(annotation)
 
-    annotation_new = _upsert_annotations(
+    annotation_new = _upsert_annotation(
         dbsession=dbsession,
         entity_type=entity_type,
         entity=entity,
@@ -193,7 +193,7 @@ def test__upsert_annotations(dbsession):
     assert annotation_new.label == annotation.label
     assert annotation_new.value == annotation.value
 
-    annotation_updated = _upsert_annotations(
+    annotation_updated = _upsert_annotation(
         dbsession=dbsession,
         entity_type=entity_type,
         entity=entity,
