@@ -2,7 +2,7 @@
 export PROJECT_ID=<Your GCP Project ID>
 export IMAGE_REPO_NAME=alchemy
 export IMAGE_TAG=v1
-export IMAGE_HOST=us.gcr.io
+export IMAGE_HOST=gcr.io
 export IMAGE_URI=$IMAGE_HOST/$PROJECT_ID/$IMAGE_REPO_NAME:$IMAGE_TAG
 
 # Build it locally and push

@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
+import numpy
 from envparse import env
 import numpy as np
 import pandas as pd
