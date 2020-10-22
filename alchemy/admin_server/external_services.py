@@ -1,5 +1,8 @@
 import logging
 
+from google.cloud import pubsub
+from google.cloud import secretmanager
+
 
 class GCPPubSubService:
     _client = None
@@ -7,7 +10,6 @@ class GCPPubSubService:
     @classmethod
     def get_client(cls):
         if cls._client is None:
-            from google.cloud import pubsub
             cls._client = pubsub.PublisherClient()
         return cls._client
 
@@ -33,7 +35,6 @@ class SecretManagerService:
     @classmethod
     def get_client(cls):
         if cls._client is None:
-            from google.cloud import secretmanager
             cls._client = secretmanager.SecretManagerServiceClient()
         return cls._client
 
