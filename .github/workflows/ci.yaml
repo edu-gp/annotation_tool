@@ -30,5 +30,6 @@ jobs:
         echo "ALCHEMY_FILESTORE_DIR=\"$RUNNER_TEMP/__filestore\"" >> $GITHUB_ENV
     - name: Run tests
       run: |
+        export TEST_ARGS="--basetemp=$RUNNER_TEMP"
         sh ci/run_tests.sh
 
