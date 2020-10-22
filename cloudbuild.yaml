@@ -1,0 +1,36 @@
+steps:
+# Step1: Build the alchemy development image
+# that does not include the source codes as
+# the base
+#
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build',
+         '--tag', 'alchemy-base:$SHORT_SHA',
+         '--file', 'Dockerfile',
+         '.']
+  id: 'step-build-base'
+
+# Step2: Build the production image by copying
+# the source code into the image
+#
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build',
+         '--tag', 'gcr.io/$PROJECT_ID/alchemy:$SHORT_SHA',
+         '--file', 'alchemy.Dockerfile',
+         '.']
+  wait_for: ['step-build-base']
+  id: 'step-build-prod'
+
+# Step3: Run the tests
+#
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['run',
+         '--env', 'GOOGLE_AI_PLATFORM_ENABLED=0',
+         '--env', 'USE_CLOUD_LOGGING=0',
+         'gcr.io/$PROJECT_ID/alchemy:$SHORT_SHA',
+         'sh', 'ci/run_tests.sh']
+  wait_for: ['step-build-prod']
+  id: 'step-test'
+timeout: 600s
+images:
+  - 'gcr.io/$PROJECT_ID/alchemy:$SHORT_SHA'

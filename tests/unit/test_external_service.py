@@ -1,9 +1,26 @@
 from datetime import datetime
 
+from google.cloud.pubsub_v1 import publisher
+from google.auth import credentials
+import mockito
 import pytest
 
 from alchemy.admin_server.external_services import GCPPubSubService
 from alchemy.train.gs_utils import _message_constructor_alchemy_to_gdp
+
+
+def _patch_client(mockResponse, monkeypatch):
+    creds = mockito.mock(spec=credentials.Credentials)
+    client = publisher.Client(credentials=creds)
+
+    def mock_publish(*args, **kwargs):
+        return mockResponse()
+
+    def get_client():
+        return client
+
+    monkeypatch.setattr(client, "publish", mock_publish)
+    monkeypatch.setattr(GCPPubSubService, "get_client", get_client)
 
 
 def test_publish_message(monkeypatch):
@@ -12,10 +29,7 @@ def test_publish_message(monkeypatch):
         def result():
             return "published_message_id"
 
-    def mock_publish(*args, **kwargs):
-        return MockResponse()
-
-    monkeypatch.setattr(GCPPubSubService.publish_client, "publish", mock_publish)
+    _patch_client(MockResponse, monkeypatch)
 
     result = GCPPubSubService.publish_message(
         project_id="test_project",
@@ -36,10 +50,7 @@ def test_publish_message_exception(monkeypatch):
         def result():
             raise Exception("Message publishing failed.")
 
-    def mock_publish(*args, **kwargs):
-        return MockResponse()
-
-    monkeypatch.setattr(GCPPubSubService.publish_client, "publish", mock_publish)
+    _patch_client(MockResponse, monkeypatch)
 
     with pytest.raises(Exception, match="Message publishing failed."):
         GCPPubSubService.publish_message(
