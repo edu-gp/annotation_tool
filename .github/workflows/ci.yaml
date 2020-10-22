@@ -19,8 +19,15 @@ jobs:
         python-version: '3.7'
     - name: Set up dependencies
       run: |
+        echo Installing base requirements
         pip install -r requirements.txt
-        sh ci/install_deps.sh
+        sh ci/install_deps.sh --no-gcp --no-spacy
+
+        ALCHEMY_FILESTORE_DIR="$RUNNER_TEMP/__filestore"
+        mkdir -p "$ALCHEMY_FILESTORE_DIR"
+
+        echo "ALCHEMY_DATABASE_URI=\"sqlite://$RUNNER_TEMP/alchemy.db\"" >> $GITHUB_ENV
+        echo "ALCHEMY_FILESTORE_DIR=\"$RUNNER_TEMP/__filestore\"" >> $GITHUB_ENV
     - name: Run tests
       run: |
         sh ci/run_tests.sh
