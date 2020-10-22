@@ -15,7 +15,7 @@ steps:
 #
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build',
-         '--tag', 'us.gcr.io/$PROJECT_ID/alchemy:latest',
+         '--tag', 'gcr.io/$PROJECT_ID/alchemy:latest',
          '--file', 'alchemy.Dockerfile',
          '.']
   wait_for: ['step-build-base']
@@ -27,10 +27,10 @@ steps:
   args: ['run',
          '--env', 'GOOGLE_AI_PLATFORM_ENABLED=0',
          '--env', 'USE_CLOUD_LOGGING=0',
-         'us.gcr.io/$PROJECT_ID/alchemy:latest',
+         'gcr.io/$PROJECT_ID/alchemy:latest',
          'sh', 'ci/run_tests.sh']
   wait_for: ['step-build-prod']
   id: 'step-test'
 timeout: 600s
 images:
-  - 'us.gcr.io/$PROJECT_ID/alchemy:latest'
+  - 'gcr.io/$PROJECT_ID/alchemy:latest'
