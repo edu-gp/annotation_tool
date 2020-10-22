@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /base
 
 COPY requirements.txt .
+COPY requirements ./requirements
 RUN pip install -r requirements.txt
 
 # Have to add back these two lines. Otherwise the test will fail due to missing dependencies.
