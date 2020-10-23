@@ -1,3 +1,9 @@
+# This build file is triggered on each commit to master
+# in which some files in alchemy/train/nodeps/** are
+# touched.
+# This is configured in the GCP console > cloud build >
+# triggers. See:
+# https://cloud.google.com/cloud-build/docs/automating-builds/create-github-app-triggers#creating_github_app_triggers_2
 steps:
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build',
