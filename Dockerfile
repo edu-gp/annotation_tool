@@ -9,9 +9,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /base
 
-COPY requirements.txt .
+ARG TARGET=production
 COPY requirements ./requirements
-RUN pip install -r requirements.txt
+RUN pip install -r requirements/$TARGET.txt
 
 # Have to add back these two lines. Otherwise the test will fail due to missing dependencies.
 RUN pip install torch==1.6.0+cu101 torchvision==0.7.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html
