@@ -19,8 +19,8 @@ jobs:
         python-version: '3.7'
     - name: Set up dependencies
       run: |
-        echo Installing base requirements
-        pip install -r requirements.txt
+        echo Installing test requirements
+        pip install -r requirements/test.txt
         sh ci/install_deps.sh --no-gcp --no-spacy
 
         ALCHEMY_FILESTORE_DIR="$RUNNER_TEMP/__filestore"
