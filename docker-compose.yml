@@ -20,7 +20,8 @@ services:
     env_file: .env
     build:
       context: .
-      dockerfile: alchemy.Dockerfile
+      dockerfile: Dockerfile
+      target: local
     image: &img alchemy
     ports:
       - "5000:5000"

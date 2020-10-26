@@ -1,36 +1,38 @@
 steps:
-# Step1: Build the alchemy development image
-# that does not include the source codes as
-# the base
+# Build the alchemy test image
 #
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build',
-         '--tag', 'alchemy-base:$SHORT_SHA',
-         '--file', 'Dockerfile',
+         '--target', 'test',
+         '--tag', 'gcr.io/$PROJECT_ID/alchemy:test-${SHORT_SHA}',
          '.']
-  id: 'step-build-base'
+  id: 'build-test-image'
 
-# Step2: Build the production image by copying
-# the source code into the image
-#
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build',
-         '--tag', 'gcr.io/$PROJECT_ID/alchemy:$SHORT_SHA',
-         '--file', 'alchemy.Dockerfile',
-         '.']
-  wait_for: ['step-build-base']
-  id: 'step-build-prod'
-
-# Step3: Run the tests
+# Run the tests, to prevent having broken
+# images. May look unnecessary since there are
+# GitHub actions that run tests, however it
+# wouldn't hurt to double check.
 #
 - name: 'gcr.io/cloud-builders/docker'
   args: ['run',
          '--env', 'GOOGLE_AI_PLATFORM_ENABLED=0',
          '--env', 'USE_CLOUD_LOGGING=0',
-         'gcr.io/$PROJECT_ID/alchemy:$SHORT_SHA',
+         'gcr.io/$PROJECT_ID/alchemy:test-${SHORT_SHA}',
          'sh', 'ci/run_tests.sh']
-  wait_for: ['step-build-prod']
-  id: 'step-test'
-timeout: 600s
+  wait_for: ['build-test-image']
+  id: 'run-tests'
+
+# Build the target image
+#
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build',
+         '--target', '${_TARGET}',
+         '--cache-from', 'gcr.io/$PROJECT_ID/alchemy:test-${SHORT_SHA}',
+         '--tag', 'gcr.io/$PROJECT_ID/alchemy:${_TARGET}-${SHORT_SHA}',
+         '.']
+  wait_for: ['run-tests']
+  id: 'build-target-image'
+
+timeout: 1200s
 images:
-  - 'gcr.io/$PROJECT_ID/alchemy:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/alchemy:${_TARGET}-${SHORT_SHA}'
