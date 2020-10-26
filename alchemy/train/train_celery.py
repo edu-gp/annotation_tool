@@ -28,6 +28,7 @@ app = Celery(
 @app.task
 def submit_gcp_training(label, raw_file_path, entity_type):
     logging.info("Raw file for the training is " + raw_file_path)
+    # TODO hardcoded Development Env configuration
     db = Database.from_config(DevelopmentConfig)
     try:
         model = prepare_next_model_for_label(

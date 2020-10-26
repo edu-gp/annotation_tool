@@ -1,9 +1,11 @@
 from typing import List
 
-from alchemy.data.pojo import AnnotationCreationRequest
+from alchemy.data.request.annotation_request import AnnotationCreateRequest
 from alchemy.db.model import ClassificationAnnotation, EntityTypeEnum
 
 
+# TODO we should move this to a utility class in case we have more than one
+#  entity_type in the future
 def _construct_context(entity_type, entity):
     if entity_type == EntityTypeEnum.COMPANY:
         context = {"text": "N/A", "meta": {"name": entity, "domain": entity}}
@@ -23,13 +25,13 @@ class AnnotationDao:
     def __init__(self, db):
         self.db = db
 
-    def create_annotation(self, create_request: AnnotationCreationRequest):
+    def create_annotation(self, create_request: AnnotationCreateRequest):
         annotation = self._create_annotation_helper(create_request)
 
         self.db.session.add(annotation)
         self._commit_to_db()
 
-    def create_annotations_bulk(self, create_requests: List[AnnotationCreationRequest]):
+    def create_annotations_bulk(self, create_requests: List[AnnotationCreateRequest]):
         annotations = [
             self._create_annotation_helper(create_request)
             for create_request in create_requests
@@ -37,7 +39,7 @@ class AnnotationDao:
         self.db.session.add_all(annotations)
         self._commit_to_db()
 
-    def retrieve_annotation(self, entity_type, entity, label, user_id):
+    def _find_existing_annotation(self, entity_type, entity, label, user_id):
         annotation = (
             self.db.session.query(ClassificationAnnotation)
             .filter_by(
@@ -47,8 +49,8 @@ class AnnotationDao:
         )
         return annotation
 
-    def _create_annotation_helper(self, create_request: AnnotationCreationRequest):
-        annotation = self.retrieve_annotation(
+    def _create_annotation_helper(self, create_request: AnnotationCreateRequest):
+        annotation = self._find_existing_annotation(
             create_request.entity_type,
             create_request.entity,
             create_request.label,

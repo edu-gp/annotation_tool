@@ -2,9 +2,6 @@ import logging
 
 from flask import Blueprint, flash, redirect, render_template, request
 
-from alchemy.data.pojo import AnnotationCreationRequest
-from alchemy.service.annotation_service import AnnotationService
-from alchemy.dao.annotation_dao import AnnotationDao
 from alchemy.db.model import (
     AnnotationValue,
     ClassificationAnnotation,
@@ -18,8 +15,6 @@ from .annotations_utils import parse_bulk_upload_v2_form, parse_form
 from .auth import auth
 
 bp = Blueprint("annotations", __name__, url_prefix="/annotations")
-
-annotation_service = AnnotationService(service_dao=AnnotationDao(db))
 
 
 @auth.login_required
@@ -73,7 +68,7 @@ def bulk_post_positive_annotations():
         user = get_or_create(db.session, User, username=user)
 
         for entity, label in zip(entities, labels):
-            anno = _upsert_annotation(
+            anno = _upsert_annotations(
                 dbsession=db.session,
                 entity_type=entity_type,
                 entity=entity,
@@ -140,19 +135,23 @@ def bulk_post():
         # For now, here's a less efficient solution.
         # Note: We can't use `get_or_create` since 'value' is a required field.
 
-        annotation_create_requests = [
-            AnnotationCreationRequest(
+        for entity, value in zip(entities, values):
+            anno = _upsert_annotations(
+                dbsession=db.session,
                 entity_type=entity_type,
                 entity=entity,
                 label=label,
                 user_id=user.id,
                 value=value,
             )
-            for entity, value in zip(entities, values)
-        ]
-        annotation_service.create_annotations_bulk(
-            create_requests=annotation_create_requests
-        )
+
+            db.session.add(anno)
+
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
 
         flash(
             f"Inserted or updated {len(values)} annotations for "
@@ -167,7 +166,7 @@ def bulk_post():
         return redirect(redirect_to)
 
 
-def _upsert_annotation(dbsession, entity_type, entity, label, user_id, value):
+def _upsert_annotations(dbsession, entity_type, entity, label, user_id, value):
     annotation = (
         dbsession.query(ClassificationAnnotation)
         .filter_by(entity_type=entity_type, entity=entity, user_id=user_id, label=label)
