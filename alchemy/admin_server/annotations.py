@@ -144,6 +144,7 @@ def bulk_post():
                 label=label,
                 user_id=user.id,
                 value=value,
+                context=__construct_context(entity_type, entity),
             )
             for entity, value in zip(entities, values)
         ]

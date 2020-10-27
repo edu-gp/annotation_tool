@@ -160,3 +160,30 @@ def test_upsert_annotations_bulk(dbsession):
     assert saved_instance2.label == label
     assert saved_instance2.value == value
     assert saved_instance2.context == context2
+
+
+def test_upsert_annotation_failure(dbsession, monkeypatch):
+    annotation_dao = AnnotationDao(dbsession=dbsession)
+    upsert_request = AnnotationUpsertRequest(
+        entity_type=entity_type,
+        entity=entity1,
+        user_id=user_id,
+        label=label,
+        value=1,
+        context=context1,
+    )
+
+    error_msg = "Mocked Exception!"
+
+    def mock_commit():
+        raise Exception(error_msg)
+
+    monkeypatch.setattr(dbsession, "commit", mock_commit)
+
+    try:
+        annotation_dao.upsert_annotation(upsert_request=upsert_request)
+    except Exception as e:
+        assert str(e) == error_msg
+
+    num_of_annotations = _count_annotations(dbsession)
+    assert num_of_annotations == 0

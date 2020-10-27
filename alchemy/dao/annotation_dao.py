@@ -1,24 +1,7 @@
 from typing import List
 
 from alchemy.data.request.annotation_request import AnnotationUpsertRequest
-from alchemy.db.model import ClassificationAnnotation, EntityTypeEnum
-
-
-# TODO we should move this to a utility class in case we have more than one
-#  entity_type in the future
-def _construct_context(entity_type, entity):
-    if entity_type == EntityTypeEnum.COMPANY:
-        context = {"text": "N/A", "meta": {"name": entity, "domain": entity}}
-    else:
-        context = {
-            "text": "N/A",
-            "meta": {
-                "name": entity
-                # TODO we probably should name `domain` to
-                #  something else according to the entity type
-            },
-        }
-    return context
+from alchemy.db.model import ClassificationAnnotation
 
 
 class AnnotationDao:
@@ -57,24 +40,20 @@ class AnnotationDao:
             upsert_request.user_id,
         )
         if annotation is None:
-            context = _construct_context(
-                upsert_request.entity_type, upsert_request.entity
-            )
             annotation = ClassificationAnnotation(
                 entity_type=upsert_request.entity_type,
                 entity=upsert_request.entity,
                 user_id=upsert_request.user_id,
                 label=upsert_request.label,
                 value=upsert_request.value,
-                context=context,
+                context=upsert_request.context,
             )
         else:
-            # Normally only the annotation value should be updated.
-            # annotation.entity_type = upsert_request.entity_type
-            # annotation.entity = upsert_request.entity
-            # annotation.user_id = upsert_request.user_id
-            # annotation.label = upsert_request.label
-            # annotation.context = upsert_request.context
+            annotation.entity_type = upsert_request.entity_type
+            annotation.entity = upsert_request.entity
+            annotation.user_id = upsert_request.user_id
+            annotation.label = upsert_request.label
+            annotation.context = upsert_request.context
             annotation.value = upsert_request.value
         return annotation
 
