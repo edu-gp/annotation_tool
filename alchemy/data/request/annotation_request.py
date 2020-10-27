@@ -10,6 +10,7 @@ class AnnotationUpsertRequest(ValidRequest):
     label: str
     user_id: int
     value: int
+    context: dict
 
     @classmethod
     def from_dict(cls, dict_data):
@@ -34,4 +35,11 @@ class AnnotationUpsertRequest(ValidRequest):
                     parameter="dict_data",
                     message=f"Field {field.name} expects {field.type} "
                     f"but received {type(dict_data[field.name])}",
+                )
+
+        field_names = set([field.name for field in fields(cls)])
+        for key in dict_data:
+            if key not in field_names:
+                invalid_req.add_error(
+                    parameter="dict_data", message=f"Invalid field {key}."
                 )
