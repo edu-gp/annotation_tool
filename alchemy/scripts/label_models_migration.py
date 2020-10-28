@@ -3,10 +3,9 @@ Models used to be stored on Tasks.
 This script migrates all the models from binary-classification tasks
 to individual labels (by storing the 'label' properly in Model).
 """
-from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import Database, Task
 
-db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
+db = Database.bootstrap()
 
 if __name__ == "__main__":
     for task in db.session.query(Task).all():

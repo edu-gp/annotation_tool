@@ -5,13 +5,12 @@ import logging
 
 import pytz
 
-from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import Database, EntityTypeEnum, Task
 
 if __name__ == "__main__":
     logging.root.setLevel(logging.INFO)
 
-    db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
+    db = Database.bootstrap()
     result = db.session.query(Task).all()
 
     cutoff = datetime.datetime(2020, 7, 10).replace(tzinfo=pytz.UTC)

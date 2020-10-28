@@ -1,12 +1,11 @@
 import logging
 
-from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import ClassificationAnnotation, Database
 
 if __name__ == "__main__":
     logging.root.setLevel(logging.INFO)
 
-    db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
+    db = Database.bootstrap()
     annotations = db.session.query(ClassificationAnnotation).all()
 
     for anno in annotations:

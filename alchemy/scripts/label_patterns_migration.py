@@ -3,7 +3,6 @@ Patterns used to be stored on Tasks.
 This script migrates all the patterns from binary-classification tasks
 to individual labels (by storing them in LabelPatterns).
 """
-from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import (
     Database,
     LabelPatterns,
@@ -13,7 +12,7 @@ from alchemy.db.model import (
 )
 from alchemy.shared.utils import load_jsonl
 
-db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
+db = Database.bootstrap()
 
 if __name__ == "__main__":
     for task in db.session.query(Task).all():

@@ -17,7 +17,6 @@ import tldextract
 from google.cloud import secretmanager
 from simple_salesforce import Salesforce
 
-from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import (
     ClassificationAnnotation,
     Database,
@@ -235,7 +234,7 @@ if __name__ == "__main__":
         end_time_exclusive=datetime.now(),
     )
 
-    db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
+    db = Database.bootstrap()
     salesforce_bot = get_or_create(
         dbsession=db.session, model=User, username="salesforce_bot"
     )

@@ -77,6 +77,14 @@ class Database:
     def from_config(config):
         return Database(config.SQLALCHEMY_DATABASE_URI)
 
+    @staticmethod
+    def bootstrap():
+        from pathlib import Path
+        from flask import Config as FlaskConfigManager
+        config = FlaskConfigManager(Path('../..').absolute())
+        config.from_envvar('ALCHEMY_CONFIG')
+        return Database(config['SQLALCHEMY_DATABASE_URI'])
+
 
 # =============================================================================
 # Enums

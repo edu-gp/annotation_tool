@@ -4,13 +4,12 @@ from collections import defaultdict
 from sqlalchemy import distinct, func
 from sqlalchemy.exc import DatabaseError
 
-from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import AnnotationValue, ClassificationAnnotation, Database
 
 if __name__ == "__main__":
     logging.root.setLevel(logging.INFO)
 
-    db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
+    db = Database.bootstrap()
 
     distinct_labels = db.session.query(distinct(ClassificationAnnotation.label)).all()
 

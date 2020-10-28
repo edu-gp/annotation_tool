@@ -1,6 +1,5 @@
 from alchemy.admin_server import api
-from alchemy.admin_server.external_services import SecretManagerService
-from tests.fixtures import admin_server_client
+from tests.fixtures import admin_server_client  # noqa
 
 
 def test_hc(admin_server_client):
@@ -27,16 +26,13 @@ def make_request(
 
 def test_authorized_call_token_not_set(admin_server_client, monkeypatch):
     # Here, API_TOKEN env var is not set.
-    monkeypatch.delenv("API_TOKEN", raising=False)
-    monkeypatch.setattr(SecretManagerService, "get_secret", None)
-    monkeypatch.setattr(api, "run_inference_on_data", lambda x: None)
-
+    monkeypatch.delitem(admin_server_client.application.config, "API_TOKEN", raising=False)
     response = make_request(admin_server_client)
     assert response.status == "500 INTERNAL SERVER ERROR"
 
 
 def test_unauthorized_call(admin_server_client, monkeypatch):
-    monkeypatch.setenv("API_TOKEN", "test123")
+    monkeypatch.setitem(admin_server_client.application.config, "API_TOKEN", "test123")
     monkeypatch.setattr(api, "run_inference_on_data", lambda x: None)
 
     response = make_request(admin_server_client, auth_token="bad-token")
@@ -44,7 +40,7 @@ def test_unauthorized_call(admin_server_client, monkeypatch):
 
 
 def test_authorized_call(admin_server_client, monkeypatch):
-    monkeypatch.setenv("API_TOKEN", "test123")
+    monkeypatch.setitem(admin_server_client.application.config, "API_TOKEN", "test123")
     monkeypatch.setattr(api, "run_inference_on_data", lambda x: None)
 
     response = make_request(admin_server_client)
@@ -52,7 +48,7 @@ def test_authorized_call(admin_server_client, monkeypatch):
 
 
 def test_request_with_no_dataset_name(admin_server_client, monkeypatch):
-    monkeypatch.setenv("API_TOKEN", "test123")
+    monkeypatch.setitem(admin_server_client.application.config, "API_TOKEN", "test123")
     monkeypatch.setattr(api, "run_inference_on_data", lambda x: None)
 
     response = make_request(admin_server_client, dataset_name="")
@@ -65,7 +61,7 @@ def test_dataset_name_thru_query_param(admin_server_client, monkeypatch):
     def capture_call(x):
         captured_calls.append(x)
 
-    monkeypatch.setenv("API_TOKEN", "test123")
+    monkeypatch.setitem(admin_server_client.application.config, "API_TOKEN", "test123")
     monkeypatch.setattr(api, "run_inference_on_data", capture_call)
 
     # With Query Param

@@ -1,16 +1,17 @@
 # Based on: https://gist.github.com/kissgyorgy/e2365f25a213de44b9a2
 
 import pytest
-from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from alchemy.db.config import TestingConfig
+from alchemy.db.model import Database
 from alchemy.db.model import Base as BaseModel
 
 
 @pytest.fixture(scope="session")
 def engine():
-    return create_engine(TestingConfig.SQLALCHEMY_DATABASE_URI)
+    db = Database.bootstrap()
+    engine = db.engine
+    return engine
 
 
 @pytest.yield_fixture(scope="session")

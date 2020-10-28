@@ -4,9 +4,8 @@ import tempfile
 
 import pandas as pd
 
-from envparse import env
 from flask import (
-    Blueprint, flash, redirect, render_template, request, url_for, send_file
+    Blueprint, flash, redirect, render_template, request, url_for, send_file, current_app
 )
 from werkzeug.utils import secure_filename
 
@@ -260,8 +259,8 @@ def update(id):
 
 @bp.route("/<string:id>/assign", methods=["POST"])
 def assign(id):
-    max_per_annotator = env.int('ANNOTATION_TOOL_MAX_PER_ANNOTATOR', default=100)
-    max_per_dp = env.int('ANNOTATION_TOOL_MAX_PER_DP', default=3)
+    max_per_annotator = current_app.config['ANNOTATION_TOOL_MAX_PER_ANNOTATOR']
+    max_per_dp = current_app.config['ANNOTATION_TOOL_MAX_PER_DP']
     entity_type = request.form.get('entity_type')
     if entity_type is None:
         msg = f"Cannot request annotations without " f"an entity type for task {id}."
@@ -291,7 +290,7 @@ def train(id):
 
     raw_file_path = task.get_data_filenames(abs=True)[0]
 
-    if env.bool('GOOGLE_AI_PLATFORM_ENABLED', default=False):
+    if current_app.config['GOOGLE_AI_PLATFORM_ENABLED']:
         async_result = submit_gcp_training.delay(
             label, raw_file_path, entity_type=task.get_entity_type()
         )

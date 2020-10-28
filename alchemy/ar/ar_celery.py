@@ -1,11 +1,9 @@
 import logging
 import os
-
 from celery import Celery
 
 from alchemy.ar import generate_annotation_requests as _generate_annotation_requests
 from alchemy.ar.data import save_new_ar_for_user_db
-from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import Database, Task, get_or_create
 from alchemy.shared.celery_job_status import JobStatus, set_status
 
@@ -34,7 +32,7 @@ def generate_annotation_requests(task_id, max_per_annotator, max_per_dp, entity_
         f"task_id={task_id}, entity_type={entity_type}"
     )
 
-    db = Database.from_config(DevelopmentConfig)
+    db = Database.bootstrap()
     res = _generate_annotation_requests(
         db.session, task_id, max_per_annotator, max_per_dp
     )

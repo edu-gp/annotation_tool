@@ -4,7 +4,6 @@ import time
 
 from celery import Celery
 
-from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import Database, ModelDeploymentConfig, TextClassificationModel
 from alchemy.train.gcp_celery import poll_status as gcp_poll_status
 from alchemy.train.gcp_job import ModelDefn, submit_job
@@ -28,7 +27,7 @@ app = Celery(
 @app.task
 def submit_gcp_training(label, raw_file_path, entity_type):
     logging.info("Raw file for the training is " + raw_file_path)
-    db = Database.from_config(DevelopmentConfig)
+    db = Database.bootstrap()
     try:
         model = prepare_next_model_for_label(
             db.session,
@@ -50,7 +49,7 @@ def submit_gcp_inference_on_new_file(dataset_name):
 
     # Check which models need to be ran, and kick them off.
     timestamp = int(time.time())
-    db = Database.from_config(DevelopmentConfig)
+    db = Database.bootstrap()
     try:
         configs = ModelDeploymentConfig.get_selected_for_deployment(db.session)
 

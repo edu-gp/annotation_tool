@@ -5,7 +5,6 @@ import os
 import datetime
 
 from alchemy.db._task import _Task as _Task
-from alchemy.db.config import DevelopmentConfig
 from alchemy.db.fs import (
     models_dir,
     raw_data_dir,
@@ -36,7 +35,7 @@ from alchemy.ar.data import (  # Requests; Annotations
     fetch_ar,
 )
 
-db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
+db = Database.bootstrap()
 
 
 def convert_annotation_result_in_batch(task_uuid, username):
