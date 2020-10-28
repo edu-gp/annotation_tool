@@ -22,7 +22,9 @@ def _setup_logging(config):
 def create_app():
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
-    app.config.from_envvar('ALCHEMY_CONFIG')
+    if not app.config.from_envvar('ALCHEMY_CONFIG', silent=True):
+        logging.warning("ALCHEMY_CONFIG is not set, falling back to config/local.py")
+        app.config.from_pyfile('../alchemy/config/local.py', silent=False)  # Fallback for backwards compatibility
     if app.config['USE_CLOUD_LOGGING']:
         _setup_logging(app.config)
 
