@@ -6,7 +6,7 @@ from typing import Dict, List
 
 import numpy as np
 
-from alchemy.db.fs import RAW_DATA_DIR, filestore_base_dir
+from alchemy.db.fs import raw_data_dir
 from alchemy.db.model import (
     AnnotationValue,
     ClassificationAnnotation,
@@ -168,7 +168,7 @@ def generate_annotation_requests(
 
     # TODO Restrict each task to use only 1 file?
     data_filenames = [
-        os.path.join(filestore_base_dir(), RAW_DATA_DIR, fname)
+        os.path.join(raw_data_dir(), fname)
         for fname in task.get_data_filenames()
     ]
 

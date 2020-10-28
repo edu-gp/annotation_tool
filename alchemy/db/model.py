@@ -16,7 +16,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.types import JSON, DateTime, Float, Integer, String
 from werkzeug.utils import secure_filename
 
-from alchemy.db.fs import RAW_DATA_DIR, TRAINING_DATA_DIR, filestore_base_dir
+from alchemy.db.fs import raw_data_dir, training_data_dir, filestore_base_dir
 from alchemy.shared.utils import (
     _format_float_numbers,
     file_len,
@@ -38,7 +38,7 @@ from alchemy.train.no_deps.paths import (
     _get_metrics_fname,
     _get_metrics_v2_fname,
 )
-from alchemy.train.paths import _get_version_dir
+from alchemy.train.paths import get_model_dir
 
 meta = MetaData(
     naming_convention={
@@ -346,13 +346,16 @@ class ClassificationTrainingData(Base):
         return data
 
     def path(self, abs=False):
+        if abs:
+            base = None
+        else:
+            base = ''
+
         p = os.path.join(
-            TRAINING_DATA_DIR,
+            training_data_dir(base),
             secure_filename(self.label),
             str(int(self.created_at.timestamp())) + ".jsonl",
         )
-        if abs:
-            p = os.path.join(filestore_base_dir(), p)
         return p
 
     def load_data(self, to_df=False):
@@ -441,7 +444,7 @@ class Model(Base):
 
     def dir(self, abs=False):
         """Returns the directory location relative to the filestore root"""
-        return _get_version_dir(self.uuid, self.version, abs=abs)
+        return get_model_dir(self.uuid, self.version, abs=abs)
 
     def inference_dir(self):
         # TODO replace with official no_deps
@@ -857,7 +860,7 @@ def fetch_ar_ids_by_task_and_user(dbsession, task_id, username):
 
 def _raw_data_file_path(fname):
     """Absolute path to a data file in the default raw data directory"""
-    return os.path.join(filestore_base_dir(), RAW_DATA_DIR, fname)
+    return os.path.join(raw_data_dir(), fname)
 
 
 # TODO this does not guarantee to fetch annotations under a task. It only

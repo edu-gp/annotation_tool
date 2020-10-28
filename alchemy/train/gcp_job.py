@@ -43,7 +43,7 @@ from alchemy.train import gs_url
 
 from .no_deps.storage_manager import DatasetStorageManager, ModelStorageManager
 from .no_deps.utils import run_cmd
-from .paths import _get_version_dir
+from .paths import get_model_dir
 
 ModelDefn = namedtuple("ModelDefn", ("uuid", "version"))
 
@@ -249,7 +249,7 @@ def __generate_job_id():
 def build_model_storage_manager(uuid, version) -> ModelStorageManager:
     """Factory function"""
     remote_model_dir = gs_url.build_model_dir(uuid, version)
-    local_model_dir = _get_version_dir(uuid, version)
+    local_model_dir = get_model_dir(uuid, version)
     return ModelStorageManager(remote_model_dir, local_model_dir)
 
 

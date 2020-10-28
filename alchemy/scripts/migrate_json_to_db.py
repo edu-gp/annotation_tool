@@ -7,9 +7,9 @@ import datetime
 from alchemy.db._task import _Task as _Task
 from alchemy.db.config import DevelopmentConfig
 from alchemy.db.fs import (
-    MODELS_DIR,
-    RAW_DATA_DIR,
-    TRAINING_DATA_DIR,
+    models_dir,
+    raw_data_dir,
+    training_data_dir,
     filestore_base_dir,
 )
 from alchemy.db.model import (
@@ -175,12 +175,12 @@ if __name__ == "__main__":
 
     fsdir = filestore_base_dir()
     os.makedirs(fsdir, exist_ok=True)
-    os.makedirs(os.path.join(fsdir, RAW_DATA_DIR), exist_ok=True)
-    os.makedirs(os.path.join(fsdir, TRAINING_DATA_DIR), exist_ok=True)
-    os.makedirs(os.path.join(fsdir, MODELS_DIR), exist_ok=True)
+    os.makedirs(raw_data_dir(fsdir), exist_ok=True)
+    os.makedirs(training_data_dir(fsdir), exist_ok=True)
+    os.makedirs(models_dir(fsdir), exist_ok=True)
 
     # Move over raw data
-    os.system(f"cp -r {data_dir}/* {os.path.join(fsdir, RAW_DATA_DIR)}")
+    os.system(f"cp -r {data_dir}/* {raw_data_dir(fsdir)}")
 
     # Training data and models are moved over below.
 

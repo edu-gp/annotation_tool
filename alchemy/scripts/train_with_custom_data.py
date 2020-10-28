@@ -1,7 +1,7 @@
 import pandas as pd
 
 from alchemy.shared.utils import save_jsonl
-from alchemy.train import GCPJob, _get_version_dir, get_next_version, save_config
+from alchemy.train import GCPJob, get_model_dir, get_next_version, save_config
 from alchemy.train.gcp_celery import poll_status as gcp_poll_status
 from alchemy.train.no_deps.paths import _get_exported_data_fname
 
@@ -24,7 +24,7 @@ def train_with_custom_data(
     print("Export labeled examples from user csv (b2c_final_augmented)...")
 
     version = get_next_version(task_id)
-    version_dir = _get_version_dir(task_id, version)
+    version_dir = get_model_dir(task_id, version)
 
     save_config(version_dir)
 

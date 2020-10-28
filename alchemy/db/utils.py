@@ -1,7 +1,7 @@
 import json
 import os
 
-from alchemy.db.fs import RAW_DATA_DIR, filestore_base_dir
+from alchemy.db.fs import raw_data_dir
 
 
 def is_data_file(fname):
@@ -24,15 +24,15 @@ def is_pattern_file(fname):
 
 def get_all_data_files():
     """Return all data files in the data folder"""
-    d = os.path.join(filestore_base_dir(), RAW_DATA_DIR)
+    d = raw_data_dir()
     return sorted([x for x in os.listdir(d) if is_data_file(os.path.join(d, x))])
 
 
 def get_all_pattern_files():
     """Return all data files in the data folder"""
-    d = os.path.join(filestore_base_dir(), RAW_DATA_DIR)
+    d = raw_data_dir()
     return sorted([x for x in os.listdir(d) if is_pattern_file(os.path.join(d, x))])
 
 
 def get_local_data_file_path(fname):
-    return os.path.join(filestore_base_dir(), RAW_DATA_DIR, fname)
+    return os.path.join(raw_data_dir(), fname)
