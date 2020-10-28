@@ -54,8 +54,22 @@ New env vars:
 Add a Firewall group, then tag your instance with that group.
 
 # Tests
+You may run the tests using `ci/run_tests.sh` in a docker container, in ci, etc.
+By default, it will look for tests in `tests/` directory, however you can also 
+specify a certain directory or file to run. 
+To provide additional arguments for `pytest` you can use `TEST_ARGS` environment variable.
 
+```bash
+[TEST_ARGS="--optional-args-here"] ci/run_tests.sh [/optional/path/to/test]
 ```
-# Specify the test folder can reduce the time of compiling tests.
-pytest tests/
+
+Here are a few examples:
+
+```bash
+$ docker exec alchemy-server source ci/run_tests.sh tests/integration
+$ docker exec -it alchemy-server bash 
+root:/app# chmod +x ci/run_tests.sh
+root:/app# ci/run_tests.sh tests/unit/test_nlp_model.py
+root:/app# TEST_ARGS="--setup-show" ci/run_tests.sh 
 ```
+
