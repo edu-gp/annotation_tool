@@ -21,11 +21,13 @@ ENV PATH $PATH:/root/tools/google-cloud-sdk/bin
 FROM alchemy-base as local
 RUN pip install -r requirements/local.txt
 WORKDIR /app
+ENV PYTHONPATH /app
 
 
 FROM alchemy-base as alchemy-with-code
 WORKDIR /app
 COPY . .
+ENV PYTHONPATH /app
 
 FROM alchemy-with-code as production
 RUN pip install -r requirements/production.txt
