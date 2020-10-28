@@ -1,9 +1,7 @@
 import logging
 
-from envparse import env
-from flask import Blueprint, request, abort
+from flask import Blueprint, request, abort, current_app
 
-from alchemy.admin_server.external_services import SecretManagerService
 from alchemy.train.train_celery import submit_gcp_inference_on_new_file
 
 bp = Blueprint("api", __name__, url_prefix="/api")
@@ -23,9 +21,7 @@ def _before_request():
     if not request.endpoint.endswith(".healthcheck"):
         # Check token auth
         try:
-            target_token = env('API_TOKEN', None) or \
-                           SecretManagerService.get_secret(project_id=env("GCP_PROJECT_ID"),
-                                                           secret_id=env("API_TOKEN_NAME"))
+            target_token = current_app.config['API_TOKEN']
         except Exception as e:
             logging.error(e)
             target_token = None
