@@ -14,7 +14,7 @@ def filestore_base_dir() -> str:
     return env('ALCHEMY_FILESTORE_DIR', default='__filestore')
 
 
-def _check_base(base: PathT) -> Path:
+def _check_base(base: Optional[PathT]) -> Path:
     if base is None:
         # I'm not checking for `if not base:`, since  bool('' is None) == False
         # but bool(not '') == True
