@@ -23,12 +23,24 @@ def _setup_logging(config):
     setup_logging(handler)
 
 
-def create_app():
+def _load_config(config, config_map=None, config_map_replace=False):
+    assert config_map_replace is False or config_map is not None
+    if config_map_replace:
+        config.from_mapping(config_map)
+        return
+
+    if not config.from_envvar('ALCHEMY_CONFIG', silent=True):
+        logging.warning("ALCHEMY_CONFIG is not set, falling back to config/local.py")
+        config.from_pyfile('../alchemy/config/local.py', silent=False)  # Fallback for backwards compatibility
+
+    if config_map:
+        config.update(config_map)
+
+
+def create_app(config_map=None, config_map_replace=False):
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
-    if not app.config.from_envvar('ALCHEMY_CONFIG', silent=True):
-        logging.warning("ALCHEMY_CONFIG is not set, falling back to config/local.py")
-        app.config.from_pyfile('../alchemy/config/local.py', silent=False)  # Fallback for backwards compatibility
+    _load_config(app.config, config_map, config_map_replace)
     if app.config['USE_CLOUD_LOGGING']:
         _setup_logging(app.config)
 
