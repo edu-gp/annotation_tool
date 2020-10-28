@@ -53,7 +53,7 @@ def test_dir(dbsession):
     dbsession.commit()
     dbsession.refresh(model)
 
-    assert model.dir() == "models/123/1"
+    assert model.dir(abs=False) == "models/123/1"
 
 
 def test_get_or_create(dbsession):

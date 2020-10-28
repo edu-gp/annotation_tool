@@ -3,7 +3,8 @@ from typing import List
 
 import numpy as np
 
-from alchemy.db.fs import RAW_DATA_DIR
+from pathlib import Path
+from alchemy.db.fs import raw_data_dir
 from alchemy.db.model import (
     ClassificationAnnotation,
     EntityTypeEnum,
@@ -65,7 +66,7 @@ def _create_anno(ent, v, user, weight=1):
 def _populate_db_and_fs(dbsession, tmp_path, N, weight=1):
     # =========================================================================
     # Add in a fake data file
-    d = tmp_path / RAW_DATA_DIR
+    d = raw_data_dir(tmp_path, as_path=True)
     d.mkdir(parents=True)
     p = d / "data.jsonl"
     data = [
