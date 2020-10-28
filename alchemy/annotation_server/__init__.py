@@ -1,13 +1,10 @@
 import logging
 import os
 
-from envparse import env
 from flask import (
     Flask, render_template, g
 )
 
-from alchemy.ar.data import fetch_tasks_for_user_from_db
-from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import db
 
 from .auth import login_required
@@ -15,34 +12,23 @@ from .auth import login_required
 from alchemy.ar.data import fetch_tasks_for_user_from_db
 
 
-if env.bool("USE_CLOUD_LOGGING", default=False):
+def _setup_logging(config):
     from google.cloud import logging as glog
     from google.cloud.logging.handlers import CloudLoggingHandler, setup_logging
 
     client = glog.Client()
 
-    handler = CloudLoggingHandler(client,
-                                  name=env("ANNOTATION_SERVER_LOGGER",
-                                           default="alchemy-annotation-server"))
+    handler = CloudLoggingHandler(client, name=config['ANNOTATION_SERVER_LOGGER'])
     logging.getLogger().setLevel(logging.INFO)
     setup_logging(handler)
 
 
-def create_app(test_config=None):
+def create_app():
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
-    # TODO add credentials for sqlite, probably from environment vars
-    app.config.from_mapping(
-        SECRET_KEY='athena_todo_change_this_in_prod',
-    )
-
-    if test_config is None:
-        # load the instance config, if it exists, when not testing
-        # app.config.from_pyfile('config.py', silent=True)
-        app.config.from_object(DevelopmentConfig)
-    else:
-        # load the test config if passed in
-        app.config.from_object(test_config)
+    app.config.from_envvar('ALCHEMY_CONFIG')
+    if app.config['USE_CLOUD_LOGGING']:
+        _setup_logging(app.config)
 
     # ensure the instance folder exists
     try:

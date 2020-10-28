@@ -31,6 +31,7 @@ services:
       - FLASK_ENV=development
       - FLASK_RUN_HOST=0.0.0.0
       - FLASK_RUN_PORT=5000
+      - ALCHEMY_CONFIG=/app/alchemy/config/local.py
     command: [flask, run]
     depends_on:
       - redis
@@ -47,6 +48,7 @@ services:
       - FLASK_ENV=development
       - FLASK_RUN_HOST=0.0.0.0
       - FLASK_RUN_PORT=5001
+      - ALCHEMY_CONFIG=/app/alchemy/config/local.py
     command: [flask, run]
     depends_on:
       - redis
