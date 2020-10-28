@@ -58,9 +58,7 @@ def _populate_db_manual(dbsession, weight=1):
     dbsession.commit()
 
 
-def test_create_for_label(dbsession, monkeypatch, tmp_path):
-    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
-
+def test_create_for_label(dbsession):
     _populate_db_manual(dbsession)
 
     def entity_text_lookup_fn(entity_type_id, entity_name):
@@ -103,9 +101,7 @@ def _populate_db_variable(dbsession, n_users, n_entities):
     dbsession.commit()
 
 
-def test_create_for_label_load_test(dbsession, monkeypatch, tmp_path):
-    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
-
+def test_create_for_label_load_test(dbsession):
     # Load testing:
     # 10 users, 100 entities each =>
     #   Time to create data 0.3s

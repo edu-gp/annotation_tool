@@ -1,9 +1,11 @@
 from alchemy.shared.utils import save_jsonl
 from alchemy.train.text_lookup import get_entity_text_lookup_function
+from tests.fixtures import config  # noqa
 
 
-def test_get_entity_text_lookup_function(monkeypatch, tmp_path):
-    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
+def test_get_entity_text_lookup_function(config):
+    tmp_path = config['ALCHEMY_FILESTORE_DIR']
+
     dummy_entity_id = 123
     p = tmp_path / "data.jsonl"
     data = [

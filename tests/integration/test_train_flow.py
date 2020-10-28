@@ -3,8 +3,8 @@ from typing import List
 
 import numpy as np
 
-from pathlib import Path
 from alchemy.db.fs import raw_data_dir
+from tests.fixtures import config  # noqa
 from alchemy.db.model import (
     ClassificationAnnotation,
     EntityTypeEnum,
@@ -121,19 +121,17 @@ def _populate_db_and_fs(dbsession, tmp_path, N, weight=1):
     dbsession.commit()
 
 
-def test_train_flow_simple(dbsession, monkeypatch, tmp_path):
-    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
+def test_train_flow_simple(dbsession, config):
     N = 2
-    _populate_db_and_fs(dbsession, tmp_path, N, weight=100)
+    _populate_db_and_fs(dbsession, config['ALCHEMY_FILESTORE_DIR'], N, weight=100)
     query = majority_vote_annotations_query(dbsession, LABEL)
     res = query.all()
     assert sorted(res) == [("0.com", -1, 100), ("1.com", 1, 101)]
 
 
-def test_train_flow_simple_equal_weight(dbsession, monkeypatch, tmp_path):
-    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
+def test_train_flow_simple_equal_weight(dbsession, config):
     N = 2
-    _populate_db_and_fs(dbsession, tmp_path, N, weight=3)
+    _populate_db_and_fs(dbsession, config['ALCHEMY_FILESTORE_DIR'], N, weight=3)
     query = majority_vote_annotations_query(dbsession, LABEL)
     res = query.all()
     assert len(res) == N
@@ -147,8 +145,8 @@ def test_train_flow_simple_equal_weight(dbsession, monkeypatch, tmp_path):
             assert res[i][2] == 4
 
 
-def test_train_flow(dbsession, monkeypatch, tmp_path):
-    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
+def test_train_flow(dbsession, config):
+    tmp_path = config['ALCHEMY_FILESTORE_DIR']
     N = 20
     _populate_db_and_fs(dbsession, tmp_path, N)
     task = dbsession.query(Task).first()
@@ -172,9 +170,9 @@ def test_train_flow(dbsession, monkeypatch, tmp_path):
     assert data[1] == {"text": "item 1 text", "labels": {"IsTall": -1}}
     assert len(data) == 20
 
-    config = load_json(os.path.join(model_dir, "config.json"))
-    assert config is not None
-    assert config["train_config"] is not None
+    _config = load_json(os.path.join(model_dir, "config.json"))
+    assert _config is not None
+    assert _config["train_config"] is not None
 
     # Part 2. Train model.
     train_model(model_dir, train_fn=stub_train_fn)

@@ -4,12 +4,12 @@ import pytest
 
 from alchemy.db.model import TextClassificationModel
 from tests.utils import create_example_model
+from tests.fixtures import config  # noqa
 
 
-def test_export_new_raw_data(dbsession, monkeypatch, tmp_path):
-    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
-
-    ctx = create_example_model(dbsession)
+def test_export_new_raw_data(dbsession, monkeypatch, config):
+    tmp_path = config['ALCHEMY_FILESTORE_DIR']
+    ctx = create_example_model(dbsession, tmp_path)
 
     model = dbsession.query(TextClassificationModel).first()
 

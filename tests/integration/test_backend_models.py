@@ -3,12 +3,12 @@ import os
 
 from alchemy.db.model import _raw_data_file_path, db
 from alchemy.shared.utils import load_jsonl
-from tests.fixtures import admin_server_client
+from tests.fixtures import admin_server_client  # noqa
 from tests.utils import create_example_model
 
 
 def test_export_new_raw_data(admin_server_client):
-    ctx = create_example_model(db.session)
+    ctx = create_example_model(db.session, admin_server_client.application.config['ALCHEMY_FILESTORE_DIR'])
 
     from alchemy.db.model import Model
 

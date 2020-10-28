@@ -5,6 +5,7 @@ from sqlalchemy.exc import ArgumentError
 from alchemy.db.model import TextClassificationModel, User, get_or_create
 from tests.sqlalchemy_conftest import *
 from tests.utils import fake_train_model
+from tests.fixtures import config  # noqa
 
 
 def test_default_uuid_and_version(dbsession):
@@ -65,9 +66,8 @@ def test_get_or_create(dbsession):
         _ = get_or_create(dbsession=dbsession, model=User, username="invalid_user_name")
 
 
-def test_is_ready(dbsession, monkeypatch, tmp_path):
-    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
-
+def test_is_ready(dbsession, config):
+    tmp_path = config['ALCHEMY_FILESTORE_DIR']
     model = TextClassificationModel(uuid="123", version=1)
     dbsession.add(model)
     dbsession.commit()

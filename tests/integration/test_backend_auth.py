@@ -1,6 +1,6 @@
 import base64
 
-from tests.fixtures import *
+from tests.fixtures import *  # noqa
 
 
 def test_password_required(admin_server_client):
@@ -12,7 +12,7 @@ def test_password_required(admin_server_client):
 
 
 def test_can_login(admin_server_client):
-    valid_credentials = base64.b64encode(b"testuser:password").decode("utf-8")
+    valid_credentials = base64.b64encode(b"testuser:secret").decode("utf-8")
     response = admin_server_client.get(
         "/tasks",
         headers={"Authorization": "Basic " + valid_credentials},

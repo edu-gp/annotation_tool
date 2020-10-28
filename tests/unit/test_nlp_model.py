@@ -5,16 +5,15 @@ from alchemy.inference.nlp_model import (
     NLPModelTopResults,
 )
 from tests.utils import create_example_model
+from tests.fixtures import config  # noqa
 
 
-def test_highest_entropy_nlp_model(dbsession, monkeypatch, tmp_path):
-    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
-
-    create_example_model(dbsession)
+def test_highest_entropy_nlp_model(dbsession, monkeypatch, config):
 
     model = dbsession.query(Model).first()
 
     nlp_model = NLPModel(dbsession, model.id)
+    nlp_model._warm_up_cache()
 
     assert nlp_model.predict(["unknown piece of text"]) == [
         {"score": 0.0, "prob": None}
@@ -29,10 +28,8 @@ def test_highest_entropy_nlp_model(dbsession, monkeypatch, tmp_path):
     assert len(nlp_model._cache) == 3
 
 
-def test_top_bottom_nlp_model(dbsession, monkeypatch, tmp_path):
-    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
-
-    create_example_model(dbsession)
+def test_top_bottom_nlp_model(dbsession, monkeypatch, config):
+    create_example_model(dbsession, config['ALCHEMY_FILESTORE_DIR'])
 
     model = dbsession.query(Model).first()
 
