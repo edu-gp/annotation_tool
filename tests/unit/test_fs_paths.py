@@ -10,7 +10,13 @@ def test_base_path(monkeypatch, tmp_path):
     _setup_temp_path(monkeypatch, tmp_path)
     assert fs.filestore_base_dir() == str(tmp_path)
 
+    monkeypatch.setenv('ALCHEMY_FILESTORE_DIR', '/tmp/foo/bar')
+    assert fs.filestore_base_dir() == '/tmp/foo/bar'
+
     monkeypatch.delenv('ALCHEMY_FILESTORE_DIR')
+    assert fs.filestore_base_dir() == '__filestore'
+
+    monkeypatch.delenv('ALCHEMY_CONFIG')
     assert fs.filestore_base_dir() == '__filestore'
 
 

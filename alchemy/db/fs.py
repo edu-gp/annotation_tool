@@ -1,6 +1,5 @@
 from pathlib import Path
 from typing import Union, Optional
-
 from envparse import env
 
 RAW_DATA_DIR = "raw_data"
@@ -11,7 +10,19 @@ PathT = Union[Path, str]
 
 
 def filestore_base_dir() -> str:
-    return env('ALCHEMY_FILESTORE_DIR', default='__filestore')
+    try:
+        from flask import current_app
+        config = current_app.config
+    except RuntimeError:
+        from pathlib import Path
+        from flask import Config as FlaskConfigManager
+        config = FlaskConfigManager(Path('../..').absolute())
+
+        if not config.from_envvar('ALCHEMY_CONFIG', silent=True):
+            # Last fallback
+            return env('ALCHEMY_FILESTORE_DIR', default='__filestore')
+
+    return str(config['ALCHEMY_FILESTORE_DIR'])
 
 
 def _check_base(base: Optional[PathT]) -> Path:
