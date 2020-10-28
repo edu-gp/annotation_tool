@@ -38,7 +38,7 @@ from alchemy.train.no_deps.paths import (
     _get_metrics_fname,
     _get_metrics_v2_fname,
 )
-from alchemy.train.paths import _get_version_dir
+from alchemy.train.paths import get_model_dir
 
 meta = MetaData(
     naming_convention={
@@ -444,7 +444,7 @@ class Model(Base):
 
     def dir(self, abs=False):
         """Returns the directory location relative to the filestore root"""
-        return _get_version_dir(self.uuid, self.version, abs=abs)
+        return get_model_dir(self.uuid, self.version, abs=abs)
 
     def inference_dir(self):
         # TODO replace with official no_deps
