@@ -9,6 +9,7 @@ from tests.fixtures import config  # noqa
 
 
 def test_highest_entropy_nlp_model(dbsession, monkeypatch, config):
+    create_example_model(dbsession, config['ALCHEMY_FILESTORE_DIR'])
 
     model = dbsession.query(Model).first()
 
