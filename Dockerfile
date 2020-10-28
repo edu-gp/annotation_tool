@@ -17,17 +17,17 @@ RUN sh ci/install_deps.sh
 
 # Path configuration
 ENV PATH $PATH:/root/tools/google-cloud-sdk/bin
+# This is necessary for the alembic migration to work
+ENV PYTHONPATH /app
 
 FROM alchemy-base as local
 RUN pip install -r requirements/local.txt
 WORKDIR /app
-ENV PYTHONPATH /app
 
 
 FROM alchemy-base as alchemy-with-code
 WORKDIR /app
 COPY . .
-ENV PYTHONPATH /app
 
 FROM alchemy-with-code as production
 RUN pip install -r requirements/production.txt
