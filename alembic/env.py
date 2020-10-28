@@ -1,6 +1,4 @@
 import logging
-import os
-import sys
 from envparse import env
 from logging.config import fileConfig
 
@@ -13,7 +11,6 @@ from sqlalchemy import engine_from_config, pool
 from alchemy.db.model import metadata
 from alembic import context
 
-sys.path = ["", ".."] + sys.path[1:]
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
