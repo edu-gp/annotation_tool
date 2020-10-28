@@ -31,5 +31,6 @@ jobs:
     - name: Run tests
       run: |
         export TEST_ARGS="--basetemp=$RUNNER_TEMP"
+        export API_TOKEN_NAME=ALCHEMY_API_TOKEN
+        export ALCHEMY_CONFIG=`pwd`/alchemy/config/test.py
         sh ci/run_tests.sh
-
