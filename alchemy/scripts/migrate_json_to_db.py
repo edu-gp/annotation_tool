@@ -180,7 +180,7 @@ if __name__ == "__main__":
     os.makedirs(models_dir(fsdir), exist_ok=True)
 
     # Move over raw data
-    os.system(f"cp -r {data_dir}/* {raw_data_dir()}")
+    os.system(f"cp -r {data_dir}/* {raw_data_dir(fsdir)}")
 
     # Training data and models are moved over below.
 
