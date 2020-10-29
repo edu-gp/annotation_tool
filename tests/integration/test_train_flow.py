@@ -154,7 +154,7 @@ def test_train_flow(dbsession, config):
     # Part 1. Prepare.
     label = task.get_labels()[0]
     raw_file_path = task.get_data_filenames(abs=True)[0]
-    model = prepare_next_model_for_label(dbsession, label, raw_file_path)
+    model = prepare_next_model_for_label(dbsession, label, raw_file_path, app_config=config)
     model_dir = model.dir(abs=True)
 
     # These are all the files we need to train a model.

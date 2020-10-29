@@ -25,15 +25,16 @@ app = Celery(
 
 
 @app.task
-def submit_gcp_training(label, raw_file_path, entity_type):
+def submit_gcp_training(label, raw_file_path, entity_type, app_config):
     logging.info("Raw file for the training is " + raw_file_path)
-    db = Database.bootstrap()
+    db = Database.from_config(app_config)
     try:
         model = prepare_next_model_for_label(
             db.session,
             label=label,
             raw_file_path=raw_file_path,
             entity_type=entity_type,
+            app_config=app_config,
         )
 
         model_defn = ModelDefn(model.uuid, model.version)
@@ -44,12 +45,12 @@ def submit_gcp_training(label, raw_file_path, entity_type):
 
 
 @app.task
-def submit_gcp_inference_on_new_file(dataset_name):
+def submit_gcp_inference_on_new_file(dataset_name, app_config):
     # TODO test
 
     # Check which models need to be ran, and kick them off.
     timestamp = int(time.time())
-    db = Database.bootstrap()
+    db = Database.from_config(app_config)
     try:
         configs = ModelDeploymentConfig.get_selected_for_deployment(db.session)
 

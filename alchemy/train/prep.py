@@ -2,9 +2,6 @@ import hashlib
 import os
 import shutil
 import time
-import hashlib
-
-from envparse import env
 
 from alchemy.db.model import (
     ClassificationTrainingData,
@@ -13,12 +10,11 @@ from alchemy.db.model import (
 )
 from alchemy.shared.utils import save_json
 from alchemy.train.text_lookup import get_entity_text_lookup_function
-
 from .no_deps.paths import _get_config_fname, _get_exported_data_fname
 
 
-def generate_config():
-    return {
+def generate_config(app_config):
+    retval = {
         "created_at": time.time(),
         "test_size": 0.3,
         "random_state": 42,
@@ -40,14 +36,14 @@ def generate_config():
 
 
 def prepare_next_model_for_label(
-    dbsession, label, raw_file_path, entity_type=EntityTypeEnum.COMPANY
+    dbsession, label, raw_file_path, app_config, entity_type=EntityTypeEnum.COMPANY
 ) -> TextClassificationModel:
     """Exports the model and save config when the model is training it does
     not need access to the Task object.
 
     Returns the directory in which all the prepared info are stored.
     """
-    model_id = f"{env('ALCHEMY_ENV', default='dev')}:{label}"
+    model_id = f"{app_config['ALCHEMY_ENV']}:{label}"
     model_id = hashlib.sha224(model_id.encode()).hexdigest()
 
     version = TextClassificationModel.get_next_version(dbsession, model_id)

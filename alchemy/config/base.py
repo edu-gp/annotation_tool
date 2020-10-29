@@ -10,6 +10,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 """Base config, uses staging database server."""
 DEBUG = False
 TESTING = False
+ALCHEMY_ENV = env('FLASK_ENV', default='development')
 
 SQLALCHEMY_DATABASE_URI = env(  # maybe env.url?
     'ALCHEMY_DATABASE_URI', default='sqlite:////annotation_tool/alchemy.db')

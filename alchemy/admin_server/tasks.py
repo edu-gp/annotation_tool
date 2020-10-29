@@ -292,7 +292,7 @@ def train(id):
 
     if current_app.config['GOOGLE_AI_PLATFORM_ENABLED']:
         async_result = submit_gcp_training.delay(
-            label, raw_file_path, entity_type=task.get_entity_type()
+            label, raw_file_path, entity_type=task.get_entity_type(), app_config=current_app.config,
         )
     else:
         assert (
