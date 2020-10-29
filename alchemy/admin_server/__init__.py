@@ -4,7 +4,6 @@ import os
 from flask import Flask, redirect, url_for
 
 from alchemy.db.model import db
-
 from .auth import auth
 
 
@@ -21,7 +20,6 @@ def _setup_logging(config):
 
 def _load_config(config, config_map=None, config_map_replace=False):
     assert not(config_map_replace and config_map is None)
-
     if config_map_replace:
         config.from_mapping(config_map)
         return
@@ -40,6 +38,10 @@ def create_app(config_map=None, config_map_replace=False):
     _load_config(app.config, config_map, config_map_replace)
     if app.config['USE_CLOUD_LOGGING']:
         _setup_logging(app.config)
+
+    if app.config['GOOGLE_AI_PLATFORM_ENABLED']:
+        from alchemy.train import gs_url
+        gs_url.GOOGLE_AI_PLATFORM_BUCKET = app.config['GOOGLE_AI_PLATFORM_BUCKET']
 
     # ensure the instance folder exists
     try:

@@ -3,6 +3,7 @@ import os
 import time
 
 from celery import Celery
+from celery.signals import worker_init
 
 from alchemy.db.model import Database, ModelDeploymentConfig, TextClassificationModel
 from alchemy.train.gcp_celery import poll_status as gcp_poll_status
@@ -22,6 +23,17 @@ app = Celery(
     # # store the results here
     # backend='redis://localhost:6379/0',
 )
+
+
+@worker_init.connect
+def on_init(*args, **kwargs):
+    from pathlib import Path
+    from flask import Config as FlaskConfigManager
+
+    config = FlaskConfigManager(Path('../..').absolute())
+    config.from_envvar('ALCHEMY_CONFIG')
+    from alchemy.train import gs_url
+    gs_url.GOOGLE_AI_PLATFORM_BUCKET = config['GOOGLE_AI_PLATFORM_BUCKET']
 
 
 @app.task

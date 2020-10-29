@@ -23,16 +23,10 @@ def generate_config(app_config):
         # NOTE: Env vars are used as global defaults. Eventually let user pass in
         # custom configs.
         'train_config': {
-            'num_train_epochs': env.int("TRANSFORMER_TRAIN_EPOCHS", default=5),
-            'sliding_window': env.bool("TRANSFORMER_SLIDING_WINDOW", default=True),
-            'max_seq_length': env.int("TRANSFORMER_MAX_SEQ_LENGTH", default=512),
-            'train_batch_size': env.int("TRANSFORMER_TRAIN_BATCH_SIZE", default=8),
-            # NOTE: Specifying a large batch size during inference makes the
-            # process take up unnessesarily large amounts of memory.
-            # We'll only toggle this on at inference time.
-            # 'eval_batch_size': env.int("TRANSFORMER_EVAL_BATCH_SIZE", default=8),
         }
     }
+    retval['train_config'].update(app_config['TRAINING_CONFIG'])
+    return retval
 
 
 def prepare_next_model_for_label(

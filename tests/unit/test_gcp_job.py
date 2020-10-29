@@ -1,10 +1,13 @@
 from alchemy.train import gcp_job
+from alchemy.train import gs_url
 from alchemy.train.gcp_job import GoogleAIPlatformJob, ModelDefn, build_job_config
+from tests.fixtures import config  # noqa
 
 
-def test_build_job_config_simple(monkeypatch):
+def test_build_job_config_simple(monkeypatch, config):
     monkeypatch.setenv("GOOGLE_AI_PLATFORM_DOCKER_IMAGE_URI", "gcr.io/blah/myimage")
-    monkeypatch.setenv("GOOGLE_AI_PLATFORM_BUCKET", "gs://blah")
+    monkeypatch.setitem(config, "GOOGLE_AI_PLATFORM_BUCKET", "gs://blah")
+    monkeypatch.setattr(gs_url, "GOOGLE_AI_PLATFORM_BUCKET", "gs://blah")
 
     expected = """
 labels:
@@ -34,9 +37,10 @@ trainingInput:
     assert expected.strip() == result.strip()
 
 
-def test_build_job_config_infer_1(monkeypatch):
+def test_build_job_config_infer_1(monkeypatch, config):
     monkeypatch.setenv("GOOGLE_AI_PLATFORM_DOCKER_IMAGE_URI", "gcr.io/blah/myimage")
-    monkeypatch.setenv("GOOGLE_AI_PLATFORM_BUCKET", "gs://blah")
+    monkeypatch.setitem(config, "GOOGLE_AI_PLATFORM_BUCKET", "gs://blah")
+    monkeypatch.setattr(gs_url, "GOOGLE_AI_PLATFORM_BUCKET", "gs://blah")
 
     expected = """
 labels:
@@ -71,9 +75,10 @@ trainingInput:
     assert expected.strip() == result.strip()
 
 
-def test_build_job_config_infer_2(monkeypatch):
+def test_build_job_config_infer_2(monkeypatch, config):
     monkeypatch.setenv("GOOGLE_AI_PLATFORM_DOCKER_IMAGE_URI", "gcr.io/blah/myimage")
-    monkeypatch.setenv("GOOGLE_AI_PLATFORM_BUCKET", "gs://blah")
+    monkeypatch.setitem(config, "GOOGLE_AI_PLATFORM_BUCKET", "gs://blah")
+    monkeypatch.setattr(gs_url, "GOOGLE_AI_PLATFORM_BUCKET", "gs://blah")
 
     expected = """
 labels:
@@ -115,9 +120,10 @@ trainingInput:
     assert expected.strip() == result.strip()
 
 
-def test_build_job_config_infer_3(monkeypatch):
+def test_build_job_config_infer_3(monkeypatch, config):
     monkeypatch.setenv("GOOGLE_AI_PLATFORM_DOCKER_IMAGE_URI", "gcr.io/blah/myimage")
-    monkeypatch.setenv("GOOGLE_AI_PLATFORM_BUCKET", "gs://blah")
+    monkeypatch.setitem(config, "GOOGLE_AI_PLATFORM_BUCKET", "gs://blah")
+    monkeypatch.setattr(gs_url, "GOOGLE_AI_PLATFORM_BUCKET", "gs://blah")
 
     expected = """
 labels:

@@ -3,6 +3,7 @@ import os
 from typing import Optional
 
 from celery import Celery
+from celery.signals import worker_init
 
 from alchemy.train.gcp_job import GoogleAIPlatformJob, build_model_storage_manager
 from alchemy.train.gs_utils import DeployedInferenceMetadata, create_deployed_inference
@@ -15,6 +16,18 @@ app = Celery(
     # # store the results here
     # backend='redis://localhost:6379/0',
 )
+
+
+@worker_init.connect
+def on_init(*args, **kwargs):
+    from pathlib import Path
+    from flask import Config as FlaskConfigManager
+
+    config = FlaskConfigManager(Path('../..').absolute())
+    config.from_envvar('ALCHEMY_CONFIG')
+    from alchemy.train import gs_url
+    gs_url.GOOGLE_AI_PLATFORM_BUCKET = config['GOOGLE_AI_PLATFORM_BUCKET']
+
 
 # See all states at: https://cloud.google.com/ai-platform/training/docs/reference/rest/v1/projects.jobs#State
 RUNNING_STATES = ["QUEUED", "PREPARING", "RUNNING", "CANCELLING", "STATE_UNSPECIFIED"]
