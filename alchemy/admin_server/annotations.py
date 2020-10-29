@@ -137,17 +137,18 @@ def bulk_post():
         # For now, here's a less efficient solution.
         # Note: We can't use `get_or_create` since 'value' is a required field.
 
-        requests = [
-            AnnotationUpsertRequest(
-                entity_type=entity_type,
-                entity=entity,
-                label=label,
-                user_id=user.id,
-                value=value,
-                context=__construct_context(entity_type, entity),
-            )
-            for entity, value in zip(entities, values)
-        ]
+        requests = []
+        for entity, value in zip(entities, values):
+            # TODO: Once we have SOA, we won't have to create a dict like this.
+            dict_data = {
+                "entity_type": entity_type,
+                "entity": entity,
+                "label": label,
+                "user_id": user.id,
+                "value": value,
+                "context": __construct_context(entity_type, entity),
+            }
+            requests.append(AnnotationUpsertRequest.from_dict(dict_data=dict_data))
 
         annotation_dao.upsert_annotations_bulk(requests)
 
