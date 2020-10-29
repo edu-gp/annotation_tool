@@ -1,3 +1,5 @@
+![CI](https://github.com/georgianpartners/annotation_tool/workflows/CI/badge.svg)
+
 # Getting Started
 
 Create an `.env` file or pass in your own environment vars to override configuration. See `.env.example`.
