@@ -1,19 +1,15 @@
 #!/usr/bin/env python3
 
 import logging
-import os
 import time
 import typing
 from datetime import datetime
 from typing import List, NoReturn
 
-import typing
-from simple_salesforce import Salesforce
-
-from envparse import env
 import jwt
 import requests
 import tldextract
+from envparse import env
 from google.cloud import secretmanager
 from simple_salesforce import Salesforce
 

@@ -3,12 +3,15 @@ import os
 import tempfile
 
 import pandas as pd
-
 from flask import (
     Blueprint, flash, redirect, render_template, request, url_for, send_file, current_app
 )
 from werkzeug.utils import secure_filename
 
+from alchemy.ar.ar_celery import generate_annotation_requests
+from alchemy.ar.data import (
+    compute_annotation_statistics_db, compute_annotation_request_statistics
+)
 from alchemy.db.model import (
     db, ClassificationAnnotation, User, Task, Model, AnnotationGuide,
     LabelPatterns, ModelDeploymentConfig, EntityTypeEnum,
@@ -16,25 +19,17 @@ from alchemy.db.model import (
     delete_requests_under_task, delete_requests_for_entity_type_under_task
 )
 from alchemy.db.utils import get_all_data_files
-
-from alchemy.ar.data import (
-    compute_annotation_statistics_db, compute_annotation_request_statistics
-)
-from alchemy.ar.ar_celery import generate_annotation_requests
-
-from alchemy.train.train_celery import submit_gcp_training
-
-from alchemy.shared.celery_job_status import (
-    CeleryJobStatus, create_status, delete_status
-)
 from alchemy.shared.annotation_server_path_finder import (
     generate_annotation_server_user_login_link, generate_annotation_server_admin_examine_link,
     generate_annotation_server_compare_link
 )
+from alchemy.shared.celery_job_status import (
+    CeleryJobStatus, create_status, delete_status
+)
 from alchemy.shared.utils import (
     stem, list_to_textarea, textarea_to_list, get_entropy,
     get_weighted_majority_vote, WeightedVote)
-
+from alchemy.train.train_celery import submit_gcp_training
 from .auth import auth
 
 bp = Blueprint("tasks", __name__, url_prefix="/tasks")

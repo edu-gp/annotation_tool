@@ -4,7 +4,6 @@ from typing import List
 import numpy as np
 
 from alchemy.db.fs import raw_data_dir
-from tests.fixtures import config  # noqa
 from alchemy.db.model import (
     ClassificationAnnotation,
     EntityTypeEnum,
@@ -14,15 +13,15 @@ from alchemy.db.model import (
 )
 from alchemy.shared.utils import load_json, load_jsonl, save_jsonl
 from alchemy.train.no_deps.inference_results import InferenceResults
-from alchemy.train.no_deps.run import build_inference_cache, inference, train_model
-from alchemy.train.no_deps.utils import BINARY_CLASSIFICATION
-from alchemy.train.prep import prepare_next_model_for_label
-
 from alchemy.train.no_deps.paths import (  # Train Model; Model Inference
     _get_data_parser_fname,
     _get_inference_fname,
     _get_metrics_fname,
 )
+from alchemy.train.no_deps.run import build_inference_cache, inference, train_model
+from alchemy.train.no_deps.utils import BINARY_CLASSIFICATION
+from alchemy.train.prep import prepare_next_model_for_label
+from tests.fixtures import config  # noqa
 
 LABEL = "IsTall"
 
