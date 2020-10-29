@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 
 from flask import Flask, redirect, url_for
 
@@ -24,9 +25,14 @@ def _load_config(config, config_map=None, config_map_replace=False):
         config.from_mapping(config_map)
         return
 
-    if not config.from_envvar('ALCHEMY_CONFIG', silent=True):
-        logging.warning("ALCHEMY_CONFIG is not set, falling back to config/local.py")
-        config.from_pyfile('../alchemy/config/local.py', silent=False)  # Fallback for backwards compatibility
+    filename = os.path.join(config.root_path, os.environ.get('ALCHEMY_CONFIG'))
+    print('Root path=', config.root_path)
+    print('Filename =', filename)
+    print('Exist?   =', Path(filename).resolve().exists())
+    config.from_envvar('ALCHEMY_CONFIG', silent=False)
+    # if not config.from_envvar('ALCHEMY_CONFIG', silent=True):
+    #     logging.warning("ALCHEMY_CONFIG is not set, falling back to config/local.py")
+    #     config.from_pyfile('../alchemy/config/local.py')  # Fallback for backwards compatibility
 
     if config_map:
         config.update(config_map)
@@ -34,7 +40,7 @@ def _load_config(config, config_map=None, config_map_replace=False):
 
 def create_app(config_map=None, config_map_replace=False):
     # create and configure the app
-    app = Flask(__name__, instance_relative_config=True)
+    app = Flask(__name__, instance_relative_config=True, instance_path=Path('..').resolve())
     _load_config(app.config, config_map, config_map_replace)
     if app.config['USE_CLOUD_LOGGING']:
         _setup_logging(app.config)

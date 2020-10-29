@@ -26,11 +26,11 @@ jobs:
         ALCHEMY_FILESTORE_DIR="$RUNNER_TEMP/__filestore"
         mkdir -p "$ALCHEMY_FILESTORE_DIR"
 
-        echo "ALCHEMY_DATABASE_URI=\"sqlite://$RUNNER_TEMP/alchemy.db\"" >> $GITHUB_ENV
-        echo "ALCHEMY_FILESTORE_DIR=\"$RUNNER_TEMP/__filestore\"" >> $GITHUB_ENV
+        echo ALCHEMY_DATABASE_URI=sqlite://$RUNNER_TEMP/alchemy.db >> $GITHUB_ENV
+        echo ALCHEMY_FILESTORE_DIR=$RUNNER_TEMP/__filestore >> $GITHUB_ENV
+        echo ALCHEMY_CONFIG=annotation_tool/alchemy/config/test.py >> $GITHUB_ENV
+        echo API_TOKEN=foobar1234 >> $GITHUB_ENV
     - name: Run tests
       run: |
-        export TEST_ARGS="--basetemp=$RUNNER_TEMP"
-        export API_TOKEN_NAME=ALCHEMY_API_TOKEN
-        export ALCHEMY_CONFIG=`pwd`/alchemy/config/test.py
-        sh ci/run_tests.sh
+        export TEST_ARGS="--basetemp=$RUNNER_TEMP -x"
+        sh -c ci/run_tests.sh
