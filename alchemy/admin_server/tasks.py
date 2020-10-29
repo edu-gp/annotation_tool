@@ -291,8 +291,11 @@ def train(id):
     raw_file_path = task.get_data_filenames(abs=True)[0]
 
     if current_app.config['GOOGLE_AI_PLATFORM_ENABLED']:
+        config_subset = {k: v for k,v in current_app.config.items() if k in {
+            'ALCHEMY_ENV', 'TRAINING_CONFIG', 'SQLALCHEMY_DATABASE_URI',
+        }}
         async_result = submit_gcp_training.delay(
-            label, raw_file_path, entity_type=task.get_entity_type(), app_config=current_app.config,
+            label, raw_file_path, entity_type=task.get_entity_type(), app_config=config_subset,
         )
     else:
         assert (

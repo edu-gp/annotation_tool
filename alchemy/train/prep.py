@@ -56,7 +56,7 @@ def prepare_next_model_for_label(
         dbsession, entity_type, label, entity_text_lookup_fn
     )
 
-    config = generate_config()
+    config = generate_config(app_config)
 
     model = TextClassificationModel(
         uuid=model_id,

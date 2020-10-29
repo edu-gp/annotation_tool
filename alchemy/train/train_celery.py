@@ -27,7 +27,7 @@ app = Celery(
 @app.task
 def submit_gcp_training(label, raw_file_path, entity_type, app_config):
     logging.info("Raw file for the training is " + raw_file_path)
-    db = Database.from_config(app_config)
+    db = Database(app_config['SQLALCHEMY_DATABASE_URI'])
     try:
         model = prepare_next_model_for_label(
             db.session,
@@ -50,7 +50,7 @@ def submit_gcp_inference_on_new_file(dataset_name, app_config):
 
     # Check which models need to be ran, and kick them off.
     timestamp = int(time.time())
-    db = Database.from_config(app_config)
+    db = Database(app_config['SQLALCHEMY_DATABASE_URI'])
     try:
         configs = ModelDeploymentConfig.get_selected_for_deployment(db.session)
 
