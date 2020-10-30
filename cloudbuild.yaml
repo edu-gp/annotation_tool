@@ -33,6 +33,24 @@ steps:
   wait_for: ['run-tests']
   id: 'build-target-image'
 
+# Tag the target as latest in case it is a production image
+#
+- name: 'gcr.io/cloud-builders/docker'
+  entrypoint: "bash"
+  args:
+    - "-c"
+    - |
+        if [ "${_TARGET}" = "production" ]; then
+          echo Tagging production image as latest
+          docker tag gcr.io/$PROJECT_ID/alchemy:${_TARGET}-${SHORT_SHA} gcr.io/$PROJECT_ID/alchemy:latest
+          echo Pushing gcr.io/$PROJECT_ID/alchemy:latest
+          docker push gcr.io/$PROJECT_ID/alchemy:latest
+        else
+          echo Not production target, not tagging as latest.
+        fi
+  id: 'tag-latest'
+  wait_for: ['build-target-image']
+
 timeout: 1200s
 images:
   - 'gcr.io/$PROJECT_ID/alchemy:${_TARGET}-${SHORT_SHA}'
