@@ -29,9 +29,6 @@ def _load_config(config, config_map=None, config_map_replace=False):
         return
 
     config.from_envvar('ALCHEMY_CONFIG')
-    # if not config.from_envvar('ALCHEMY_CONFIG', silent=True):
-        # logging.warning("ALCHEMY_CONFIG is not set, falling back to config/local.py")
-        # config.from_pyfile('../alchemy/config/local.py', silent=False)  # Fallback for backwards compatibility
 
     if config_map:
         config.update(config_map)
