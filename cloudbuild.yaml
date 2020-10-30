@@ -22,14 +22,22 @@ steps:
   wait_for: ['build-test-image']
   id: 'run-tests'
 
-# Build the target image
+# Build the target image (if target != test)
 #
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build',
-         '--target', '${_TARGET}',
-         '--cache-from', 'gcr.io/$PROJECT_ID/alchemy:test-${SHORT_SHA}',
-         '--tag', 'gcr.io/$PROJECT_ID/alchemy:${_TARGET}-${SHORT_SHA}',
-         '.']
+  entrypoint: "bash"
+  args:
+    - "-c"
+    - |
+       if [ "${_TARGET}" != "test" ]; then
+        docker build \
+            --target ${_TARGET} \
+            --cache-from gcr.io/$PROJECT_ID/alchemy:test-${SHORT_SHA} \
+            --tag gcr.io/$PROJECT_ID/alchemy:${_TARGET}-${SHORT_SHA} \
+            .
+        else
+          echo Skipped rebuilding the test image
+        fi
   wait_for: ['run-tests']
   id: 'build-target-image'
 
