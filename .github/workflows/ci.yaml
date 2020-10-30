@@ -32,5 +32,5 @@ jobs:
         echo API_TOKEN=foobar1234 >> $GITHUB_ENV
     - name: Run tests
       run: |
-        export TEST_ARGS="--basetemp=$RUNNER_TEMP -x"
+        export TEST_ARGS="--basetemp=$RUNNER_TEMP"
         sh -c ci/run_tests.sh

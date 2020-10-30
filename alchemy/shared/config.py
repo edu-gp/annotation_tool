@@ -1,7 +1,10 @@
 import os
+
 from envparse import env
+from flask import current_app
 
 
+# TODO remove
 class Config:
     """
     Set configuration vars from .env file.
@@ -11,16 +14,18 @@ class Config:
 
     @staticmethod
     def get_admin_server_password():
-        return env('ANNOTATION_TOOL_ADMIN_SERVER_PASSWORD')
+        return current_app.config['ANNOTATION_TOOL_ADMIN_SERVER_PASSWORD']
 
     @staticmethod
     def get_annotation_server_secret():
-        return env('ANNOTATION_TOOL_ANNOTATION_SERVER_SECRET')
+        return current_app.config['ANNOTATION_TOOL_ANNOTATION_SERVER_SECRET']
+        # return env('ANNOTATION_TOOL_ANNOTATION_SERVER_SECRET')
 
     @staticmethod
     def get_annotation_server():
         '''e.g. http://localhost:5001'''
-        return env('ANNOTATION_TOOL_ANNOTATION_SERVER_SERVER')
+        return current_app.config['ANNOTATION_TOOL_ANNOTATION_SERVER_SERVER']
+        # return env('ANNOTATION_TOOL_ANNOTATION_SERVER_SERVER')
 
     @staticmethod
     def get_tasks_dir():
