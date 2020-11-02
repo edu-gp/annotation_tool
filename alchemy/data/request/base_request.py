@@ -1,4 +1,8 @@
-class InvalidRequest:
+class Request:
+    pass
+
+
+class InvalidRequest(Request):
     def __init__(self):
         self.errors = []
 
@@ -12,7 +16,7 @@ class InvalidRequest:
         return False
 
 
-class ValidRequest:
+class ValidRequest(Request):
     @classmethod
     def from_dict(cls, dict_data):
         raise NotImplementedError

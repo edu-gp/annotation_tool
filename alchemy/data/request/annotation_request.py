@@ -1,4 +1,4 @@
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, asdict
 
 from alchemy.data.request.base_request import ValidRequest, InvalidRequest
 
