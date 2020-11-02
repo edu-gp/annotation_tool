@@ -1,19 +1,40 @@
 from typing import List
 
+from sqlalchemy.exc import DatabaseError
+
 from alchemy.data.request.annotation_request import AnnotationUpsertRequest
 from alchemy.db.model import ClassificationAnnotation
+
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+)
 
 
 class AnnotationDao:
     def __init__(self, dbsession):
         self.dbsession = dbsession
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=6),
+        retry=retry_if_exception_type(DatabaseError),
+        reraise=True,
+    )
     def upsert_annotation(self, upsert_request: AnnotationUpsertRequest):
         annotation = self._upsert_annotation_helper(upsert_request)
 
         self.dbsession.add(annotation)
         self._commit_to_db()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=6),
+        retry=retry_if_exception_type(DatabaseError),
+        reraise=True,
+    )
     def upsert_annotations_bulk(self, upsert_requests: List[AnnotationUpsertRequest]):
         annotations = [
             self._upsert_annotation_helper(create_request)

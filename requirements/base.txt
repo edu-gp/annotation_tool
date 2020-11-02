@@ -95,3 +95,6 @@ zipp==3.1.0
 
 # Better environment variables 
 envparse==0.2.0
+
+# Retry logic
+tenacity==6.2.0

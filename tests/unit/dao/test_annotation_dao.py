@@ -1,3 +1,6 @@
+from mockito import when
+from sqlalchemy.exc import DatabaseError
+
 from alchemy.dao.annotation_dao import AnnotationDao
 from alchemy.data.request.annotation_request import AnnotationUpsertRequest
 from alchemy.db.model import EntityTypeEnum, ClassificationAnnotation
@@ -162,7 +165,7 @@ def test_upsert_annotations_bulk(dbsession):
     assert saved_instance2.context == context2
 
 
-def test_upsert_annotation_failure(dbsession, monkeypatch):
+def _prepare_for_retry_testcases(dbsession):
     annotation_dao = AnnotationDao(dbsession=dbsession)
     upsert_request = AnnotationUpsertRequest(
         entity_type=entity_type,
@@ -172,6 +175,48 @@ def test_upsert_annotation_failure(dbsession, monkeypatch):
         value=1,
         context=context1,
     )
+    error_msg = "Mocked Exception!"
+    database_error = DatabaseError(
+        statement="Mocked statement", params={}, orig=error_msg
+    )
+
+    return annotation_dao, upsert_request, database_error
+
+
+def test_upsert_annotation_failure_retry_success(dbsession):
+    annotation_dao, upsert_request, database_error = _prepare_for_retry_testcases(
+        dbsession
+    )
+
+    when(dbsession).commit().thenRaise(database_error).thenRaise(
+        database_error
+    ).thenReturn(True)
+
+    annotation_dao.upsert_annotation(upsert_request=upsert_request)
+
+    num_of_annotations = _count_annotations(dbsession)
+    assert num_of_annotations == 1
+
+
+def test_upsert_annotation_failure_retry_exceeded(dbsession):
+    annotation_dao, upsert_request, database_error = _prepare_for_retry_testcases(
+        dbsession
+    )
+
+    when(dbsession).commit().thenRaise(database_error).thenRaise(
+        database_error
+    ).thenRaise(database_error)
+    try:
+        annotation_dao.upsert_annotation(upsert_request=upsert_request)
+    except DatabaseError:
+        pass
+
+    num_of_annotations = _count_annotations(dbsession)
+    assert num_of_annotations == 0
+
+
+def test_upsert_annotation_failure_non_retriable_error(dbsession, monkeypatch):
+    annotation_dao, upsert_request, _ = _prepare_for_retry_testcases(dbsession)
 
     error_msg = "Mocked Exception!"
 
