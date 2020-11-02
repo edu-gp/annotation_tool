@@ -17,8 +17,8 @@ steps:
   args: ['run',
          '--env', 'GOOGLE_AI_PLATFORM_ENABLED=0',
          '--env', 'USE_CLOUD_LOGGING=0',
-         'gcr.io/$PROJECT_ID/alchemy:test-${SHORT_SHA}',
-         'sh', 'ci/run_tests.sh']
+         '--entrypoint', 'ci/run_tests.sh',
+         'gcr.io/$PROJECT_ID/alchemy:test-${SHORT_SHA}']
   wait_for: ['build-test-image']
   id: 'run-tests'
 
