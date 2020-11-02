@@ -35,5 +35,8 @@ COPY . .
 FROM alchemy-with-code as production
 RUN pip install -r requirements/production.txt
 
+FROM alchemy-with-code as staging
+RUN pip install -r requirements/production.txt
+
 FROM alchemy-with-code as test
 RUN pip install -r requirements/test.txt
