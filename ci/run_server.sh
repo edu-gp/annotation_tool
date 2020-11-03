@@ -79,7 +79,10 @@ if [ $FLASK_ENV = 'development' ] || [ $FLASK_ENV = 'test' ]; then
   flask run ${PARAMS[*]}
 else
   echo Run the production server
-  # TODO: run it over uwsgi
-  echo "Production launch is not supported yet."
-  exit 2
+
+  uwsgi --http :$FLASK_RUN_PORT  \
+        --wsgi-file "alchemy/wsgi.py" \
+        --master \
+        --callable app \
+        ${PARAMS[*]}
 fi
