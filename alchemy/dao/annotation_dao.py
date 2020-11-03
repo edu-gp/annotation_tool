@@ -1,6 +1,6 @@
 from typing import List
 
-from sqlalchemy.exc import DatabaseError
+from sqlalchemy.exc import DatabaseError, DBAPIError
 
 from alchemy.data.request.annotation_request import AnnotationUpsertRequest
 from alchemy.db.model import ClassificationAnnotation
@@ -20,7 +20,7 @@ class AnnotationDao:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=6),
-        retry=retry_if_exception_type(DatabaseError),
+        retry=retry_if_exception_type(DBAPIError),
         reraise=True,
     )
     def upsert_annotation(self, upsert_request: AnnotationUpsertRequest):
@@ -32,7 +32,7 @@ class AnnotationDao:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=6),
-        retry=retry_if_exception_type(DatabaseError),
+        retry=retry_if_exception_type(DBAPIError),
         reraise=True,
     )
     def upsert_annotations_bulk(self, upsert_requests: List[AnnotationUpsertRequest]):

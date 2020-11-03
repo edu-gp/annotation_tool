@@ -1,5 +1,5 @@
 from mockito import when
-from sqlalchemy.exc import DatabaseError
+from sqlalchemy.exc import DatabaseError, DBAPIError
 
 from alchemy.dao.annotation_dao import AnnotationDao
 from alchemy.data.request.annotation_request import AnnotationUpsertRequest
@@ -176,9 +176,7 @@ def _prepare_for_retry_testcases(dbsession):
         context=context1,
     )
     error_msg = "Mocked Exception!"
-    database_error = DatabaseError(
-        statement="Mocked statement", params={}, orig=error_msg
-    )
+    database_error = DBAPIError(statement="Mocked statement", params={}, orig=error_msg)
 
     return annotation_dao, upsert_request, database_error
 
@@ -208,7 +206,7 @@ def test_upsert_annotation_failure_retry_exceeded(dbsession):
     ).thenRaise(database_error)
     try:
         annotation_dao.upsert_annotation(upsert_request=upsert_request)
-    except DatabaseError:
+    except DBAPIError:
         pass
 
     num_of_annotations = _count_annotations(dbsession)
