@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /base
 
 COPY requirements ./requirements
-RUN pip install -r requirements/base.txt
+RUN pip install --no-cache -r requirements/base.txt
 
 COPY ci ./ci
 RUN sh ci/install_deps.sh
