@@ -12,3 +12,4 @@ elif 'make_app' in dir(app_module):
 else:
     raise RuntimeError("Could not find the application factory in the flask app module.")
 
+__all__ = [app]
