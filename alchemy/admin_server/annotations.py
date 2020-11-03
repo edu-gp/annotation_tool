@@ -2,6 +2,7 @@ import logging
 
 from flask import Blueprint, flash, redirect, render_template, request
 
+from alchemy.data.request.annotation_request import AnnotationUpsertRequest
 from alchemy.db.model import (
     AnnotationValue,
     ClassificationAnnotation,
@@ -10,6 +11,7 @@ from alchemy.db.model import (
     db,
     get_or_create,
 )
+from alchemy.shared.component import annotation_dao
 
 from .annotations_utils import parse_bulk_upload_v2_form, parse_form
 from .auth import auth
@@ -135,23 +137,20 @@ def bulk_post():
         # For now, here's a less efficient solution.
         # Note: We can't use `get_or_create` since 'value' is a required field.
 
+        requests = []
         for entity, value in zip(entities, values):
-            anno = _upsert_annotations(
-                dbsession=db.session,
-                entity_type=entity_type,
-                entity=entity,
-                label=label,
-                user_id=user.id,
-                value=value,
-            )
+            # TODO: Once we have SOA, we won't have to create a dict like this.
+            dict_data = {
+                "entity_type": entity_type,
+                "entity": entity,
+                "label": label,
+                "user_id": user.id,
+                "value": value,
+                "context": __construct_context(entity_type, entity),
+            }
+            requests.append(AnnotationUpsertRequest.from_dict(dict_data=dict_data))
 
-            db.session.add(anno)
-
-        try:
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            raise
+        annotation_dao.upsert_annotations_bulk(requests)
 
         flash(
             f"Inserted or updated {len(values)} annotations for "
