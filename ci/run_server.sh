@@ -75,6 +75,11 @@ unset 'PARAMS[0]'
 export DB_URL_FOR_MIGRATION=$ALCHEMY_DATABASE_URI
 alembic upgrade head
 
-echo Run the development server
-# TODO: run it over uwsgi, flask run is for development only
-flask run
+if [ $FLASK_ENV = 'development' ] || [ $FLASK_ENV = 'test' ]; then
+  flask run ${PARAMS[*]}
+else
+  echo Run the production server
+  # TODO: run it over uwsgi
+  echo "Production launch is not supported yet."
+  exit 2
+fi
