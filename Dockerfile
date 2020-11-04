@@ -70,8 +70,8 @@ RUN set -ex \
         \( -type f -a -name '*.pyc' -o -name '*.pyo' \) \
     \) -exec rm -rf '{}' +
 
-FROM alchemy-with-code as staging
-RUN pip install --no-cache -r requirements/production.txt
+FROM production as staging
+# It's the same as production. At least for now.
 
 FROM alchemy-with-code as test
 RUN pip install --no-cache -r requirements/test.txt
