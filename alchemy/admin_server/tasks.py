@@ -6,37 +6,64 @@ import pandas as pd
 
 from envparse import env
 from flask import (
-    Blueprint, flash, redirect, render_template, request, url_for, send_file
+    Blueprint,
+    flash,
+    redirect,
+    render_template,
+    request,
+    url_for,
+    send_file,
 )
 from werkzeug.utils import secure_filename
 
+from alchemy.data.request.task_request import TaskCreateRequest
 from alchemy.db.model import (
-    db, ClassificationAnnotation, User, Task, Model, AnnotationGuide,
-    LabelPatterns, ModelDeploymentConfig, EntityTypeEnum,
-    delete_requests_for_user_under_task, delete_requests_for_label_under_task,
-    delete_requests_under_task, delete_requests_for_entity_type_under_task
+    db,
+    ClassificationAnnotation,
+    User,
+    Task,
+    Model,
+    AnnotationGuide,
+    LabelPatterns,
+    ModelDeploymentConfig,
+    EntityTypeEnum,
+    delete_requests_for_user_under_task,
+    delete_requests_for_label_under_task,
+    delete_requests_under_task,
+    delete_requests_for_entity_type_under_task,
 )
 from alchemy.db.utils import get_all_data_files
 
 from alchemy.ar.data import (
-    compute_annotation_statistics_db, compute_annotation_request_statistics
+    compute_annotation_statistics_db,
+    compute_annotation_request_statistics,
 )
 from alchemy.ar.ar_celery import generate_annotation_requests
 
 from alchemy.train.train_celery import submit_gcp_training
 
 from alchemy.shared.celery_job_status import (
-    CeleryJobStatus, create_status, delete_status
+    CeleryJobStatus,
+    create_status,
+    delete_status,
 )
 from alchemy.shared.annotation_server_path_finder import (
-    generate_annotation_server_user_login_link, generate_annotation_server_admin_examine_link,
-    generate_annotation_server_compare_link
+    generate_annotation_server_user_login_link,
+    generate_annotation_server_admin_examine_link,
+    generate_annotation_server_compare_link,
 )
 from alchemy.shared.utils import (
-    stem, list_to_textarea, textarea_to_list, get_entropy,
-    get_weighted_majority_vote, WeightedVote)
+    stem,
+    list_to_textarea,
+    textarea_to_list,
+    get_entropy,
+    get_weighted_majority_vote,
+    WeightedVote,
+)
 
 from .auth import auth
+
+from alchemy.shared.component import task_dao
 
 bp = Blueprint("tasks", __name__, url_prefix="/tasks")
 
@@ -78,14 +105,28 @@ def create():
         annotators = parse_annotators(form)
         data_files = parse_data(form, data_fnames)
 
-        task = Task(name=name)
-        task.set_labels(labels)
-        task.set_annotators(annotators)
-        task.set_data_filenames(data_files)
-        task.set_entity_type(entity_type)
+        print("Before creating the request!")
+        create_request = TaskCreateRequest.from_dict(
+            {
+                "name": name,
+                "entity_type": entity_type,
+                "labels": labels,
+                "annotators": annotators,
+                "data_files": data_files,
+            }
+        )
+        print(create_request)
+        logging.info(create_request)
+        task = task_dao.create_task(create_request=create_request)
 
-        db.session.add(task)
-        db.session.commit()
+        # task = Task(name=name)
+        # task.set_labels(labels)
+        # task.set_annotators(annotators)
+        # task.set_data_filenames(data_files)
+        # task.set_entity_type(entity_type)
+        #
+        # db.session.add(task)
+        # db.session.commit()
         return redirect(url_for("tasks.show", id=task.id))
     except Exception as e:
         db.session.rollback()
@@ -260,9 +301,9 @@ def update(id):
 
 @bp.route("/<string:id>/assign", methods=["POST"])
 def assign(id):
-    max_per_annotator = env.int('ANNOTATION_TOOL_MAX_PER_ANNOTATOR', default=100)
-    max_per_dp = env.int('ANNOTATION_TOOL_MAX_PER_DP', default=3)
-    entity_type = request.form.get('entity_type')
+    max_per_annotator = env.int("ANNOTATION_TOOL_MAX_PER_ANNOTATOR", default=100)
+    max_per_dp = env.int("ANNOTATION_TOOL_MAX_PER_DP", default=3)
+    entity_type = request.form.get("entity_type")
     if entity_type is None:
         msg = f"Cannot request annotations without " f"an entity type for task {id}."
         logging.error(msg)
@@ -291,7 +332,7 @@ def train(id):
 
     raw_file_path = task.get_data_filenames(abs=True)[0]
 
-    if env.bool('GOOGLE_AI_PLATFORM_ENABLED', default=False):
+    if env.bool("GOOGLE_AI_PLATFORM_ENABLED", default=False):
         async_result = submit_gcp_training.delay(
             label, raw_file_path, entity_type=task.get_entity_type()
         )

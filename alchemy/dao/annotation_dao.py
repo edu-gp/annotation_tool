@@ -1,6 +1,6 @@
 from typing import List
 
-from sqlalchemy.exc import DatabaseError, DBAPIError
+from sqlalchemy.exc import DBAPIError
 
 from alchemy.data.request.annotation_request import AnnotationUpsertRequest
 from alchemy.db.model import ClassificationAnnotation
