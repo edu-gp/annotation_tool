@@ -24,7 +24,7 @@ ENTRYPOINT ["ci/run_server.sh"]
 CMD ["admin_server"]
 
 FROM alchemy-base as local
-RUN pip install -r requirements/local.txt
+RUN pip install --no-cache -r requirements/local.txt
 WORKDIR /app
 
 
@@ -61,7 +61,7 @@ RUN set -ex \
         libexpat1 \
     ' \
     && apt-get update && apt-get install -y $buildDeps $deps --no-install-recommends  && rm -rf /var/lib/apt/lists/* \
-    && pip install -r requirements/production.txt \
+    && pip install --no-cache -r requirements/production.txt \
     && apt-get purge -y --auto-remove $buildDeps \
     && find /usr/local -depth \
     \( \
@@ -71,7 +71,7 @@ RUN set -ex \
     \) -exec rm -rf '{}' +
 
 FROM alchemy-with-code as staging
-RUN pip install -r requirements/production.txt
+RUN pip install --no-cache -r requirements/production.txt
 
 FROM alchemy-with-code as test
-RUN pip install -r requirements/test.txt
+RUN pip install --no-cache -r requirements/test.txt
