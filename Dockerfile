@@ -21,7 +21,7 @@ ENV PATH $PATH:/root/tools/google-cloud-sdk/bin
 ENV PYTHONPATH /app
 
 ENTRYPOINT ["ci/run_server.sh"]
-CMD ["admin_server"]
+
 
 FROM alchemy-base as local
 RUN pip install --no-cache -r requirements/local.txt
