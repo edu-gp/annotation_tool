@@ -1,0 +1,78 @@
+version: '3.4'
+
+# https://docs.docker.com/compose/compose-file/#extension-fields
+x-volumes:
+  &default-volumes
+  - $GCLOUD_LOCAL_DIR:/root/.config/gcloud
+  # By default the credential location is under $GCLOUD_LOCAL_DIR/credentials.
+  # Unless it is customized, there is no need to use the next line.
+  #- $GOOGLE_APPLICATION_CREDENTIALS_LOCAL_DIR:/root/.secret
+  - $FILESTORE_LOCAL_DIR:/app/__filestore
+  # This is useful for local development if we want changes to take effect
+  # immediately without restarting the docker service. Note that this will
+  # restart all services. If you want to narrow down the scope of the change,
+  # specify a desired folder like $LOCAL_PROJECT_ROOT/db:/app/db
+  - $PWD:/app
+
+services:
+
+  admin_server:
+    env_file: .env
+    image: &img gcr.io/nlp-flywheel/alchemy:latest
+    ports:
+      - "5000:5000"
+    volumes: *default-volumes
+    command: [
+        '--flask-env', 'production',
+        '--flask-host', '0.0.0.0',
+        '--flask-port', '5000',
+        'admin_server'
+    ]
+    depends_on:
+      - redis
+
+  annotation_server:
+    env_file: .env
+    image: *img
+    ports:
+      - "5001:5001"
+    volumes: *default-volumes
+    command: [
+        '--flask-env', 'development',
+        '--flask-host', '0.0.0.0',
+        '--flask-port', '5001',
+        'annotation_server'
+    ]
+    depends_on:
+      - redis
+      - admin_server
+
+  ar_celery:
+    env_file: .env
+    image: *img
+    volumes: *default-volumes
+    entrypoint: ["celery", "--app=alchemy.ar.ar_celery", "worker", "-Q", "ar_celery", "-c", "2", "--autoscale=100,2", "-l", "info", "--max-tasks-per-child", "1", "-n", "ar_celery"]
+    depends_on:
+      - redis
+      - admin_server
+
+  train_celery:
+    env_file: .env
+    image: *img
+    volumes: *default-volumes
+    entrypoint: ["celery", "--app=alchemy.train.train_celery", "worker", "-Q", "train_celery", "-c", "2", "--autoscale=100,2", "-l", "info", "--max-tasks-per-child", "1", "-n", "train_celery"]
+    depends_on:
+      - redis
+      - admin_server
+
+  gcp_celery:
+    env_file: .env
+    image: *img
+    volumes: *default-volumes
+    entrypoint: ["celery", "--app=alchemy.train.gcp_celery", "worker", "-Q", "gcp_celery", "-c", "5", "--autoscale=100,2", "-l", "info", "-n", "gcp_celery"]
+    depends_on:
+      - redis
+      - admin_server
+
+  redis:
+    image: "redis:alpine"
