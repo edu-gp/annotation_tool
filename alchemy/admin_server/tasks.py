@@ -115,18 +115,8 @@ def create():
                 "data_files": data_files,
             }
         )
-        print(create_request)
-        logging.info(create_request)
         task = task_dao.create_task(create_request=create_request)
 
-        # task = Task(name=name)
-        # task.set_labels(labels)
-        # task.set_annotators(annotators)
-        # task.set_data_filenames(data_files)
-        # task.set_entity_type(entity_type)
-        #
-        # db.session.add(task)
-        # db.session.commit()
         return redirect(url_for("tasks.show", id=task.id))
     except Exception as e:
         db.session.rollback()
