@@ -7,8 +7,9 @@ Create an `.env` file or pass in your own environment vars to override configura
 e.g.
 
 ```
-env ANNOTATION_TOOL_ADMIN_SERVER_PASSWORD=1234 flask run
+env ANNOTATION_TOOL_ADMIN_SERVER_PASSWORD=1234 ci/run_server.sh annotation_server
 ```
+
 
 Or use the --env or --env-file args for Docker.
 
@@ -50,6 +51,20 @@ New env vars:
 - `ALCHEMY_ENV`: The environemnt the server is running in.
 - `API_TOKEN`: API token for /api/* calls.
 - `FLOWER_BASIC_AUTH`: Basic auth for the Celery monitoring UI, Flower. Set to `foo:bar` so foo is the username and bar is the password.
+
+# Development
+You can use the provided docker-compose file to run the dev server. 
+
+```bash
+docker-compose up -d
+```
+
+Or use the run_server script directly outside the docker environment:
+
+```
+bash ci/run_server.sh --flask-env local --flask-host 127.0.0.1 --flask-port 8080 --database postgres://alchemy:pswd@localhost:5432/alchemy [optional flask run flags here]
+```
+
 
 # Exposing Port on Google Cloud
 
