@@ -21,6 +21,8 @@ class TaskDao:
     )
     def create_task(self, create_request):
         if not create_request:
+            # TODO We should consider adding Response Object in pair with the
+            #  Request Object.
             raise Exception(f"Invalid request: {create_request.errors}")
 
         labels = list(set(create_request.labels))
@@ -62,8 +64,8 @@ class TaskDao:
                     f"Label {new_label} is already created "
                     f"in task {existing_labels[new_label]}"
                 )
-
-        raise Exception(error_msgs)
+        if len(error_msgs) > 0:
+            raise Exception(error_msgs)
 
     def _commit_to_db(self):
         try:
