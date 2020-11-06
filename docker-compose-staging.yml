@@ -38,7 +38,7 @@ services:
       - "5001:5001"
     volumes: *default-volumes
     command: [
-        '--flask-env', 'development',
+        '--flask-env', 'production',
         '--flask-host', '0.0.0.0',
         '--flask-port', '5001',
         'annotation_server'
