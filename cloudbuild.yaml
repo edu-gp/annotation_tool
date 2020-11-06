@@ -68,35 +68,17 @@ steps:
     - "-c"
     - |
       if [ "${_TARGET}" = "production" ] && [ -z ${_NO_DEPLOY} ]; then
-        echo Downloading the keys
-        gcloud secrets versions access latest --secret=alchemy-builder-ssh > id_rsa
-        gcloud secrets versions access latest --secret=alchemy-builder-ssh-pub > id_rsa.pub
-        echo "" >> id_rsa ; echo "" >> id_rsa.pub ;  # Add a new line to the end
-
         # INSTANCES=$(gcloud compute instances list --filter="${_DEPLOY_FILTER}")
-        echo Copying the keys
-        gcloud compute ssh \
-            --zone "us-central1-a" \
-            --project "nlp-flywheel" \
-            "${_DEPLOY_MACHINE}" -- "mkdir -p ~/.ssh/"
-        gcloud compute scp \
-            --zone "us-central1-a" \
-            --project "nlp-flywheel" \
-            id_rsa* ${_DEPLOY_MACHINE}:~/.ssh/
-
         echo "Updating the project"
         gcloud compute ssh \
             --zone "us-central1-a" \
             --project "nlp-flywheel" \
             "${_DEPLOY_MACHINE}" -- " \
-              chmod 600 ~/.ssh/id_rsa
-              chmod 644 ~/.ssh/id_rsa.pub
               cd /var/www
               git pull
               docker pull gcr.io/nlp-flywheel/alchemy:latest && \
               docker-compose -f docker-compose-staging.yml down && \
-              docker-compose -f docker-compose-staging.yml up -d
-              rm -rf ~/.ssh/"
+              docker-compose -f docker-compose-staging.yml up -d"
       else
         echo "Not going to deploy"
       fi
