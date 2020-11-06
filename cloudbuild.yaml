@@ -68,8 +68,6 @@ steps:
     - "-c"
     - |
       if [ "${_TARGET}" = "production" ] && [ -z ${_NO_DEPLOY} ]; then
-        #INSTANCES=$(gcloud compute instances list --filter="name=cpu-gather-labels")
-        #echo INSTANCES = $INSTANCES
         echo Downloading the keys
         gcloud secrets versions access latest --secret=alchemy-builder-ssh > id_rsa
         gcloud secrets versions access latest --secret=alchemy-builder-ssh-pub > id_rsa.pub
