@@ -51,6 +51,7 @@ New env vars:
 - `ALCHEMY_ENV`: The environemnt the server is running in.
 - `API_TOKEN`: API token for /api/* calls.
 - `FLOWER_BASIC_AUTH`: Basic auth for the Celery monitoring UI, Flower. Set to `foo:bar` so foo is the username and bar is the password.
+- `CELERY_BROKER_URL`: Full URL to the message broker used by celery.
 
 # Development
 You can use the provided docker-compose file to run the dev server. 

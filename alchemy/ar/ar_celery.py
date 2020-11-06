@@ -13,7 +13,7 @@ app = Celery(
     # module name
     "ar_celery",
     # redis://:password@hostname:port/db_number
-    broker=f"redis://{os.getenv('REDIS_HOST', 'localhost')}:6379/0",
+    broker=os.getenv("CELERY_BROKER_URL", f"redis://localhost:6379/0"),
     # # store the results here
     # backend='redis://localhost:6379/0',
 )

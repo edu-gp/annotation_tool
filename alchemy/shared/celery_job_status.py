@@ -14,7 +14,8 @@ class JobStatus:
 
 
 def get_redis():
-    return redis.Redis(host=os.getenv("REDIS_HOST", "localhost"), port=6379, db=0)
+    redis_url = os.getenv("CELERY_BROKER_URL", f"redis://localhost:6379/0")
+    return redis.Redis.from_url(redis_url)
 
 
 def create_status(celery_id, context_id, created_at=None):
