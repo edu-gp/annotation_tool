@@ -105,7 +105,6 @@ def create():
         annotators = parse_annotators(form)
         data_files = parse_data(form, data_fnames)
 
-        print("Before creating the request!")
         create_request = TaskCreateRequest.from_dict(
             {
                 "name": name,
