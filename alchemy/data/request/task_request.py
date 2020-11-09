@@ -15,10 +15,6 @@ def _check_task_fields_common(dict_data, invalid_req):
                 invalid_req.add_error(
                     parameter="dict_data", message=f"Field {field_name} is empty."
                 )
-            elif dict_data[field_name] is None:
-                invalid_req.add_error(
-                    parameter="dict_data", message=f"Field {field_name} is None."
-                )
 
 
 @dataclass
@@ -53,7 +49,8 @@ class TaskCreateRequest(TaskBaseRequest):
     @classmethod
     def _validate_request_data(cls, dict_data, invalid_req):
         super()._validate_request_data(dict_data, invalid_req)
-        _check_task_fields_common(dict_data, invalid_req)
+        if not invalid_req.has_errors():
+            _check_task_fields_common(dict_data, invalid_req)
 
 
 @dataclass
@@ -62,5 +59,7 @@ class TaskUpdateRequest(TaskBaseRequest):
 
     @classmethod
     def _validate_request_data(cls, dict_data, invalid_req):
+        # TODO we only need to have id and at least another field.
         super()._validate_request_data(dict_data, invalid_req)
-        _check_task_fields_common(dict_data, invalid_req)
+        if not invalid_req.has_errors():
+            _check_task_fields_common(dict_data, invalid_req)

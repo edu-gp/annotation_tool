@@ -2,7 +2,7 @@ from dataclasses import asdict, fields
 
 import pytest
 
-from alchemy.data.request.task_request import TaskCreateRequest
+from alchemy.data.request.task_request import TaskCreateRequest, TaskUpdateRequest
 from alchemy.db.model import EntityTypeEnum
 
 
@@ -64,7 +64,7 @@ def test_build_task_create_request_with_invalid_wrong_type_data():
     assert bool(create_request) is False
 
 
-@pytest.mark.parametrize("list_data,error_type", [([], "empty"), (None, "None")])
+@pytest.mark.parametrize("list_data,error_type", [([], "empty")])
 def test_build_task_create_request_with_invalid_empty_list(list_data, error_type):
     dict_data = {
         "name": "testhotdog",
