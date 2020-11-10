@@ -74,6 +74,6 @@ def assert_file_exists(filename, local=True, cloud=False):
         assert file.exists()
     if cloud:
         from google.cloud import storage
-        from alchemy.db.fs import bucket_name
-        blob = storage.Blob(filename, bucket=bucket_name())
+        from alchemy.db.fs import bucket
+        blob = storage.Blob(filename, bucket())
         assert blob.exists()

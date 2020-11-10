@@ -52,3 +52,8 @@ def training_data_dir(base: Optional[PathT] = None, as_path: bool = False) -> Pa
 
 def bucket_name():
     return 'alchemy-staging'
+
+
+def bucket():
+    from google.cloud import storage
+    return storage.Bucket(storage.Client(), bucket_name())
