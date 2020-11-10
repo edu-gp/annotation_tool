@@ -48,3 +48,7 @@ def models_dir(base: Optional[PathT] = None, as_path: bool = False) -> PathT:
 
 def training_data_dir(base: Optional[PathT] = None, as_path: bool = False) -> PathT:
     return _make_path(base, as_path, TRAINING_DATA_DIR)
+
+
+def bucket_name():
+    return 'alchemy-staging'
