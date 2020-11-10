@@ -1,20 +1,15 @@
-import os
-
 from alchemy.shared.config import Config
-from alchemy.shared.utils import mkd
 
 
 def _data_dir():
     d = Config.get_data_dir()
-    mkd(d)
-    return d
+    d.mkdir(parents=True, exist_ok=True)
+    return str(d)
 
 
 def _task_dir(task_id=None):
     d = Config.get_tasks_dir()
-    mkd(d)
-
+    d.mkdir(parents=True, exist_ok=True)
     if task_id:
-        return os.path.join(d, task_id)
-    else:
-        return d
+        d = d / task_id
+    return str(d)
