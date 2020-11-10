@@ -2,8 +2,16 @@ import datetime
 import json
 import logging
 import os
-import datetime
 
+# Filesystem based data:
+from alchemy.ar.data import (  # Requests; Annotations
+    _get_all_annotators_from_annotated,
+    _get_all_annotators_from_requested,
+    fetch_all_ar,
+    fetch_all_ar_ids,
+    fetch_annotation,
+    fetch_ar,
+)
 from alchemy.db._task import _Task as _Task
 from alchemy.db.config import DevelopmentConfig
 from alchemy.db.fs import (
@@ -24,16 +32,6 @@ from alchemy.db.model import (
     TextClassificationModel,
     User,
     get_or_create,
-)
-
-# Filesystem based data:
-from alchemy.ar.data import (  # Requests; Annotations
-    _get_all_annotators_from_annotated,
-    _get_all_annotators_from_requested,
-    fetch_all_ar,
-    fetch_all_ar_ids,
-    fetch_annotation,
-    fetch_ar,
 )
 
 db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
@@ -286,7 +284,7 @@ if __name__ == "__main__":
 
                 # TODO why is there an extra inference folder under each model?
 
-                _target_dir = os.path.join(fsdir, db_model.dir())
+                _target_dir = os.path.join(fsdir, db_model.dir)
                 os.system(f"mkdir -p {_target_dir}")
                 os.system(f"cp -r {_source_dir}/* {_target_dir}")
 

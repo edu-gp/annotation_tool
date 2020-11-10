@@ -442,16 +442,17 @@ class Model(Base):
         else:
             return version + 1
 
-    def dir(self, abs=False):
+    @property
+    def dir(self):
         """Returns the directory location relative to the filestore root"""
-        return get_model_dir(self.uuid, self.version, abs=abs)
+        return get_model_dir(self.uuid, self.version)
 
     def inference_dir(self):
         # TODO replace with official no_deps
         return os.path.join(self.dir(), "inference")
 
     def _load_json(self, fname_fn):
-        fname = fname_fn(self.dir(abs=True))
+        fname = fname_fn(self.dir)
         if os.path.isfile(fname):
             return load_json(fname)
         else:
@@ -472,7 +473,7 @@ class Model(Base):
 
     def get_url_encoded_plot_paths(self):
         """Return a list of urls for plots"""
-        paths = _get_all_plots(self.dir(abs=True))
+        paths = _get_all_plots(self.dir)
         paths = [urllib.parse.quote(x) for x in paths]
         return paths
 
@@ -480,7 +481,7 @@ class Model(Base):
         """Get the original filenames of the raw data for inference"""
         return [
             stem(path) + ".jsonl"
-            for path in _get_all_inference_fnames(self.dir(abs=True))
+            for path in _get_all_inference_fnames(self.dir)
         ]
 
     def export_inference(self, fname: str, include_text: bool = False):
@@ -498,7 +499,7 @@ class Model(Base):
         if include_text:
             cols = ["name", "domain", "text", "probs"]
 
-        version_dir = self.dir(abs=True)
+        version_dir = self.dir
         return load_inference(version_dir, fname, columns=cols)
 
     def get_len_data(self):
@@ -506,11 +507,11 @@ class Model(Base):
         We measure the size of the file in the model directory, not to be
         confused with the file from a ClassificationTrainingData instance!
         """
-        return file_len(_get_exported_data_fname(self.dir(abs=True)))
+        return file_len(_get_exported_data_fname(self.dir))
 
     def compute_metrics(self, threshold: float = 0.5):
         """See train.no_deps.compute_metrics"""
-        version_dir = self.dir(abs=True)
+        version_dir = self.dir
 
         # TODO retire the old metrics.json
         metrics_path = _get_metrics_v2_fname(version_dir, threshold)

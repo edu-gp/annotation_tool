@@ -2,7 +2,6 @@ import hashlib
 import os
 import shutil
 import time
-import hashlib
 
 from envparse import env
 
@@ -13,7 +12,6 @@ from alchemy.db.model import (
 )
 from alchemy.shared.utils import save_json
 from alchemy.train.text_lookup import get_entity_text_lookup_function
-
 from .no_deps.paths import _get_config_fname, _get_exported_data_fname
 
 
@@ -74,7 +72,7 @@ def prepare_next_model_for_label(
     dbsession.commit()
 
     # Build up the model_dir
-    model_dir = model.dir(abs=True)
+    model_dir = model.dir
     os.makedirs(model_dir, exist_ok=True)
     # Save config
     save_json(_get_config_fname(model_dir), config)

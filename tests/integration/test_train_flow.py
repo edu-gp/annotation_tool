@@ -3,7 +3,6 @@ from typing import List
 
 import numpy as np
 
-from pathlib import Path
 from alchemy.db.fs import raw_data_dir
 from alchemy.db.model import (
     ClassificationAnnotation,
@@ -14,15 +13,14 @@ from alchemy.db.model import (
 )
 from alchemy.shared.utils import load_json, load_jsonl, save_jsonl
 from alchemy.train.no_deps.inference_results import InferenceResults
-from alchemy.train.no_deps.run import build_inference_cache, inference, train_model
-from alchemy.train.no_deps.utils import BINARY_CLASSIFICATION
-from alchemy.train.prep import prepare_next_model_for_label
-
 from alchemy.train.no_deps.paths import (  # Train Model; Model Inference
     _get_data_parser_fname,
     _get_inference_fname,
     _get_metrics_fname,
 )
+from alchemy.train.no_deps.run import build_inference_cache, inference, train_model
+from alchemy.train.no_deps.utils import BINARY_CLASSIFICATION
+from alchemy.train.prep import prepare_next_model_for_label
 
 LABEL = "IsTall"
 
@@ -157,7 +155,7 @@ def test_train_flow(dbsession, monkeypatch, tmp_path):
     label = task.get_labels()[0]
     raw_file_path = task.get_data_filenames(abs=True)[0]
     model = prepare_next_model_for_label(dbsession, label, raw_file_path)
-    model_dir = model.dir(abs=True)
+    model_dir = model.dir
 
     # These are all the files we need to train a model.
     files = os.listdir(model_dir)
