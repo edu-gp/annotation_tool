@@ -1,10 +1,10 @@
 import json
-from envparse import env
-import numpy as np
 import os
+import pathlib
 from pathlib import Path
 
 import numpy as np
+from envparse import env
 from numpy import save
 
 from alchemy.db.model import Task, TextClassificationModel
@@ -63,3 +63,17 @@ def create_example_model(dbsession):
     dbsession.commit()
 
     return {"data_fname": data_fname}
+
+
+def assert_file_exists(filename, local=True, cloud=False):
+    if local:
+        if not isinstance(filename, pathlib.Path):
+            file = pathlib.Path(filename)
+        else:
+            file = filename
+        assert file.exists()
+    if cloud:
+        from google.cloud import storage
+        from alchemy.db.fs import bucket_name
+        blob = storage.Blob(filename, bucket=bucket_name())
+        assert blob.exists()
