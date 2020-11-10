@@ -1,6 +1,6 @@
 import base64
 
-from tests.fixtures import *
+from tests.fixtures import *  # noqa
 
 
 def test_password_required(admin_server_client):

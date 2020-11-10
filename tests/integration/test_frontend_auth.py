@@ -4,7 +4,7 @@ from alchemy.shared.annotation_server_path_finder import (
     _generate_annotation_server_user_login_path,
     get_annotation_server_user_password,
 )
-from tests.fixtures import annotation_server_client
+from tests.fixtures import annotation_server_client  # noqa
 
 
 def _assert_has_logged_in(response, username):

@@ -1,6 +1,6 @@
 from alchemy.admin_server import api
 from alchemy.admin_server.external_services import SecretManagerService
-from tests.fixtures import admin_server_client
+from tests.fixtures import admin_server_client  # noqa
 
 
 def test_hc(admin_server_client):
