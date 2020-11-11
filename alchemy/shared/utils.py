@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import List, Optional
 
 import numpy
-from envparse import env
 import numpy as np
 import pandas as pd
 
@@ -57,14 +56,6 @@ def mkf(*file_path):
     os.makedirs(d, exist_ok=True)
     f = os.path.join(*file_path)
     return f
-
-
-def mkd(*dir_path):
-    """Return dir path, make sure it exists"""
-    dir_path = [str(x) for x in dir_path]
-    d = os.path.join(*dir_path)
-    os.makedirs(d, exist_ok=True)
-    return d
 
 
 def stem(fname, include_suffix=False):

@@ -1,9 +1,6 @@
-import glob
 import itertools
 import logging
-import os
-import re
-from collections import Counter, defaultdict, namedtuple
+from collections import namedtuple
 from typing import Dict, List
 
 import numpy as np
@@ -12,8 +9,6 @@ from pandas import DataFrame
 from sklearn.metrics import cohen_kappa_score
 from sqlalchemy import distinct, func
 
-from alchemy.db import _task_dir
-from alchemy.db._task import DIR_ANNO, DIR_AREQ
 from alchemy.db.model import (
     AnnotationRequest,
     AnnotationRequestStatus,
@@ -34,14 +29,7 @@ from alchemy.shared.annotation_server_path_finder import (
 )
 from alchemy.shared.utils import (
     PrettyDefaultDict,
-    load_json,
-    mkf,
-    save_json,
-    save_jsonl,
 )
-
-###############################################################################
-# I chose to write it all on disk for now - we can change it to a db later.
 
 # Utility namedtuples
 UserNameAndIdPair = namedtuple("UserNameAndIdPair", ["username", "id"])
@@ -113,17 +101,6 @@ def save_new_ar_for_user_db(
         raise
 
 
-def fetch_tasks_for_user(user_id):
-    """
-    Return a list of task_id for which the user has annotation jobs to do.
-    """
-    fnames = glob.glob(os.path.join(_task_dir(), "*", DIR_AREQ, user_id))
-    task_ids = [
-        re.match(f"^{_task_dir()}/(.*)/{DIR_AREQ}.*$", f).groups()[0] for f in fnames
-    ]
-    return task_ids
-
-
 def fetch_tasks_for_user_from_db(dbsession, username):
     res = (
         dbsession.query(AnnotationRequest.task_id, NewTask.name)
@@ -180,15 +157,6 @@ def count_completed_ar_under_task_and_user(dbsession, task_id, username):
         .all()
     )
     return res[0][0]
-
-
-# TODO delete after the migration to db is done.
-def fetch_all_ar(task_id, username):
-    """
-    Return a list of ar_id for this task
-    """
-    _dir = os.path.join(_task_dir(task_id), DIR_AREQ, username)
-    return _get_all_ar_ids_in_dir(_dir, sort_by_ctime=True)
 
 
 # TODO refactor this piece since it's a duplicate of the ar_request function.
@@ -282,17 +250,6 @@ def construct_ar_request_dict(dbsession, ar_id) -> Dict:
     return result
 
 
-def fetch_ar(task_id, user_id, ar_id):
-    """
-    Return the details of a annotation request
-    """
-    fname = os.path.join(_task_dir(task_id), DIR_AREQ, user_id, ar_id + ".json")
-    if os.path.isfile(fname):
-        return load_json(fname)
-    else:
-        return None
-
-
 def get_next_ar_id_from_db(dbsession, task_id, user_id, current_ar_id):
     res = (
         dbsession.query(AnnotationRequest.id)
@@ -328,35 +285,6 @@ def get_next_annotation_id_from_db(dbsession, user_id, current_annotation_id, la
         return res
 
 
-def get_next_ar(task_id, user_id, ar_id):
-    """
-    Get the next ar_id to show to user, or None.
-    This function should be very fast.
-
-    Logic:
-        - If ar_id exist in list, get the next one that has not been labeled.
-        - If ar_id does not exist, get the first one that has not been labeled.
-        - If nothing left to label, return None
-    """
-    ar_all = fetch_all_ar(task_id, user_id)
-    ar_done = set(fetch_all_ar_ids(task_id, user_id))
-
-    try:
-        idx = ar_all.index(ar_id)
-    except:
-        idx = 0
-    end = idx
-    idx = (idx + 1) % len(ar_all)
-
-    while idx != end:
-        _ar_id = ar_all[idx]
-        if _ar_id not in ar_done:
-            return _ar_id
-        idx = (idx + 1) % len(ar_all)
-
-    return None
-
-
 def build_empty_annotation(ar):
     return {"req": ar, "anno": {"labels": {}}}
 
@@ -381,22 +309,6 @@ def mark_ar_complete_in_db(dbsession, ar_id):
     # logging.info("Updated annotation request and result.")
 
 
-def annotate_ar(task_id, user_id, ar_id, annotation):
-    """
-    Annotate a annotation request
-    """
-    ar = fetch_ar(task_id, user_id, ar_id)
-    if ar is not None:
-        path = [_task_dir(task_id), DIR_ANNO, user_id, ar_id + ".json"]
-        mkf(*path)
-        fname = os.path.join(*path)
-        anno = {"req": ar, "anno": annotation}
-        save_json(fname, anno)
-        return fname
-    else:
-        return None
-
-
 def fetch_user_id_by_username(dbsession, username):
     return dbsession.query(User.id).filter(User.username == username).one_or_none()[0]
 
@@ -407,17 +319,6 @@ def fetch_existing_classification_annotation_from_db(dbsession, annotation_id):
         .filter(ClassificationAnnotation.id == annotation_id)
         .one_or_none()
     )
-
-
-def fetch_annotation(task_id, user_id, ar_id):
-    """
-    Return the details of an annotation to a annotation request
-    """
-    fname = os.path.join(_task_dir(task_id), DIR_ANNO, user_id, ar_id + ".json")
-    if os.path.isfile(fname):
-        return load_json(fname)
-    else:
-        return None
 
 
 def fetch_annotated_ar_ids_from_db(dbsession, task_id, username):
@@ -433,94 +334,6 @@ def fetch_annotated_ar_ids_from_db(dbsession, task_id, username):
     )
 
     return [item[0] for item in res]
-
-
-def fetch_all_ar_ids(task_id, user_id):
-    """
-    Return a list of ar_id for this task that has been annotated by this user.
-    """
-    _dir = os.path.join(_task_dir(task_id), DIR_ANNO, user_id)
-    return _get_all_ar_ids_in_dir(_dir)
-
-
-def _get_all_ar_ids_in_dir(_dir, sort_by_ctime=False):
-    if os.path.isdir(_dir):
-        dir_entries = list(os.scandir(_dir))
-        if sort_by_ctime:
-            dir_entries = sorted(
-                dir_entries, key=lambda x: x.stat().st_ctime_ns, reverse=True
-            )
-        fnames = [x.name for x in dir_entries]
-        ar_ids = [re.match("(.*).json$", f).groups()[0] for f in fnames]
-        return ar_ids
-    else:
-        return []
-
-
-def _get_all_annotators_from_requested(task_id):
-    user_ids = []
-    _path = os.path.join(_task_dir(task_id), DIR_AREQ)
-    if os.path.isdir(_path):
-        for dir_entry in os.scandir(_path):
-            if os.path.isdir(dir_entry.path):
-                user_ids.append(dir_entry.name)
-    return user_ids
-
-
-def _get_all_annotators_from_annotated(task_id):
-    user_ids = []
-    _path = os.path.join(_task_dir(task_id), DIR_ANNO)
-    if os.path.isdir(_path):
-        for dir_entry in os.scandir(_path):
-            if os.path.isdir(dir_entry.path):
-                user_ids.append(dir_entry.name)
-    return user_ids
-
-
-def compute_annotation_statistics(task_id):
-    # How many have been labeled & How many are left to be labeled.
-
-    n_annotations_per_label = defaultdict(lambda: defaultdict(int))
-    n_annotations_per_user = defaultdict(lambda: 0)
-    n_outstanding_requests_per_user = defaultdict(lambda: 0)
-
-    user_ids = set(
-        _get_all_annotators_from_requested(task_id)
-        + _get_all_annotators_from_annotated(task_id)
-    )
-
-    total_distinct_annotations = _gather_distinct_labeled_examples(task_id)
-    anno_ids_per_user = dict()
-
-    results_per_task_user_anno_id = dict()
-
-    for user_id in user_ids:
-        anno_ids = fetch_all_ar_ids(task_id, user_id)
-        anno_ids_per_user[user_id] = set(anno_ids)
-        n_annotations_per_user[user_id] = len(anno_ids)
-
-        # TODO: slow
-        for anno_id in anno_ids:
-            anno = fetch_annotation(task_id, user_id, anno_id)
-            results_per_task_user_anno_id[(task_id, user_id, anno_id)] = anno
-            for label, result in anno["anno"]["labels"].items():
-                n_annotations_per_label[label][result] += 1
-
-        # Only count the examples the user has not labeled yet.
-        ar_ids = fetch_all_ar(task_id, user_id)
-        n_outstanding_requests_per_user[user_id] = len(set(ar_ids) - set(anno_ids))
-
-    kappa_table_per_label = {}
-
-    return {
-        "total_annotations": sum(n_annotations_per_user.values()),
-        "total_distinct_annotations": len(total_distinct_annotations),
-        "n_annotations_per_user": n_annotations_per_user,
-        "n_annotations_per_label": n_annotations_per_label,
-        "kappa_table_per_label": kappa_table_per_label,
-        "total_outstanding_requests": sum(n_outstanding_requests_per_user.values()),
-        "n_outstanding_requests_per_user": n_outstanding_requests_per_user,
-    }
 
 
 def compute_annotation_request_statistics(dbsession, task_id):
@@ -836,128 +649,6 @@ def _construct_kappa_analysis_link_dict(kappa_matrices, task_id):
                         users_dict={"user1": user1, "user2": user2},
                     )
     return kappa_analysis_links_dict
-
-
-def _majority_label(labels):
-    # TODO deprecate
-    """
-    Get the majority of non-zero labels
-    Input: [1,1,0,0,0,0,-1,-1,1,1]
-    Output: 1
-    """
-    labels = [x for x in labels if x != 0]
-    if len(labels) > 0:
-        return Counter(labels).most_common()[0][0]
-    else:
-        return None
-
-
-def _export_distinct_labeled_examples(annotations_iterator):
-    # TODO deprecate
-    """
-    Inputs:
-        annotations_iterator: A iterator that returns annotations.
-
-    An example annotation looks like:
-        {
-            'req': {
-                'ar_id': '...'
-                'data': {
-                    'text': '...'
-                }
-            },
-            'anno': {
-                'labels': {
-                    'HEALTHCARE': 1,
-                    'POP_HEALTH': -1,
-                    'AI': 0,
-                }
-            }
-        }
-
-    Step 1. Labels will start off being gathered for each ar_id:
-    {
-        'ar_id_12345': {
-            'HEALTHCARE': [1, 1, -1, 1, 0, 0]
-        },
-        ...
-    }
-
-    Step 2. Then they're merged by a merging strategy (currently majority vote):
-    {
-        'ar_id_12345': {
-            'HEALTHCARE': 1
-        },
-        ...
-    }
-
-    Step 3. Finally we join labels with the text using ar_id.
-    [
-        {
-            'text': '...',
-            'labels': {'HEALTHCARE': 1}
-        },
-        ...
-    ]
-
-    This function returns result from the last step.
-    """
-
-    text = {}
-    labels = defaultdict(lambda: defaultdict(list))
-
-    # Step 1. Gather all the labels (and text)
-    for anno in annotations_iterator:
-        ar_id = anno["req"]["ar_id"]
-
-        text[ar_id] = anno["req"]["data"].get("text") or ""
-
-        for label_key, label_value in anno["anno"]["labels"].items():
-            # e.g. label_key = 'HEALTHCARE', label_value = 1
-            labels[ar_id][label_key].append(label_value)
-
-    # Step 2. Merge all labels within each ar_id
-    new_labels = {}
-    for ar_id in labels:
-        new_labels[ar_id] = {
-            label_key: _majority_label(list_of_label_values)
-            for label_key, list_of_label_values in labels[ar_id].items()
-            if _majority_label(list_of_label_values) is not None
-        }
-    labels = new_labels
-
-    # Step 3. Join with text on ar_id
-    final = []
-    for ar_id in labels:
-        # If any labels are left - An example could have the "unsure" label for
-        # all its annotations, and since we remove all unsure labels, there
-        # might be any labels left.
-        if len(labels[ar_id]) > 0:
-            final.append({"text": text[ar_id], "labels": labels[ar_id]})
-
-    return final
-
-
-def _gather_distinct_labeled_examples(task_id):
-    def annotations_iterator():
-        for user_id in _get_all_annotators_from_annotated(task_id):
-            for ar_id in fetch_all_ar_ids(task_id, user_id):
-                anno = fetch_annotation(task_id, user_id, ar_id)
-
-                yield anno
-
-    final = _export_distinct_labeled_examples(annotations_iterator())
-    return final
-
-
-# TODO deprecate in favor of ClassificationTrainingData.create_for_label
-def export_labeled_examples(task_id, outfile=None):
-    final = _gather_distinct_labeled_examples(task_id)
-
-    if outfile is not None:
-        save_jsonl(outfile, final)
-
-    return final
 
 
 def _construct_comparison_df(dbsession, label: str, users_to_compare: List):

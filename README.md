@@ -18,8 +18,6 @@ Descriptions of the env vars:
 - `ANNOTATION_TOOL_ADMIN_SERVER_PASSWORD`: The password to login to the backend (admin dashboard).
 - `ANNOTATION_TOOL_ANNOTATION_SERVER_SECRET`: The secret used to generate login links for annotators. If you change this, all login links will change.
 - `ANNOTATION_TOOL_ANNOTATION_SERVER_SERVER`: URL of annotation server, e.g. `http://localhost:5001`.
-- `ANNOTATION_TOOL_TASKS_DIR`: Where all the tasks and their related annotations and models are stored. Default is `./__tasks`
-- `ANNOTATION_TOOL_DATA_DIR`: Where the raw data is stored. Default is `./__data`
 - `ANNOTATION_TOOL_INFERENCE_CACHE_DIR`: Where some model inference are cached. Default is `./__infcache`
 - `ANNOTATION_TOOL_MAX_PER_ANNOTATOR`: How many examples to assign to each annotator in a batch. Default is 100.
 - `ANNOTATION_TOOL_MAX_PER_DP`: How many annotators should see the same example. Default is 3.

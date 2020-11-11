@@ -2,21 +2,10 @@ import os
 
 import numpy as np
 
-from alchemy.db._task import _Task
 from alchemy.train.no_deps.inference_results import InferenceResults
 
 
 class TestInferenceResultsSaveLoad:
-    def setup_method(self, test_method):
-        task = _Task("testing")
-        task.task_id = "__testing_" + task.task_id
-        task.save()
-        self.task = task
-
-    def teardown_method(self, test_method):
-        # Make sure we delete the task even when the test fails.
-        self.task.delete()
-
     def test_inference_results_save_load(self, tmpdir):
         raw = [[0.05716006, -0.03408603], [0.06059326, -0.03420808]]
 
