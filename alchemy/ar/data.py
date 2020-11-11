@@ -31,9 +31,6 @@ from alchemy.shared.utils import (
     PrettyDefaultDict,
 )
 
-###############################################################################
-# I chose to write it all on disk for now - we can change it to a db later.
-
 # Utility namedtuples
 UserNameAndIdPair = namedtuple("UserNameAndIdPair", ["username", "id"])
 EntityAndAnnotationValuePair = namedtuple(
