@@ -214,3 +214,8 @@ def save_file_numpy(filename, data, numpy_kwargs=dict(), type='cloud'):
 def load_file_numpy(filename, type='cloud', numpy_kwargs=dict()):
     assert type == 'local'
     return np.load(filename, **numpy_kwargs)
+
+
+def listdir(dirname, type='local'):
+    assert type == 'local'
+    return os.listdir(dirname)

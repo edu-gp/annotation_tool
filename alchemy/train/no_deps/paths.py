@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+from .utils import listdir
 
 """
 A model's directory consists of:
@@ -72,7 +73,7 @@ def _get_all_plots(version_dir):
     dirname = _get_inference_dir(version_dir)
     res = []
     if os.path.isdir(dirname):
-        for f in os.listdir(dirname):
+        for f in listdir(dirname):
             if f.endswith(".histogram.png"):
                 res.append(f"{dirname}/{f}")
     return res
@@ -82,7 +83,7 @@ def _get_all_inference_fnames(version_dir):
     dirname = _get_inference_dir(version_dir)
     res = []
     if os.path.isdir(dirname):
-        for f in os.listdir(dirname):
+        for f in listdir(dirname):
             if f.endswith(".pred.npy"):
                 res.append(f"{dirname}/{f}")
     return res
