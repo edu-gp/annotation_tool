@@ -44,6 +44,12 @@ def validate_request_data_common(
                 f"but received {type(dict_data[field.name])}",
             )
 
+    check_invalid_request_fields(fields, dict_data, invalid_req)
+
+
+def check_invalid_request_fields(
+    fields: List[Field], dict_data: Dict, invalid_req: InvalidRequest
+):
     field_names = set([field.name for field in fields])
     for key in dict_data:
         if key not in field_names:
