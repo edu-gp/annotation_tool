@@ -4,21 +4,16 @@ import shutil
 import uuid
 from typing import List, Optional
 
-from alchemy.db import _data_dir, _task_dir
 from alchemy.db.model import TextClassificationModel
 from alchemy.inference.nlp_model import NLPModel
-from alchemy.inference.pattern_model import PatternModel
+from alchemy.shared.config import Config
 from alchemy.shared.utils import (
     list_to_textarea,
-    load_json,
-    load_jsonl,
     mkf,
     save_json,
     textarea_to_list,
 )
-
-DIR_AREQ = "ar"  # Annotation Requests
-DIR_ANNO = "an"  # Annotations
+from alchemy.shared.utils import mkd
 
 
 def _convert_to_spacy_patterns(patterns: List[str]):
@@ -79,33 +74,15 @@ class _Task:
 
     def get_dir(self):
         """Where files for this task are stored"""
-        return _task_dir(self.task_id)
-
-    @staticmethod
-    def fetch(task_id):
-        task_config_path = os.path.join(_task_dir(task_id), "config.json")
-        data = load_json(task_config_path)
-        if data:
-            return _Task.from_json(data)
-        else:
-            return None
+        d = Config.get_tasks_dir()
+        mkd(d)
+        return os.path.join(d, self.task_id)
 
     def save(self):
         task_config_path = [self.get_dir(), "config.json"]
         mkf(*task_config_path)
         task_config_path = os.path.join(*task_config_path)
         save_json(task_config_path, self.to_json())
-
-    @staticmethod
-    def fetch_all_tasks(id_only=False):
-        task_ids: List[os.DirEntry] = sorted(
-            os.scandir(_task_dir()), key=lambda d: d.stat().st_mtime, reverse=True
-        )
-        task_ids = [x.name for x in task_ids]
-        if id_only:
-            return task_ids
-        tasks = [_Task.fetch(task_id) for task_id in task_ids]
-        return tasks
 
     def delete(self):
         """
@@ -114,85 +91,6 @@ class _Task:
         _dir = self.get_dir()
         if os.path.isdir(_dir):
             shutil.rmtree(_dir)
-
-    # ------------------------------------------------------------
-
-    def _add_data(self, fname: str):
-        # TODO test
-        assert fname in os.listdir(_data_dir()), f"{fname} is not in {_data_dir}"
-        if fname not in self._data_filenames:
-            self._data_filenames.append(fname)
-
-    def _add_annotator(self, user_id: str):
-        if user_id not in self.annotators:
-            self.annotators.append(user_id)
-
-    def get_pattern_model(self):
-        """Return a PatternModel, if it exists"""
-        if self._pattern_model is None:
-            patterns = []
-
-            if self.patterns_file is not None:
-                patterns += load_jsonl(
-                    os.path.join(_data_dir(), self.patterns_file), to_df=False
-                )
-
-            if self.patterns is not None:
-                patterns += _convert_to_spacy_patterns(self.patterns)
-
-            if len(patterns) > 0:
-                self._pattern_model = PatternModel(patterns)
-
-        return self._pattern_model
-
-    def update(
-        self,
-        name=None,
-        labels=None,
-        patterns_file=None,
-        patterns=None,
-        annotators=None,
-        data_files=None,
-    ):
-
-        if name:
-            self.name = name.strip()
-
-        if data_files:
-            for data in data_files:
-                self._add_data(data)
-
-        if annotators:
-            for anno in annotators:
-                self._add_annotator(anno)
-
-        if labels:
-            self.labels = sorted(list(set(labels)))
-
-        if patterns_file is not None:
-            # TODO: Note this style means there's no way to delete the patterns model
-            self.patterns_file = patterns_file
-
-        if patterns is not None:
-            self.patterns = patterns
-
-        return self
-
-    def update_and_save(self, **kwargs):
-        self.update(**kwargs)
-        self.save()
-        return self
-
-    # ------------------------------------------------------------
-
-    def get_full_data_fnames(self):
-        # This creates a list of file paths specified in the data_filenames
-        # of config.json.
-        d = _data_dir()
-        return [os.path.join(d, fname) for fname in self._data_filenames]
-
-    def get_data_fnames(self):
-        return self._data_filenames
 
     # ------------------------------------------------------------
 

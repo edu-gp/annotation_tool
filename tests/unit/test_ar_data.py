@@ -1,16 +1,7 @@
 from alchemy.ar.data import (
     _compute_total_distinct_number_of_annotated_entities_for_label,
-    _majority_label,
 )
 from alchemy.db.model import ClassificationAnnotation, User
-
-
-def test_majority_label():
-    assert _majority_label([]) is None
-    assert _majority_label([0, 0]) is None
-    assert _majority_label([1, 1, 0, 1]) == 1
-    assert _majority_label([1, -1, 0, 1]) == 1
-    assert _majority_label([-1, -1, 0, 1]) == -1
 
 
 def test__compute_total_distinct_number_of_annotated_entities_for_label(dbsession):

@@ -3,7 +3,6 @@ import os
 import tempfile
 
 import pandas as pd
-
 from envparse import env
 from flask import (
     Blueprint,
@@ -16,6 +15,11 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 
+from alchemy.ar.ar_celery import generate_annotation_requests
+from alchemy.ar.data import (
+    compute_annotation_statistics_db,
+    compute_annotation_request_statistics,
+)
 from alchemy.data.request.task_request import TaskCreateRequest
 from alchemy.db.model import (
     db,
@@ -33,25 +37,17 @@ from alchemy.db.model import (
     delete_requests_for_entity_type_under_task,
 )
 from alchemy.db.utils import get_all_data_files
-
-from alchemy.ar.data import (
-    compute_annotation_statistics_db,
-    compute_annotation_request_statistics,
-)
-from alchemy.ar.ar_celery import generate_annotation_requests
-
-from alchemy.train.train_celery import submit_gcp_training
-
-from alchemy.shared.celery_job_status import (
-    CeleryJobStatus,
-    create_status,
-    delete_status,
-)
 from alchemy.shared.annotation_server_path_finder import (
     generate_annotation_server_user_login_link,
     generate_annotation_server_admin_examine_link,
     generate_annotation_server_compare_link,
 )
+from alchemy.shared.celery_job_status import (
+    CeleryJobStatus,
+    create_status,
+    delete_status,
+)
+from alchemy.shared.component import task_dao
 from alchemy.shared.utils import (
     stem,
     list_to_textarea,
@@ -60,10 +56,8 @@ from alchemy.shared.utils import (
     get_weighted_majority_vote,
     WeightedVote,
 )
-
+from alchemy.train.train_celery import submit_gcp_training
 from .auth import auth
-
-from alchemy.shared.component import task_dao
 
 bp = Blueprint("tasks", __name__, url_prefix="/tasks")
 
@@ -161,7 +155,6 @@ def show(id):
     annotation_request_statistics = compute_annotation_request_statistics(
         dbsession=db.session, task_id=id
     )
-    # annotation_statistics = compute_annotation_statistics(task.task_id)
 
     status_assign_jobs_active = []
     status_assign_jobs_stale = []
