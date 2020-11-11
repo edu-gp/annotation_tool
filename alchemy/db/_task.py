@@ -1,19 +1,13 @@
-import os
 import re
-import shutil
 import uuid
 from typing import List, Optional
 
 from alchemy.db.model import TextClassificationModel
 from alchemy.inference.nlp_model import NLPModel
-from alchemy.shared.config import Config
 from alchemy.shared.utils import (
     list_to_textarea,
-    mkf,
-    save_json,
     textarea_to_list,
 )
-from alchemy.shared.utils import mkd
 
 
 def _convert_to_spacy_patterns(patterns: List[str]):
@@ -69,28 +63,6 @@ class _Task:
         task.patterns_file = data.get("patterns_file", None)
         task.patterns = data.get("patterns", [])
         return task
-
-    # ------------------------------------------------------------
-
-    def get_dir(self):
-        """Where files for this task are stored"""
-        d = Config.get_tasks_dir()
-        mkd(d)
-        return os.path.join(d, self.task_id)
-
-    def save(self):
-        task_config_path = [self.get_dir(), "config.json"]
-        mkf(*task_config_path)
-        task_config_path = os.path.join(*task_config_path)
-        save_json(task_config_path, self.to_json())
-
-    def delete(self):
-        """
-        Use with caution! This deletes all the labels and models.
-        """
-        _dir = self.get_dir()
-        if os.path.isdir(_dir):
-            shutil.rmtree(_dir)
 
     # ------------------------------------------------------------
 

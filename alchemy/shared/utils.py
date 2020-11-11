@@ -58,14 +58,6 @@ def mkf(*file_path):
     return f
 
 
-def mkd(*dir_path):
-    """Return dir path, make sure it exists"""
-    dir_path = [str(x) for x in dir_path]
-    d = os.path.join(*dir_path)
-    os.makedirs(d, exist_ok=True)
-    return d
-
-
 def stem(fname, include_suffix=False):
     """/blah/my_file.json.gz --> my_file"""
     path = Path(fname)
