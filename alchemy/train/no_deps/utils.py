@@ -14,6 +14,7 @@ MULTILABEL_CLASSIFICATION = "multilabel"
 
 # TODO: Move load_jsonl and load_original_data_text out of here.
 
+# TODO: copy the final version here
 # NOTE: This is copied from shared/utils.py,
 # so we can break dependency to that module.
 def load_jsonl(jsonl_fname, to_df=True):
@@ -203,3 +204,13 @@ def gs_exists(gs_url):
         return "Creation time:" in res.stdout.decode("utf-8")
     except subprocess.CalledProcessError:
         return False
+
+
+def save_file_numpy(filename, data, numpy_kwargs=dict(), type='cloud'):
+    assert type == 'local'
+    return np.save(filename, data, **numpy_kwargs)
+
+
+def load_file_numpy(filename, type='cloud', numpy_kwargs=dict()):
+    assert type == 'local'
+    return np.load(filename, **numpy_kwargs)
