@@ -14,6 +14,7 @@ from alchemy.db.model import (
     Task,
     User,
     get_latest_model_for_label,
+    _convert_to_spacy_patterns
 )
 from alchemy.inference import ITextCatModel, get_predicted
 from alchemy.inference.nlp_model import (
@@ -32,8 +33,6 @@ LookupKey = namedtuple("LookupKey", ["entity_type", "entity", "label", "user"])
 
 
 def get_pattern_model_for_label(dbsession, label):
-    from alchemy.db._task import _convert_to_spacy_patterns
-
     label_patterns = dbsession.query(LabelPatterns).filter_by(label=label).first()
     if label_patterns:
         patterns = label_patterns.get_positive_patterns()
