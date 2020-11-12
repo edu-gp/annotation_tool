@@ -24,7 +24,7 @@ from alchemy.inference.nlp_model import (
 )
 from alchemy.inference.pattern_model import PatternModel
 from alchemy.inference.random_model import RandomModel
-from alchemy.shared.utils import load_jsonl
+from alchemy.shared.file_adapters import load_jsonl
 
 Example = namedtuple(
     "Example", ["score", "entity_type", "entity", "label", "fname", "line_number"]
@@ -44,7 +44,7 @@ def get_pattern_model_for_label(dbsession, label):
     return None
 
 
-def get_nlp_models_for_label(dbsession, label):
+def get_nlp_models_for_label(dbsession, label, data_store):
     """
     Create active learning models for this label based on a trained NLP model.
     """
@@ -54,15 +54,15 @@ def get_nlp_models_for_label(dbsession, label):
 
     latest_model = get_latest_model_for_label(dbsession=dbsession, label=label)
 
-    if latest_model and latest_model.is_ready():
-        highest_entropy_model = NLPModel(dbsession, latest_model.id)
-        top_prob_model = NLPModelTopResults(dbsession, latest_model.id)
-        bottom_prob_model = NLPModelBottomResults(dbsession, latest_model.id)
+    if latest_model and latest_model.is_ready(data_store=data_store):
+        highest_entropy_model = NLPModel(dbsession, latest_model.id, data_store=data_store)
+        top_prob_model = NLPModelTopResults(dbsession, latest_model.id, data_store=data_store)
+        bottom_prob_model = NLPModelBottomResults(dbsession, latest_model.id, data_store=data_store)
 
     return highest_entropy_model, top_prob_model, bottom_prob_model
 
 
-def get_ranked_examples_for_label(dbession, label, data_filenames) -> List[Example]:
+def get_ranked_examples_for_label(dbession, label, data_filenames, data_store) -> List[Example]:
     """Get examples in data_filenames for this label in ranked order.
     A lower ranking means higher desire to be labeled.
     """
@@ -77,7 +77,7 @@ def get_ranked_examples_for_label(dbession, label, data_filenames) -> List[Examp
     entity_type = EntityTypeEnum.COMPANY
 
     def get_examples_for_model(model: ITextCatModel):
-        return _get_examples(data_filenames, model, entity_type, label)
+        return _get_examples(data_filenames, model, entity_type, label, data_store=data_store)
 
     # Random Examples
     examples.append(get_examples_for_model(RandomModel()))
@@ -93,7 +93,7 @@ def get_ranked_examples_for_label(dbession, label, data_filenames) -> List[Examp
 
     # NLP-driven Examples
     highest_entropy_model, top_prob_model, bottom_prob_model = get_nlp_models_for_label(
-        dbession, label
+        dbession, label, data_store=data_store
     )
 
     if highest_entropy_model:
@@ -157,7 +157,7 @@ def consolidate_ranked_examples_per_label(
 
 
 def generate_annotation_requests(
-    dbsession, task_id: int, max_per_annotator: int, max_per_dp: int
+    dbsession, task_id: int, max_per_annotator: int, max_per_dp: int, data_store
 ):
     """
     NOTE: This could be super slow, but that's okay for now!
@@ -173,7 +173,7 @@ def generate_annotation_requests(
 
     ranked_examples_per_label = []
     for label in task.get_labels():
-        _res = get_ranked_examples_for_label(dbsession, label, data_filenames)
+        _res = get_ranked_examples_for_label(dbsession, label, data_filenames, data_store=data_store)
         ranked_examples_per_label.append(_res)
 
     ranked_examples = consolidate_ranked_examples_per_label(ranked_examples_per_label)
@@ -201,7 +201,7 @@ def generate_annotation_requests(
     # We will need random access for each line in each file.
     __cache_df = {}
     for fname in data_filenames:
-        __cache_df[fname] = load_jsonl(fname)
+        __cache_df[fname] = load_jsonl(fname, data_store=data_store)
 
     # It's faster to get decorated examples in batch.
     __examples = set()
@@ -374,6 +374,7 @@ def _get_examples(
     model: ITextCatModel,
     entity_type: str,
     label: str,
+    data_store,
     cache=True,
 ) -> List[Example]:
     """Construct an Example based on the prediction of `model` on each of the
@@ -381,7 +382,7 @@ def _get_examples(
     examples = []
 
     for fname in data_filenames:
-        res = get_predicted(fname, model, cache=cache)
+        res = get_predicted(fname, model, cache=cache, data_store=data_store)
         # TODO remove dependency on (fname,line_number)
         for line_number, row in enumerate(res):
             examples.append(

@@ -4,11 +4,11 @@ from typing import Dict, List
 
 from alchemy.inference.base import ITextCatModel
 from alchemy.shared.config import Config
-from alchemy.shared.utils import load_jsonl, mkf, save_jsonl
+from alchemy.shared.file_adapters import file_exists, load_jsonl, save_jsonl
 
 
-def _predict(data_fname, model) -> List[Dict]:
-    df = load_jsonl(data_fname)
+def _predict(data_fname, model, data_store) -> List[Dict]:
+    df = load_jsonl(data_fname, data_store=data_store)
     results = model.predict(df["text"])
     # Attaching the meta data for an entity (e.g., name and domain)
     for i, res in enumerate(results):
@@ -16,7 +16,7 @@ def _predict(data_fname, model) -> List[Dict]:
     return results
 
 
-def get_predicted(data_fname, model: ITextCatModel, cache=True):
+def get_predicted(data_fname, model: ITextCatModel, data_store, cache=True):
 
     # TODO cache key is not unique, and we need a way to expire the cache.
     #  Also, it's unclear if caching helps, unless we move to a real-time
@@ -32,7 +32,7 @@ def get_predicted(data_fname, model: ITextCatModel, cache=True):
     print(f"get_predicted model={model} data_fname={data_fname} (cache={cache})")
 
     if not cache:
-        return _predict(data_fname, model)
+        return _predict(data_fname, model, data_store=data_store)
     else:
         # Get cache filename
         stem = Path(data_fname).stem
@@ -40,12 +40,11 @@ def get_predicted(data_fname, model: ITextCatModel, cache=True):
         path = [Config.get_inference_cache_dir(), fname]
         fname = os.path.join(*path)
 
-        if not os.path.isfile(fname):
-            res = _predict(data_fname, model)
+        if not file_exists(fname, data_store=data_store):
+            res = _predict(data_fname, model, data_store=data_store)
 
             # Save results to cache
-            mkf(*path)
-            save_jsonl(fname, res)
+            save_jsonl(fname, res, data_store=data_store)
 
         print(f"Reading from cache: {fname}")
-        return load_jsonl(fname, to_df=False)
+        return load_jsonl(fname, to_df=False, data_store=data_store)

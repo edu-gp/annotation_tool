@@ -5,20 +5,15 @@ from __future__ import print_function
 
 import io
 import json
-import os
-import pickle
-import signal
-import sys
-import traceback
 import uuid
 from datetime import datetime
 
 import flask
-import pandas as pd
-import redis
 import torch
 from flask import jsonify
 from simpletransformers.classification import ClassificationModel
+
+from alchemy.shared.file_adapters import listdir
 
 USE_CUDA = torch.cuda.is_available()
 
@@ -37,18 +32,18 @@ class ScoringService(object):
     }
 
     @classmethod
-    def get_model(cls):
+    def get_model(cls, data_store):
         """Get the model object for this instance, loading it if it's not already loaded."""
         if cls.model == None:
             print(str(datetime.now()) + " Loading model...")
-            cls.model = build_model(cls.train_config, model_dir)
+            cls.model = build_model(config=cls.train_config, model_dir=model_dir, data_store=data_store)
             # with open(os.path.join(model_path, 'lr.pkl'), 'rb') as inp:
             #     cls.model = pickle.load(inp)
         print(str(datetime.now()) + " Model loaded...")
         return cls.model
 
     @classmethod
-    def predict(cls, input):
+    def predict(cls, input, data_store):
         """For the input, do the predictions and return them.
 
         Args:
@@ -59,7 +54,7 @@ class ScoringService(object):
         # data = X[:2, :]
 
         data = input
-        clf = cls.get_model()
+        clf = cls.get_model(data_store=data_store)
         print(clf)
         print(str(datetime.now()) + " Prediction started...")
         print("input is " + str(data))
@@ -68,14 +63,14 @@ class ScoringService(object):
         return res
 
 
-def build_model(config, model_dir=None, weight=None):
+def build_model(config, data_store, model_dir=None, weight=None):
     """
     Inputs:
         config: train_config, see train_celery.py
         model_dir: a trained model's output dir, None if model has not been trained yet
         weight: class weights
     """
-    contents = os.listdir(model_dir)
+    contents = listdir(model_dir, data_store=data_store)
     print(contents)
 
     return ClassificationModel(
@@ -115,7 +110,7 @@ def ping():
     """Determine if the container is working and healthy. In this sample container, we declare
     it healthy if we can load the model successfully."""
     health = (
-        ScoringService.get_model() is not None
+        ScoringService.get_model(data_store='local') is not None  # TODO: cloud/local blah blah
     )  # You can insert a health check here
 
     status = 200 if health else 404
@@ -147,7 +142,7 @@ def transformation():
         )
 
     # Do the prediction
-    labels_pred, scores_pred = ScoringService.predict(data)
+    labels_pred, scores_pred = ScoringService.predict(data, data_store='local')  # TODO: local/cloud based on blah blah
     predictions = {
         "labels": labels_pred.tolist(),
         "scores": [scores.tolist()[0] for scores in scores_pred],

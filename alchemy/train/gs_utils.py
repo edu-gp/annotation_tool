@@ -3,7 +3,7 @@ import os
 import tempfile
 
 from alchemy.admin_server.external_services import GCPPubSubService
-from alchemy.shared.utils import load_jsonl
+from alchemy.shared.file_adapters import load_jsonl
 from alchemy.train.gs_url import (
     build_model_inference_url,
     build_prod_inference_url,
@@ -102,7 +102,7 @@ def create_deployed_inference(metadata: DeployedInferenceMetadata) -> None:
         gs_copy_file(raw_url, raw_fname, no_clobber=False)
         gs_copy_file(inference_url, pred_fname, no_clobber=False)
 
-        df = build_prod_inference_dataframe(pred_fname, raw_fname, metadata.threshold)
+        df = build_prod_inference_dataframe(pred_fname, raw_fname, metadata.threshold, data_store=data_store)
         df.to_csv(csv_fname, index=False)
 
         with open(metadata_fname, "w") as f:
@@ -145,11 +145,11 @@ def _message_constructor_alchemy_to_gdp(
     return json.dumps(message_dict)
 
 
-def build_prod_inference_dataframe(pred_fname, raw_fname, threshold):
+def build_prod_inference_dataframe(pred_fname, raw_fname, threshold, data_store):
     # TODO test
-    inf = InferenceResults.load(pred_fname)
+    inf = InferenceResults.load(pred_fname, data_store=data_store)
 
-    raw = load_jsonl(raw_fname, to_df=True)
+    raw = load_jsonl(raw_fname, to_df=True, data_store=data_store)
 
     if len(inf.probs) != len(raw):
         raise Exception(

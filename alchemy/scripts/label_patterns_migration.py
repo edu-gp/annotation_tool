@@ -11,7 +11,7 @@ from alchemy.db.model import (
     _raw_data_file_path,
     get_or_create,
 )
-from alchemy.shared.utils import load_jsonl
+from alchemy.shared.file_adapters import load_jsonl
 
 db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
 
@@ -27,7 +27,7 @@ if __name__ == "__main__":
             patterns_file = task.default_params.get("patterns_file")
             if patterns_file:
                 spacy_patterns = load_jsonl(
-                    _raw_data_file_path(patterns_file), to_df=False
+                    _raw_data_file_path(patterns_file), to_df=False, data_store='local'
                 )
                 """
                 These are usually in the format of:

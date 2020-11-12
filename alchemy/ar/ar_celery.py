@@ -25,7 +25,7 @@ def hello():
 
 
 @app.task
-def generate_annotation_requests(task_id, max_per_annotator, max_per_dp, entity_type):
+def generate_annotation_requests(task_id, max_per_annotator, max_per_dp, entity_type, data_store):
     celery_id = str(generate_annotation_requests.request.id)
     set_status(celery_id, JobStatus.STARTED, progress=0.0)
 
@@ -36,7 +36,7 @@ def generate_annotation_requests(task_id, max_per_annotator, max_per_dp, entity_
 
     db = Database.from_config(DevelopmentConfig)
     res = _generate_annotation_requests(
-        db.session, task_id, max_per_annotator, max_per_dp
+        db.session, task_id, max_per_annotator, max_per_dp, data_store=data_store
     )
 
     task = get_or_create(dbsession=db.session, model=Task, id=task_id)

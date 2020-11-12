@@ -69,7 +69,7 @@ def run(
                     # Cache is not nessesary but makes inference on incremental
                     # data updates a lot faster.
                     if inference_cache is None:
-                        inference_cache = build_inference_cache(msm.local_dir, dsm)
+                        inference_cache = build_inference_cache(msm.local_dir, dsm, data_store='local')
 
                     # Run Inference - results saved in local_model_dir
                     # Note the inference_cache is updated for each new file.
@@ -77,6 +77,7 @@ def run(
                         msm.local_dir,
                         dataset_local_path,
                         inference_cache=inference_cache,
+                        data_store='local'
                     )
 
             # Upload inference results

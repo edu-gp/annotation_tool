@@ -171,7 +171,7 @@ def show(label):
     )
 
 
-def _collect_model_data_rows():
+def _collect_model_data_rows(data_store):
     data_row_per_label = []
 
     tasks = db.session.query(Task).all()
@@ -242,8 +242,8 @@ def _collect_model_data_rows():
             owner_id=label_owner_id[0] if label_owner_id else -1,
         )
 
-        if chosen_model and chosen_model.is_ready():
-            test_metrics = chosen_model.get_metrics().get("test", {})
+        if chosen_model and chosen_model.is_ready(data_store=data_store):
+            test_metrics = chosen_model.get_metrics(data_store=data_store).get("test", {})
 
             row.roc_auc = _reformat_stats(test_metrics.get("roc_auc", None))
             row.pr = _reformat_stats(test_metrics.get("precision", None))

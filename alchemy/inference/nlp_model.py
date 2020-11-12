@@ -18,10 +18,11 @@ def _get_uncertainty(pred, eps=1e-6):
 
 
 class NLPModel(ITextCatModel):
-    def __init__(self, dbsession, model_id):
+    def __init__(self, dbsession, model_id, data_store):
         self.dbsession = dbsession
         self.model_id = model_id
         self._cache = None
+        self.data_store = data_store
 
     def __str__(self):
         # Note: This is also used as a cache key.
@@ -38,7 +39,7 @@ class NLPModel(ITextCatModel):
             )
 
             for fname in model.get_inference_fnames():
-                df = model.export_inference(fname, include_text=True)
+                df = model.export_inference(fname, include_text=True, data_store=self.data_store)
                 df["hashed_text"] = df["text"].apply(_hash_text)
                 self._cache.update(dict(zip(df["hashed_text"], df["probs"])))
 

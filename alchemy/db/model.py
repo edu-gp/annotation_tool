@@ -17,15 +17,13 @@ from sqlalchemy.types import JSON, DateTime, Float, Integer, String
 from werkzeug.utils import secure_filename
 
 from alchemy.db.fs import raw_data_dir, training_data_dir, filestore_base_dir
+from alchemy.shared.file_adapters import file_exists, load_json, load_jsonl, save_jsonl
 from alchemy.shared.utils import (
     _format_float_numbers,
     file_len,
     gen_uuid,
-    load_json,
-    load_jsonl,
     safe_getattr,
-    stem,
-)
+    stem, )
 from alchemy.train.no_deps.inference_results import InferenceResults
 from alchemy.train.no_deps.metrics import compute_metrics as _compute_metrics
 from alchemy.train.no_deps.paths import (
@@ -313,7 +311,7 @@ class ClassificationTrainingData(Base):
 
     @staticmethod
     def create_for_label(
-        dbsession, entity_type: str, label: str, entity_text_lookup_fn, batch_size=50
+        dbsession, entity_type: str, label: str, entity_text_lookup_fn, data_store: str, batch_size: int=50
     ):
         """
         Create a training data for the given label by taking a snapshot of all
@@ -344,10 +342,7 @@ class ClassificationTrainingData(Base):
         dbsession.commit()
 
         output_fname = os.path.join(filestore_base_dir(), data.path())
-        os.makedirs(os.path.dirname(output_fname), exist_ok=True)
-        from alchemy.shared.utils import save_jsonl
-
-        save_jsonl(output_fname, final)
+        save_jsonl(output_fname, final, data_store=data_store)
 
         return data
 
@@ -357,16 +352,13 @@ class ClassificationTrainingData(Base):
         else:
             base = ''
 
-        p = os.path.join(
-            training_data_dir(base),
-            secure_filename(self.label),
-            str(int(self.created_at.timestamp())) + ".jsonl",
-        )
-        return p
+        p = training_data_dir(base, as_path=True) / secure_filename(self.label) / \
+            (str(int(self.created_at.timestamp())) + ".jsonl")
+        return str(p)
 
-    def load_data(self, to_df=False):
+    def load_data(self, data_store, to_df=False):
         path = self.path(abs=True)
-        return load_jsonl(path, to_df=to_df)
+        return load_jsonl(path, to_df=to_df, data_store=data_store)
 
     def length(self):
         return file_len(self.path())
@@ -453,29 +445,22 @@ class Model(Base):
         """Returns the directory location relative to the filestore root"""
         return get_model_dir(self.uuid, self.version)
 
-    def inference_dir(self):
-        # TODO replace with official no_deps
-        return os.path.join(self.dir(), "inference")
-
-    def _load_json(self, fname_fn):
+    def _load_json(self, fname_fn, data_store):
         fname = fname_fn(self.dir)
-        if os.path.isfile(fname):
-            return load_json(fname)
-        else:
-            return None
+        return load_json(fname, data_store=data_store)
 
-    def is_ready(self):
+    def is_ready(self, data_store):
         # Model is ready when it has a metrics file.
-        return self.get_metrics() is not None
+        return self.get_metrics(data_store=data_store) is not None
 
-    def get_metrics(self):
-        return self._load_json(_get_metrics_fname)
+    def get_metrics(self, data_store):
+        return self._load_json(_get_metrics_fname, data_store=data_store)
 
-    def get_config(self):
-        return self._load_json(_get_config_fname)
+    def get_config(self, data_store):
+        return self._load_json(_get_config_fname, data_store=data_store)
 
-    def get_data_parser(self):
-        return self._load_json(_get_data_parser_fname)
+    def get_data_parser(self, data_store):
+        return self._load_json(_get_data_parser_fname, data_store=data_store)
 
     def get_url_encoded_plot_paths(self):
         """Return a list of urls for plots"""
@@ -490,7 +475,7 @@ class Model(Base):
             for path in _get_all_inference_fnames(self.dir)
         ]
 
-    def export_inference(self, fname: str, include_text: bool = False):
+    def export_inference(self, fname: str, data_store: str, include_text: bool = False):
         """Exports the given inferenced file data_fname as a dataframe.
         Returns None if the file has not been inferenced yet.
         Inputs:
@@ -506,7 +491,7 @@ class Model(Base):
             cols = ["name", "domain", "text", "probs"]
 
         version_dir = self.dir
-        return load_inference(version_dir, fname, columns=cols)
+        return load_inference(version_dir, fname, columns=cols, data_store=data_store)
 
     def get_len_data(self):
         """Return how many datapoints were used to train this model.
@@ -515,14 +500,14 @@ class Model(Base):
         """
         return file_len(_get_exported_data_fname(self.dir))
 
-    def compute_metrics(self, threshold: float = 0.5):
+    def compute_metrics(self, data_store: str, threshold: float = 0.5):
         """See train.no_deps.compute_metrics"""
         version_dir = self.dir
 
         # TODO retire the old metrics.json
         metrics_path = _get_metrics_v2_fname(version_dir, threshold)
 
-        if not os.path.isfile(metrics_path):
+        if not file_exists(metrics_path, data_store=data_store):
             cols = ["text", "probs"]
 
             inf_lookup = pd.DataFrame(columns=cols)
@@ -530,7 +515,7 @@ class Model(Base):
             # TODO This loads all the inferences (deduped by text) - this could
             # be prohibitively slow, is there a good place to precompute this?
             for fpath in _get_all_inference_fnames(version_dir):
-                df = load_inference(version_dir, fpath, columns=cols)
+                df = load_inference(version_dir, fpath, columns=cols, data_store=data_store)
 
                 # inf_lookup can get very big, so only keep unique rows by text
                 inf_lookup = pd.concat([inf_lookup, df], axis=0)
@@ -643,7 +628,7 @@ class Task(Base):
             fnames = [_raw_data_file_path(f) for f in fnames]
         return fnames
 
-    def get_pattern_model(self):
+    def get_pattern_model(self, data_store):
         from alchemy.inference.pattern_model import PatternModel
 
         if safe_getattr(self, "__cached_pattern_model") is None:
@@ -651,7 +636,7 @@ class Task(Base):
 
             _patterns_file = self.default_params.get("patterns_file")
             if _patterns_file:
-                patterns += load_jsonl(_raw_data_file_path(_patterns_file), to_df=False)
+                patterns += load_jsonl(_raw_data_file_path(_patterns_file), to_df=False, data_store=data_store)
 
             _patterns = self.get_patterns()
             if _patterns is not None:
@@ -946,7 +931,7 @@ def get_latest_model_for_label(
 
 
 def load_inference(
-    version_dir: str, dataset_filename: str, columns: Optional[List[str]] = None
+    version_dir: str, dataset_filename: str, data_store: str, columns: Optional[List[str]] = None
 ):
     """
     Inputs:
@@ -968,13 +953,13 @@ def load_inference(
 
     # Load Inference Results
     path = _get_inference_fname(version_dir, dataset_filename)
-    ir = InferenceResults.load(path)
+    ir = InferenceResults.load(path, data_store=data_store)
 
     # Load Original Data
     # This already includes the column "text"
     # TODO This function needs to be outside of the version_dir because the
     # original data is not in the version_dir!
-    df = load_jsonl(_raw_data_file_path(dataset_filename), to_df=True)
+    df = load_jsonl(_raw_data_file_path(dataset_filename), to_df=True, data_store=data_store)
 
     # Check they exist and are the same size
     assert df is not None, f"Raw data not found: {dataset_filename}"
