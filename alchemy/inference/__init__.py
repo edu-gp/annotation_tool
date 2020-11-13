@@ -36,9 +36,10 @@ def get_predicted(data_fname, model: ITextCatModel, data_store, cache=True):
     else:
         # Get cache filename
         stem = Path(data_fname).stem
-        fname = f"{stem}__inferred_by__{model}.jsonl"
-        path = [Config.get_inference_cache_dir(), fname]
-        fname = os.path.join(*path)
+        fname = os.path.join(
+            Config.get_inference_cache_dir(),
+            f"{stem}__inferred_by__{model}.jsonl"
+        )
 
         if not file_exists(fname, data_store=data_store):
             res = _predict(data_fname, model, data_store=data_store)

@@ -1,6 +1,5 @@
 # Annotation Request Module
 import logging
-import os
 from collections import namedtuple
 from typing import Dict, List
 
@@ -167,7 +166,7 @@ def generate_annotation_requests(
 
     # TODO Restrict each task to use only 1 file?
     data_filenames = [
-        os.path.join(raw_data_dir(), fname)
+        str(raw_data_dir(as_path=True) / fname)
         for fname in task.get_data_filenames()
     ]
 

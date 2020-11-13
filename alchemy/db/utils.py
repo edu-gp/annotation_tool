@@ -1,5 +1,4 @@
 import json
-import os
 import pathlib
 
 from google.cloud import storage
@@ -67,4 +66,4 @@ def get_all_pattern_files():
 
 
 def get_local_data_file_path(fname):
-    return os.path.join(raw_data_dir(), fname)
+    return str(raw_data_dir(as_path=True) / fname)
