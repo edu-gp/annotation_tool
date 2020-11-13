@@ -140,6 +140,8 @@ def index():
 
 @bp.route("show/<string:label>", methods=["GET"])
 def show(label):
+    data_store = env('STORAGE_BACKEND')
+
     models_per_label = {}
     deployment_configs_per_model = {}
     models = (
@@ -173,6 +175,7 @@ def show(label):
         models_per_label=models_per_label,
         deployment_configs_per_model=deployment_configs_per_model,
         label=label,
+        data_store=data_store,
     )
 
 
@@ -240,7 +243,7 @@ def _collect_model_data_rows(data_store):
             label=label,
             latest_version=latest_model.version if latest_model else None,
             deployed_version=deployed_model.version if deployed_model else None,
-            num_of_data_points=chosen_model.get_len_data() if chosen_model else None,
+            num_of_data_points=chosen_model.get_len_data(data_store=data_store) if chosen_model else None,
             threshold=threshold,
             majority_annotator=majority_annotator,
             has_deployed=True if deployed_model else False,

@@ -42,7 +42,7 @@
                   <small class='text-muted ml-3'>{{mv.uuid}}</small>
                 </h5>
 
-                {% if mv.is_ready() %}
+                {% if mv.is_ready(data_store) %}
 
                 {% for fname in mv.get_inference_fnames() %}
                 <div class="row">
@@ -131,7 +131,7 @@
                   </div>
                 </div>
 
-                {% set metrics = mv.get_metrics() %}
+                {% set metrics = mv.get_metrics(data_store) %}
 
                 <div class="row" style="font-size: 0.8em">
                   <div class="col-lg-3 col-md-6 col-sm-6">
@@ -148,7 +148,7 @@
                   </div>
                   <div class="col-lg-3 col-md-6 col-sm-6">
                     <h6>Stats</h6>
-                    Trained on {{ mv.get_len_data() }} datapoints.
+                    Trained on {{ mv.get_len_data(data_store) }} datapoints.
                   </div>
                 </div>
 
@@ -156,13 +156,13 @@
                   <div class="col">
                     Config:
                     <pre>
-                      {{- mv.get_config()|to_pretty_json -}}
+                      {{- mv.get_config(data_store)|to_pretty_json -}}
                     </pre>
                   </div>
                   <div class="col">
                     Data Parser:
                     <pre>
-                      {{- mv.get_data_parser()|to_pretty_json -}}
+                      {{- mv.get_data_parser(data_store)|to_pretty_json -}}
                     </pre>
                   </div>
                 </div>
@@ -193,7 +193,7 @@
                   <table class="table">
                     <tbody>
                       {% for mv in models_per_label.get(label, []) %}
-                      {% if mv.is_ready() %}
+                      {% if mv.is_ready(data_store) %}
                       {% set deployment_config = deployment_configs_per_model[mv.id] %}
                       <tr>
                         <td>

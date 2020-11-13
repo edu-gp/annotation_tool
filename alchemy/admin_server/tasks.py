@@ -120,6 +120,8 @@ def create():
 
 @bp.route("/<string:id>", methods=["GET"])
 def show(id):
+    data_store = env('STORAGE_BACKEND')
+
     task = db.session.query(Task).filter_by(id=id).one_or_none()
 
     # -------------------------------------------------------------------------
@@ -230,6 +232,7 @@ def show(id):
         admin_examine_links=admin_examine_links,
         labels_and_attributes=labels_and_attributes,
         kappa_analysis_for_all_users_links=kappa_analysis_for_all_users_links,
+        data_store=data_store
     )
 
 

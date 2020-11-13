@@ -2,6 +2,7 @@ import json
 import logging
 from typing import Dict, Tuple
 
+from envparse import env
 from flask import Blueprint, g, render_template, request, url_for
 from sqlalchemy.exc import DatabaseError
 from werkzeug.urls import url_decode
@@ -37,6 +38,8 @@ bp = Blueprint("tasks", __name__, url_prefix="/tasks")
 @bp.route("/<string:id>")
 @login_required
 def show(id):
+    data_store = env('STORAGE_BACKEND')
+
     username = g.user["username"]
 
     import time
@@ -64,6 +67,7 @@ def show(id):
             item[1] == AnnotationRequestStatus.Complete
             for item in ar_id_and_status_pairs
         ],
+        data_store=data_store
     )
 
 
