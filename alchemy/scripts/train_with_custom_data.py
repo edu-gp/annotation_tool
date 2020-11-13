@@ -1,13 +1,14 @@
 import pandas as pd
 
-from alchemy.shared.utils import save_jsonl
-from alchemy.train import GCPJob, get_model_dir, get_next_version, save_config
+from alchemy.shared.file_adapters import save_jsonl
+from alchemy.train import GCPJob, get_next_version, save_config
 from alchemy.train.gcp_celery import poll_status as gcp_poll_status
 from alchemy.train.no_deps.paths import _get_exported_data_fname
+from alchemy.train.paths import get_model_dir
 
 
 def train_with_custom_data(
-    task_id, custom_data_file, text_col, label_col, label, dryrun=True
+    task_id, custom_data_file, text_col, label_col, label, data_store, dryrun=True
 ):
     """Train with custom data (in a csv file)
 
@@ -35,6 +36,7 @@ def train_with_custom_data(
         label_col=label_col,
         label=label,
         outfile=data_fname,
+        data_store=data_store,
     )
 
     if not dryrun:
@@ -45,7 +47,7 @@ def train_with_custom_data(
         print("Dry run - not submitting job to GCP.")
 
 
-def convert_user_csv(csv_fname, text_col, label_col, label, outfile):
+def convert_user_csv(csv_fname, text_col, label_col, label, outfile, data_store='local'):
     df = pd.read_csv(csv_fname)
 
     data = []
@@ -60,7 +62,7 @@ def convert_user_csv(csv_fname, text_col, label_col, label, outfile):
 
             data.append({"text": row[text_col], "labels": {label: row[label_col]}})
 
-    save_jsonl(outfile, data)
+    save_jsonl(outfile, data, data_store=data_store)
 
 
 if __name__ == "__main__":
@@ -77,6 +79,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--label", required=True, help="Label name")
     parser.add_argument("--dry", default=False, action="store_true", help="Dry run")
+    parser.add_argument("--data-store", choices={'cloud', 'local'}, default='local')
 
     args = parser.parse_args()
     print(args)
@@ -87,6 +90,7 @@ if __name__ == "__main__":
         args.label_col,
         args.label,
         dryrun=args.dry,
+        data_store=args.data_store,
     )
 
 """
