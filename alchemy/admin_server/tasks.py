@@ -79,16 +79,19 @@ def index():
 
 @bp.route("/new", methods=["GET"])
 def new():
+    data_store = env('STORAGE_BACKEND')
+
     return render_template(
         "tasks/new.html",
-        data_fnames=get_all_data_files(),
+        data_fnames=get_all_data_files(data_store=data_store),
         entity_types=EntityTypeEnum.get_all_entity_types(),
     )
 
 
 @bp.route("/", methods=["POST"])
 def create():
-    data_fnames = get_all_data_files()
+    data_store = env('STORAGE_BACKEND')
+    data_fnames = get_all_data_files(data_store=data_store)
 
     try:
         form = request.form

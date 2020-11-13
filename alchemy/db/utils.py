@@ -4,6 +4,7 @@ import pathlib
 from google.cloud import storage
 
 from alchemy.db.fs import raw_data_dir, bucket_name
+from ..shared.file_adapters import listdir
 
 
 def _get_file_name(blob: storage.Blob):
@@ -43,27 +44,33 @@ def is_pattern_file(fname):
         return fname.metadata.get('data_type', None) == 'pattern'
 
 
-def get_all_data_files():
+def get_all_data_files(data_store):
     """Return all data files in the data folder"""
     d = raw_data_dir()
-    client = storage.Client()
-    return sorted(list(map(
-        _get_file_name,
-        filter(is_data_file,
-               client.list_blobs(bucket_or_name=bucket_name(), prefix=d))
-    )))
+    if data_store == 'cloud':
+        client = storage.Client()
+        return sorted(list(map(
+            _get_file_name,
+            filter(is_data_file,
+                   client.list_blobs(bucket_or_name=bucket_name(), prefix=d))
+        )))
+    elif data_store == 'local':
+        return sorted([x for x in listdir(d, data_store=data_store) if is_data_file(d / x)])
+    else:
+        raise ValueError(f"Invalid data store {data_store}")
 
 
-def get_all_pattern_files():
+def get_all_pattern_files(data_store):
     """Return all data files in the data folder"""
     d = raw_data_dir()
-    client = storage.Client()
-    return sorted(list(map(
-        _get_file_name,
-        filter(is_pattern_file,
-               client.list_blobs(bucket_or_name=bucket_name(), prefix=d))
-    )))
-
-
-def get_local_data_file_path(fname):
-    return str(raw_data_dir(as_path=True) / fname)
+    if data_store == 'cloud':
+        client = storage.Client()
+        return sorted(list(map(
+            _get_file_name,
+            filter(is_pattern_file,
+                   client.list_blobs(bucket_or_name=bucket_name(), prefix=d))
+        )))
+    elif data_store == 'local':
+        return sorted([x for x in listdir(d, data_store=data_store) if is_pattern_file(d / x)])
+    else:
+        raise ValueError(f"Invalid data store {data_store}")
