@@ -175,9 +175,9 @@ def run_cmd(cmd: str):
         raise
 
 
-def gs_copy_dir(src_dir, dst_dir):
+def gs_copy_dir(src_dir, dst_dir, rsync_args=""):
     # run_cmd(f'gsutil -m cp -r {src_dir}/* {dst_dir}')
-    run_cmd(f"gsutil -m rsync -r {src_dir} {dst_dir}")
+    run_cmd(f"gsutil -m rsync {rsync_args} -r {src_dir} {dst_dir}")
 
 
 def gs_copy_file(fname, dst, no_clobber=True):
