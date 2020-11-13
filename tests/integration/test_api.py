@@ -29,7 +29,7 @@ def test_authorized_call_token_not_set(admin_server_client, monkeypatch):
     # Here, API_TOKEN env var is not set.
     monkeypatch.delenv("API_TOKEN", raising=False)
     monkeypatch.setattr(SecretManagerService, "get_secret", None)
-    monkeypatch.setattr(api, "run_inference_on_data", lambda x: None)
+    monkeypatch.setattr(api, "run_inference_on_data", lambda *x: None)
 
     response = make_request(admin_server_client)
     assert response.status == "500 INTERNAL SERVER ERROR"
@@ -37,7 +37,7 @@ def test_authorized_call_token_not_set(admin_server_client, monkeypatch):
 
 def test_unauthorized_call(admin_server_client, monkeypatch):
     monkeypatch.setenv("API_TOKEN", "test123")
-    monkeypatch.setattr(api, "run_inference_on_data", lambda x: None)
+    monkeypatch.setattr(api, "run_inference_on_data", lambda *x: None)
 
     response = make_request(admin_server_client, auth_token="bad-token")
     assert response.status == "401 UNAUTHORIZED"
@@ -45,7 +45,7 @@ def test_unauthorized_call(admin_server_client, monkeypatch):
 
 def test_authorized_call(admin_server_client, monkeypatch):
     monkeypatch.setenv("API_TOKEN", "test123")
-    monkeypatch.setattr(api, "run_inference_on_data", lambda x: None)
+    monkeypatch.setattr(api, "run_inference_on_data", lambda *x: None)
 
     response = make_request(admin_server_client)
     assert response.status == "200 OK"
@@ -53,7 +53,7 @@ def test_authorized_call(admin_server_client, monkeypatch):
 
 def test_request_with_no_dataset_name(admin_server_client, monkeypatch):
     monkeypatch.setenv("API_TOKEN", "test123")
-    monkeypatch.setattr(api, "run_inference_on_data", lambda x: None)
+    monkeypatch.setattr(api, "run_inference_on_data", lambda *x: None)
 
     response = make_request(admin_server_client, dataset_name="")
     assert response.status == "400 BAD REQUEST"
@@ -62,7 +62,7 @@ def test_request_with_no_dataset_name(admin_server_client, monkeypatch):
 def test_dataset_name_thru_query_param(admin_server_client, monkeypatch):
     captured_calls = []
 
-    def capture_call(x):
+    def capture_call(x, data_store):
         captured_calls.append(x)
 
     monkeypatch.setenv("API_TOKEN", "test123")

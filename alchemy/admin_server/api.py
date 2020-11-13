@@ -46,6 +46,8 @@ def healthcheck():
 @bp.route("/trigger_inference", methods=["POST"])
 def trigger_inference():
     """Trigger inference on a dataset."""
+    data_store = env('STORAGE_BACKEND')
+
     dataset_name = None
 
     json_data = request.get_json()
@@ -56,14 +58,14 @@ def trigger_inference():
         dataset_name = json_data.get("dataset_name", None)
 
     if dataset_name:
-        run_inference_on_data(dataset_name)
+        run_inference_on_data(dataset_name, data_store=data_store)
         return "OK", 200
     else:
         logging.error(f"[{request_id}] Missing dataset name. Abort...")
         return abort(400)
 
 
-def run_inference_on_data(dataset_name):
+def run_inference_on_data(dataset_name, data_store):
     # TODO: This function exists so I can mock it in test.
     #       Can get rid of it once we set up Celery fixtures.
-    submit_gcp_inference_on_new_file.delay(dataset_name)
+    submit_gcp_inference_on_new_file.delay(dataset_name, data_store)
