@@ -1,5 +1,3 @@
-import os
-
 from envparse import env
 
 
@@ -25,4 +23,4 @@ class Config:
 
     @staticmethod
     def get_inference_cache_dir():
-        return env('ANNOTATION_TOOL_INFERENCE_CACHE_DIR', default=os.path.join(os.getcwd(), '__infcache'))
+        return env('ANNOTATION_TOOL_INFERENCE_CACHE_DIR', default='__infcache')
