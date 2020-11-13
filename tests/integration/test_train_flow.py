@@ -11,7 +11,6 @@ from alchemy.db.model import (
     User,
     majority_vote_annotations_query,
 )
-from alchemy.shared.utils import load_json, load_jsonl, save_jsonl
 from alchemy.train.no_deps.inference_results import InferenceResults
 from alchemy.train.no_deps.paths import (  # Train Model; Model Inference
     _get_data_parser_fname,
@@ -20,6 +19,7 @@ from alchemy.train.no_deps.paths import (  # Train Model; Model Inference
 )
 from alchemy.train.no_deps.run import build_inference_cache, inference, train_model
 from alchemy.train.no_deps.utils import BINARY_CLASSIFICATION
+from alchemy.train.no_deps.utils import listdir, load_json, load_jsonl, save_jsonl
 from alchemy.train.prep import prepare_next_model_for_label
 
 LABEL = "IsTall"
@@ -61,16 +61,15 @@ def _create_anno(ent, v, user, weight=1):
     )
 
 
-def _populate_db_and_fs(dbsession, tmp_path, N, weight=1):
+def _populate_db_and_fs(dbsession, tmp_path, N, data_store, weight=1):
     # =========================================================================
     # Add in a fake data file
     d = raw_data_dir(tmp_path, as_path=True)
-    d.mkdir(parents=True)
     p = d / "data.jsonl"
     data = [
         {"text": f"item {i} text", "meta": {"domain": f"{i}.com"}} for i in range(N)
     ]
-    save_jsonl(str(p), data)
+    save_jsonl(str(p), data, data_store=data_store)
 
     # =========================================================================
     # Create dummy data
@@ -120,18 +119,26 @@ def _populate_db_and_fs(dbsession, tmp_path, N, weight=1):
 
 
 def test_train_flow_simple(dbsession, monkeypatch, tmp_path):
+    data_store = 'local'
+    monkeypatch.setenv("STORAGE_BACKEND", data_store)
+    if data_store == 'cloud':
+        tmp_path = '__filestore'
     monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
     N = 2
-    _populate_db_and_fs(dbsession, tmp_path, N, weight=100)
+    _populate_db_and_fs(dbsession, tmp_path, N, data_store=data_store, weight=100)
     query = majority_vote_annotations_query(dbsession, LABEL)
     res = query.all()
     assert sorted(res) == [("0.com", -1, 100), ("1.com", 1, 101)]
 
 
 def test_train_flow_simple_equal_weight(dbsession, monkeypatch, tmp_path):
+    data_store = 'local'
+    monkeypatch.setenv("STORAGE_BACKEND", data_store)
+    if data_store == 'cloud':
+        tmp_path = '__filestore'
     monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
     N = 2
-    _populate_db_and_fs(dbsession, tmp_path, N, weight=3)
+    _populate_db_and_fs(dbsession, tmp_path, N, data_store=data_store, weight=3)
     query = majority_vote_annotations_query(dbsession, LABEL)
     res = query.all()
     assert len(res) == N
@@ -146,22 +153,25 @@ def test_train_flow_simple_equal_weight(dbsession, monkeypatch, tmp_path):
 
 
 def test_train_flow(dbsession, monkeypatch, tmp_path):
+    data_store = 'local'
+    monkeypatch.setenv("STORAGE_BACKEND", data_store)
+    if data_store == 'cloud':
+        tmp_path = '__filestore'
     monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
     N = 20
-    _populate_db_and_fs(dbsession, tmp_path, N)
+    _populate_db_and_fs(dbsession, tmp_path, N, data_store=data_store)
     task = dbsession.query(Task).first()
 
     # Part 1. Prepare.
     label = task.get_labels()[0]
     raw_file_path = task.get_data_filenames(abs=True)[0]
-    model = prepare_next_model_for_label(dbsession, label, raw_file_path)
+    model = prepare_next_model_for_label(dbsession, label, raw_file_path, data_store=data_store)
     model_dir = model.dir
 
     # These are all the files we need to train a model.
-    files = os.listdir(model_dir)
-    assert set(files) == set(["data.jsonl", "config.json"])
+    assert set(listdir(model_dir, data_store=data_store)) == {"data.jsonl", "config.json"}
 
-    data = load_jsonl(os.path.join(model_dir, "data.jsonl"), to_df=False)
+    data = load_jsonl(os.path.join(model_dir, "data.jsonl"), to_df=False, data_store=data_store)
     data = sorted(data, key=lambda d: d["text"])
     print(data[0])
     print(data[1])
@@ -170,27 +180,27 @@ def test_train_flow(dbsession, monkeypatch, tmp_path):
     assert data[1] == {"text": "item 1 text", "labels": {"IsTall": -1}}
     assert len(data) == 20
 
-    config = load_json(os.path.join(model_dir, "config.json"))
+    config = load_json(os.path.join(model_dir, "config.json"), data_store=data_store)
     assert config is not None
     assert config["train_config"] is not None
 
     # Part 2. Train model.
     train_model(model_dir, train_fn=stub_train_fn)
 
-    data_parser_results = load_json(_get_data_parser_fname(model_dir))
+    data_parser_results = load_json(_get_data_parser_fname(model_dir), data_store=data_store)
     assert data_parser_results["problem_type"] == BINARY_CLASSIFICATION
 
-    metrics = load_json(_get_metrics_fname(model_dir))
+    metrics = load_json(_get_metrics_fname(model_dir), data_store=data_store)
     assert metrics["test"] is not None
     assert metrics["train"] is not None
 
     # Part 3. Post-training Inference.
     f = tmp_path / "tmp_file_for_inference.jsonl"
-    save_jsonl(str(f), [{"text": "hello"}, {"text": "world"}])
+    save_jsonl(str(f), [{"text": "hello"}, {"text": "world"}], data_store=data_store)
 
-    inference(model_dir, str(f), build_model_fn=stub_build_fn, generate_plots=False)
+    inference(model_dir, str(f), build_model_fn=stub_build_fn, generate_plots=False, data_store=data_store)
 
-    ir = InferenceResults.load(_get_inference_fname(model_dir, str(f)))
+    ir = InferenceResults.load(_get_inference_fname(model_dir, str(f)), data_store=data_store)
     assert np.isclose(ir.probs, [0.7411514, 0.7411514]).all()
 
     # Part 4. New data update, run inference on the new data.
@@ -203,6 +213,7 @@ def test_train_flow(dbsession, monkeypatch, tmp_path):
             {"text": "newline_1"},
             {"text": "newline_2"},
         ],
+        data_store=data_store
     )
 
     class Mock_DatasetStorageManager:
@@ -212,20 +223,21 @@ def test_train_flow(dbsession, monkeypatch, tmp_path):
 
     mock_dsm = Mock_DatasetStorageManager()
 
-    inference_cache = build_inference_cache(model_dir, mock_dsm)
+    inference_cache = build_inference_cache(model_dir, dsm=mock_dsm, data_store=data_store)
     model, _ = inference(
         model_dir,
         str(f2),
         build_model_fn=stub_build_fn,
         generate_plots=False,
         inference_cache=inference_cache,
+        data_store=data_store
     )
 
     assert model.history == [
         ["newline_1", "newline_2"]
     ], "Model should have only been ran on the new lines"
 
-    ir2 = InferenceResults.load(_get_inference_fname(model_dir, str(f2)))
+    ir2 = InferenceResults.load(_get_inference_fname(model_dir, str(f2)), data_store=data_store)
     assert len(ir2.probs) == 4, "Inference should have 4 elements"
     assert ir.probs[:2] == ir2.probs[:2], "Result on the same items should be the same"
 

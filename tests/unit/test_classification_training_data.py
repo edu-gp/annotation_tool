@@ -2,7 +2,7 @@ import os
 
 from alchemy.db.fs import filestore_base_dir
 from alchemy.db.model import ClassificationAnnotation, ClassificationTrainingData, User
-from alchemy.shared.utils import load_jsonl
+from alchemy.shared.file_adapters import load_jsonl
 
 ENTITY_TYPE = "Foo"
 LABEL = "MyLabel"
@@ -59,6 +59,10 @@ def _populate_db_manual(dbsession, weight=1):
 
 
 def test_create_for_label(dbsession, monkeypatch, tmp_path):
+    data_store = 'cloud'
+    monkeypatch.setenv("STORAGE_BACKEND", data_store)
+    if data_store == 'cloud':
+        tmp_path = '__filestore'
     monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
 
     _populate_db_manual(dbsession)
@@ -67,10 +71,10 @@ def test_create_for_label(dbsession, monkeypatch, tmp_path):
         return f"text for {entity_name}"
 
     data = ClassificationTrainingData.create_for_label(
-        dbsession, ENTITY_TYPE, LABEL, entity_text_lookup_fn
+        dbsession, ENTITY_TYPE, LABEL, entity_text_lookup_fn, data_store=data_store
     )
 
-    data = data.load_data(to_df=False)
+    data = data.load_data(to_df=False, data_store=data_store)
     data = sorted(data, key=lambda x: x["text"])
     assert data[0] == {"text": "text for A", "labels": {LABEL: 1}}
     assert data[1] == {"text": "text for B", "labels": {LABEL: -1}}
@@ -104,6 +108,10 @@ def _populate_db_variable(dbsession, n_users, n_entities):
 
 
 def test_create_for_label_load_test(dbsession, monkeypatch, tmp_path):
+    data_store = 'cloud'
+    monkeypatch.setenv("STORAGE_BACKEND", data_store)
+    if data_store == 'cloud':
+        tmp_path = '__filestore'
     monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
 
     # Load testing:
@@ -132,13 +140,13 @@ def test_create_for_label_load_test(dbsession, monkeypatch, tmp_path):
         return f"text for {entity_name}"
 
     data = ClassificationTrainingData.create_for_label(
-        dbsession, ENTITY_TYPE, LABEL, entity_text_lookup_fn
+        dbsession, ENTITY_TYPE, LABEL, entity_text_lookup_fn, data_store=data_store
     )
 
     print("Time to export data", time.time() - et)
 
     p = os.path.join(filestore_base_dir(), data.path())
-    res = load_jsonl(p, to_df=False)
+    res = load_jsonl(p, to_df=False, data_store=data_store)
     assert len(res) == n_entities
 
     # Assert False at the end to see the print statements.

@@ -1,14 +1,19 @@
 import json
-import os
 
 from alchemy.db.model import _raw_data_file_path, db
-from alchemy.shared.utils import load_jsonl
-from tests.fixtures import admin_server_client
-from tests.utils import create_example_model
+from alchemy.shared.file_adapters import load_jsonl
+from tests.fixtures import admin_server_client  # noqa
+from tests.utils import create_example_model, assert_file_exists
 
 
-def test_export_new_raw_data(admin_server_client):
-    ctx = create_example_model(db.session)
+def test_export_new_raw_data(monkeypatch, admin_server_client, tmp_path):
+    data_store = 'cloud'
+    monkeypatch.setenv("STORAGE_BACKEND", data_store)
+    if data_store == 'cloud':
+        tmp_path = '__filestore'
+    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
+
+    ctx = create_example_model(db.session, cloud=(data_store == 'cloud'))
 
     from alchemy.db.model import Model
 
@@ -32,7 +37,7 @@ def test_export_new_raw_data(admin_server_client):
     assert response.get_json()["error"] is None
 
     output_path = _raw_data_file_path("blah.jsonl")
-    assert os.path.isfile(output_path)
+    assert_file_exists(output_path, local=(data_store == 'local'), cloud=(data_store == 'cloud'))
 
-    df = load_jsonl(output_path)
+    df = load_jsonl(output_path, data_store=data_store)
     assert len(df) == 2

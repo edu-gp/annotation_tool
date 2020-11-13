@@ -1,26 +1,26 @@
 import json
 import os
-import pathlib
 from pathlib import Path
 
 import numpy as np
 from envparse import env
+from google.cloud import storage
 from numpy import save
 
+from alchemy.db.fs import bucket
 from alchemy.db.model import Task, TextClassificationModel
+from alchemy.shared.file_adapters import file_exists, save_json
 from alchemy.shared.utils import stem
 
 
-def fake_train_model(model, filestore_base_dir):
+def fake_train_model(model, filestore_base_dir, data_store):
     metrics_fname = os.path.join(
         filestore_base_dir, "models", model.uuid, str(model.version), "metrics.json"
     )
-    os.makedirs(os.path.dirname(metrics_fname), exist_ok=True)
-    with open(metrics_fname, "w") as f:
-        f.write(json.dumps({"accuracy": 0.95}))
+    save_json(metrics_fname, data={"accuracy": 0.95}, data_store=data_store)
 
 
-def create_example_model(dbsession):
+def create_example_model(dbsession, cloud):
     root_dir = env('ALCHEMY_FILESTORE_DIR', cast=Path)
 
     # Create mock files
@@ -30,7 +30,7 @@ def create_example_model(dbsession):
 
     # Save the data file
     d = root_dir / "raw_data"
-    d.mkdir(parents=True)
+    d.mkdir(parents=True, exist_ok=True)
 
     p = d / data_fname
 
@@ -39,11 +39,16 @@ def create_example_model(dbsession):
         {"text": "bonjour", "meta": {"domain": "b.com", "name": "b"}},
         {"text": "nihao", "meta": {"domain": "c.com", "name": "c"}},
     ]
-    p.write_text("\n".join([json.dumps(t) for t in _raw_text]))
+    _raw_text_str = "\n".join([json.dumps(t) for t in _raw_text])
+    if cloud:
+        blob = storage.Blob(str(p), bucket())
+        blob.upload_from_string(_raw_text_str)
+    else:
+        p.write_text(_raw_text_str)
 
     # Save the predictions
     d = root_dir / "models" / model_uuid / str(version) / "inference"
-    d.mkdir(parents=True)
+    d.mkdir(parents=True, exist_ok=True)
 
     p = d / f"{stem(data_fname)}.pred.npy"
     raw_results = np.array(
@@ -54,6 +59,9 @@ def create_example_model(dbsession):
         ]
     )
     save(p, raw_results)
+    if cloud:
+        blob = storage.Blob(str(p), bucket())
+        blob.upload_from_filename(p)
 
     # A Task has a Model.
     task = Task(name="mytask", default_params={"data_filenames": [data_fname]})
@@ -67,13 +75,6 @@ def create_example_model(dbsession):
 
 def assert_file_exists(filename, local=True, cloud=False):
     if local:
-        if not isinstance(filename, pathlib.Path):
-            file = pathlib.Path(filename)
-        else:
-            file = filename
-        assert file.exists()
+        assert file_exists(filename, data_store='local')
     if cloud:
-        from google.cloud import storage
-        from alchemy.db.fs import bucket
-        blob = storage.Blob(filename, bucket())
-        assert blob.exists()
+        assert file_exists(filename, data_store='cloud')

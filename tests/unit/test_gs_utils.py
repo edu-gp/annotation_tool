@@ -1,6 +1,7 @@
 import os
+from pathlib import Path
 
-from alchemy.shared.utils import save_jsonl
+from alchemy.shared.file_adapters import save_jsonl
 from alchemy.train.gs_utils import (
     _get_topic_name_on_stage,
     build_prod_inference_dataframe,
@@ -8,18 +9,24 @@ from alchemy.train.gs_utils import (
 from alchemy.train.no_deps.inference_results import InferenceResults
 
 
-def test_build_prod_inference_dataframe(tmp_path):
+def test_build_prod_inference_dataframe(monkeypatch, tmp_path):
+    data_store = 'cloud'
+    monkeypatch.setenv("STORAGE_BACKEND", data_store)
+    if data_store == 'cloud':
+        tmp_path = Path('__filestore')
+    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
+
     pred_path = str(tmp_path / "valid.npy")
-    InferenceResults([[20, 20], [-10, 20]]).save(pred_path)
+    InferenceResults([[20, 20], [-10, 20]], data_store=data_store).save(pred_path)
 
     raw_path = str(tmp_path / "raw.jsonl")
     data = [
         {"text": "hello world", "meta": {"domain": "a.com", "name": "Entity A"}},
         {"text": "goodbye world", "meta": {"domain": "z.com", "name": "Entity Z"}},
     ]
-    save_jsonl(raw_path, data)
+    save_jsonl(raw_path, data, data_store=data_store)
 
-    df = build_prod_inference_dataframe(pred_path, raw_path, 0.9)
+    df = build_prod_inference_dataframe(pred_path, raw_path, 0.9, data_store=data_store)
 
     assert df.iloc[0]["text"] == "hello world"
     assert df.iloc[0]["meta_domain"] == "a.com"

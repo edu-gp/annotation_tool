@@ -66,6 +66,10 @@ def test_get_or_create(dbsession):
 
 
 def test_is_ready(dbsession, monkeypatch, tmp_path):
+    data_store = 'cloud'
+    monkeypatch.setenv("STORAGE_BACKEND", data_store)
+    if data_store == 'cloud':
+        tmp_path = '__filestore'
     monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
 
     model = TextClassificationModel(uuid="123", version=1)
@@ -73,8 +77,8 @@ def test_is_ready(dbsession, monkeypatch, tmp_path):
     dbsession.commit()
     dbsession.refresh(model)
 
-    assert model.is_ready() is False
+    assert model.is_ready(data_store=data_store) is False
 
-    fake_train_model(model, str(tmp_path))
+    fake_train_model(model, str(tmp_path), data_store=data_store)
 
-    assert model.is_ready() is True
+    assert model.is_ready(data_store=data_store) is True
