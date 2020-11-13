@@ -1,10 +1,12 @@
 import json
 import os
+import pathlib
 import shlex
 import subprocess
 
 import numpy as np
 import pandas as pd
+from google.cloud import storage
 from scipy.special import softmax
 from sklearn.model_selection import train_test_split
 
@@ -166,12 +168,12 @@ def run_cmd(cmd: str):
     # check=True makes this function raise an Exception if the command fails.
     try:
         output = subprocess.run(shlex.split(cmd), check=True, capture_output=True)
-        print("stdout:", output.stdout)
-        print("stderr:", output.stderr)
+        print("stdout:", str(output.stdout, encoding='utf-8'))
+        print("stderr:", str(output.stderr, encoding='utf-8'))
         return output
     except subprocess.CalledProcessError as e:
-        print("stdout:", e.stdout)
-        print("stderr:", e.stderr)
+        print("stdout:", str(e.stdout, encoding='utf-8'))
+        print("stderr:", str(e.stderr, encoding='utf-8'))
         raise
 
 
@@ -181,25 +183,33 @@ def gs_copy_dir(src_dir, dst_dir, rsync_args=""):
 
 
 def gs_copy_file(fname, dst, no_clobber=True):
-    if no_clobber:
-        # -n : No-clobber. When specified, existing files or objects at the destination will not be overwritten.
-        run_cmd(f"gsutil cp -n {fname} {dst}")
-    else:
-        # Overwrite existing
-        run_cmd(f"gsutil cp {fname} {dst}")
+    source_blob = destination_blob = None
+
+    client = storage.Client()
+    if fname.startswith('gs://'):
+        source_blob = storage.Blob.from_string(fname, client=client)
+    if dst.startswith('gs://'):
+        destination_blob = storage.Blob.from_string(dst, client=client)
+
+    if source_blob and destination_blob:
+        if no_clobber and destination_blob.exists():
+            return
+        source_blob.bucket.copy_blob(
+            blob=source_blob,
+            destination_bucket=destination_blob.bucket,
+            new_name=destination_blob.name,
+        )
+    elif destination_blob and not source_blob:
+        if no_clobber and destination_blob.exists():
+            return
+        destination_blob.upload_from_filename(fname)
+    elif source_blob and not destination_blob:
+        if no_clobber and pathlib.Path(dst).exists():
+            return
+        source_blob.download_to_filename(dst)
 
 
 def gs_exists(gs_url):
     """Check if gs_url points to a valid file we can access"""
-    # If gs_url is not accessible, the response could be one of:
-    #   1. "You aren't authorized to read ..."
-    #   2. "No URLs matched: ..."
-    # and it would have a non-0 status, which would be raised.
-    #
-    # Otherwise, it would return a bunch of information about the file,
-    # one of them being "Creation time".
-    try:
-        res = run_cmd(f"gsutil stat {gs_url}")
-        return "Creation time:" in res.stdout.decode("utf-8")
-    except subprocess.CalledProcessError:
-        return False
+    b = storage.Blob.from_string(gs_url, client=storage.Client())
+    return b.exists()
