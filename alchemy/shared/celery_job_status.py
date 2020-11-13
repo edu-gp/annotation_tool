@@ -1,7 +1,7 @@
-import os
 import time
 
 import redis
+from envparse import env
 
 
 # Don't use enum here because it's easier to serialize and compare strings.
@@ -14,7 +14,7 @@ class JobStatus:
 
 
 def get_redis():
-    redis_url = os.getenv("CELERY_BROKER_URL", f"redis://localhost:6379/0")
+    redis_url = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")
     return redis.Redis.from_url(redis_url)
 
 

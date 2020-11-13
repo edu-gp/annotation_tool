@@ -1,8 +1,8 @@
 import logging
-import os
 import time
 
 from celery import Celery
+from envparse import env
 
 from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import Database, ModelDeploymentConfig, TextClassificationModel
@@ -19,7 +19,7 @@ app = Celery(
     # module name
     "train_celery",
     # redis://:password@hostname:port/db_number
-    broker=os.getenv("CELERY_BROKER_URL", f"redis://localhost:6379/0"),
+    broker=env("CELERY_BROKER_URL", default="redis://localhost:6379/0"),
     # # store the results here
     # backend='redis://localhost:6379/0',
 )
