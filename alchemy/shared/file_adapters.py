@@ -38,7 +38,7 @@ def listdir(dirname, data_store):
     if data_store == 'local':
         return os.listdir(dirname)
     elif data_store == 'cloud':
-        client = storage.client.Client()
+        client = storage.Client()
         return [blob.name for blob in
                 client.list_blobs(bucket(), prefix=dirname)
                 if blob.name != dirname]
@@ -46,7 +46,7 @@ def listdir(dirname, data_store):
         raise ValueError(f"Invalid data store {data_store}")
 
 
-def load_json(fname, data_store):
+def load_text_file(fname: str, data_store: str) -> str:
     if not file_exists(fname, data_store=data_store):
         return None
     if data_store == 'local':
@@ -58,13 +58,10 @@ def load_json(fname, data_store):
     else:
         raise ValueError(f"Invalid data store {data_store}")
 
-    return json.loads(content)
+    return content
 
 
-def save_json(fname, data, data_store, **metadata):
-    assert fname.endswith(".json")
-    content = json.dumps(data)
-
+def save_text_file(fname, content, data_store, **metadata):
     if data_store == 'local':
         if not isinstance(fname, Path):
             fname = Path(fname)
@@ -80,6 +77,21 @@ def save_json(fname, data, data_store, **metadata):
         blob.upload_from_string(content)
     else:
         raise ValueError(f"Invalid data store {data_store}")
+
+
+def load_json(fname, data_store):
+    if not file_exists(fname, data_store=data_store):
+        return None
+    content = load_text_file(fname, data_store)
+
+    return json.loads(content)
+
+
+def save_json(fname, data, data_store, **metadata):
+    assert fname.endswith(".json")
+    content = json.dumps(data)
+
+    save_text_file(fname=fname, content=content, data_store=data_store, **metadata)
 
 
 def load_jsonl(jsonl_fname, data_store, to_df=True):
@@ -104,7 +116,6 @@ def load_jsonl(jsonl_fname, data_store, to_df=True):
 
 
 def save_jsonl(fname, data, data_store, remove_local=False, **metadata):
-    print(f"Saving jsonl fname={fname} remove_local={remove_local} metadata={metadata}")
     assert fname.endswith(".jsonl")
 
     if '/' in fname:
@@ -126,3 +137,17 @@ def save_jsonl(fname, data, data_store, remove_local=False, **metadata):
         blob.upload_from_filename(fname)
         if remove_local:
             os.remove(fname)
+
+
+def copy_file(src, dst, data_store):
+    if data_store == 'local':
+        import shutil
+        shutil.copyfile(src, dst)
+    elif data_store == 'cloud':
+        src_blob = _get_blob(src)
+        dst_blob = _get_blob(dst)
+        src_blob.bucket.copy_blob(
+            blob=src_blob,
+            destination_bucket=dst_blob.bucket,
+            new_name=dst_blob.name
+        )
