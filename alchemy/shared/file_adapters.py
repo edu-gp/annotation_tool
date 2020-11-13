@@ -9,8 +9,6 @@ from alchemy.db.fs import bucket
 
 
 def _get_blob(fname):
-    # if fname[0] == '/':
-    #     fname = 'test/' + fname[1:]
     blob = storage.Blob(fname, bucket=bucket())
     return blob
 
