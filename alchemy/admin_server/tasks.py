@@ -283,6 +283,8 @@ def update(id):
 
 @bp.route("/<string:id>/assign", methods=["POST"])
 def assign(id):
+    data_store = env('STORAGE_BACKEND')
+
     max_per_annotator = env.int("ANNOTATION_TOOL_MAX_PER_ANNOTATOR", default=100)
     max_per_dp = env.int("ANNOTATION_TOOL_MAX_PER_DP", default=3)
     entity_type = request.form.get("entity_type")
@@ -296,6 +298,7 @@ def assign(id):
         max_per_annotator=max_per_annotator,
         max_per_dp=max_per_dp,
         entity_type=entity_type,
+        data_store=data_store,
     )
     celery_id = str(async_result)
     # Touching Redis, no need to change anything.
@@ -305,6 +308,8 @@ def assign(id):
 
 @bp.route("/<string:id>/train", methods=["POST"])
 def train(id):
+    data_store = env('STORAGE_BACKEND')
+
     task = db.session.query(Task).filter_by(id=id).one_or_none()
 
     label = request.form["label"]
@@ -316,7 +321,7 @@ def train(id):
 
     if env.bool("GOOGLE_AI_PLATFORM_ENABLED", default=False):
         async_result = submit_gcp_training.delay(
-            label, raw_file_path, entity_type=task.get_entity_type()
+            label, raw_file_path, entity_type=task.get_entity_type(), data_store=data_store
         )
     else:
         assert (
@@ -338,6 +343,8 @@ def download_training_data():
 
 @bp.route("/download_prediction", methods=["POST"])
 def download_prediction():
+    data_store = env('STORAGE_BACKEND')
+
     model_id = int(request.form["model_id"])
     fname = request.form["fname"]
     entity_type = request.form["entity_type"]
@@ -347,7 +354,7 @@ def download_prediction():
     if model is not None:
         # --- 1. Get the model inference file ---
         label = model.label or "UNK_LABEL"
-        df = model.export_inference(fname, include_text=True)
+        df = model.export_inference(fname, include_text=True, data_store=data_store)
 
         # --- 2. Merge it with the existing annotations from all users ---
         # This makes it easier to QA the model.

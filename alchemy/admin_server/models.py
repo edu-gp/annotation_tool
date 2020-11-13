@@ -2,6 +2,7 @@ import logging
 from dataclasses import dataclass
 from typing import List
 
+from envparse import env
 from flask import Blueprint, jsonify, redirect, render_template, request
 from sqlalchemy import desc, func
 from sqlalchemy.exc import DatabaseError
@@ -49,6 +50,8 @@ def get_request_data():
 
 @bp.route("export_new_raw_data", methods=["POST"])
 def export_new_raw_data():
+    data_store = env('STORAGE_BACKEND')
+
     data = get_request_data()
 
     model_id = int(data.get("model_id"))
@@ -67,7 +70,7 @@ def export_new_raw_data():
 
         model = db.session.query(Model).filter_by(id=model_id).one_or_none()
         output_path = _export_new_raw_data(
-            model, data_fname, output_fname, cutoff=cutoff
+            model, data_fname, output_fname, cutoff=cutoff, data_store=data_store
         )
         resp["message"] = f"Successfully created raw data: {output_path}"
     except Exception as e:
@@ -126,7 +129,9 @@ def update_model_deployment_config():
 
 @bp.route("/", methods=["GET"])
 def index():
-    data_row_per_label = _collect_model_data_rows()
+    data_store = env('STORAGE_BACKEND')
+
+    data_row_per_label = _collect_model_data_rows(data_store=data_store)
     users = db.session.query(User.id, User.username).all()
     return render_template(
         "models/index.html", data_rows=data_row_per_label, users=users

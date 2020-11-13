@@ -51,7 +51,7 @@ def training_data_dir(base: Optional[PathT] = None, as_path: bool = False) -> Pa
 
 
 def bucket_name():
-    return 'alchemy-staging'
+    return env('GCS_BUCKET_NAME', default='alchemy-staging')
 
 
 def bucket():

@@ -10,6 +10,7 @@ from datetime import datetime
 
 import flask
 import torch
+from envparse import env
 from flask import jsonify
 from simpletransformers.classification import ClassificationModel
 
@@ -109,8 +110,10 @@ app = flask.Flask(__name__)
 def ping():
     """Determine if the container is working and healthy. In this sample container, we declare
     it healthy if we can load the model successfully."""
+    data_store = env('STORAGE_BACKEND')
+
     health = (
-        ScoringService.get_model(data_store='local') is not None  # TODO: cloud/local blah blah
+        ScoringService.get_model(data_store=data_store) is not None
     )  # You can insert a health check here
 
     status = 200 if health else 404
@@ -124,6 +127,7 @@ def transformation():
     just means one prediction per line, since there's a single column.
     """
     # create_a_dummy_sklearn_model()
+    data_store = env('STORAGE_BACKEND')
     request_id = str(uuid.uuid4())
 
     data = None
@@ -142,7 +146,7 @@ def transformation():
         )
 
     # Do the prediction
-    labels_pred, scores_pred = ScoringService.predict(data, data_store='local')  # TODO: local/cloud based on blah blah
+    labels_pred, scores_pred = ScoringService.predict(data, data_store=data_store)
     predictions = {
         "labels": labels_pred.tolist(),
         "scores": [scores.tolist()[0] for scores in scores_pred],
