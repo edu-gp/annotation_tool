@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from .utils import gs_copy_file, run_cmd
+from .utils import gs_copy_file, gs_copy_dir
 
 
 class ModelStorageManager:
@@ -28,7 +28,7 @@ class ModelStorageManager:
 
     def upload(self):
         """Upload the entire model folder, only contents that have changed"""
-        run_cmd(f"gsutil -m rsync -r {self.local_dir} {self.remote_dir}")
+        gs_copy_dir(self.local_dir, self.remote_dir)
 
     def download(self, include_weights=True):
         """Download a model from cloud to local storage.
@@ -38,9 +38,10 @@ class ModelStorageManager:
         src = self.remote_dir
         dst = self.local_dir
         if include_weights:
-            run_cmd(f"gsutil -m rsync -r {src} {dst}")
+            rsync_args = ''
         else:
-            run_cmd(f'gsutil -m rsync -x "model" -r {src} {dst}')
+            rsync_args = '-x "model"'
+        gs_copy_dir(src, dst, rsync_args=rsync_args)
 
 
 class DatasetStorageManager:
