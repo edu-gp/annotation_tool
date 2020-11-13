@@ -3,7 +3,6 @@ This file is designed to have minimal dependency on the rest of the codebase,
 so we can use it for distributed model training.
 """
 
-import json
 import os
 import re
 from pathlib import Path
@@ -26,22 +25,12 @@ from .storage_manager import DatasetStorageManager
 from .transformers_textcat import build_model, evaluate_model, train
 from .utils import (
     BINARY_CLASSIFICATION, load_original_data_text,
-    _load_config, _prepare_data
+    _prepare_data, load_json, save_json
 )
 
 
-def save_json(fname, data):
-    assert fname.endswith(".json")
-    with open(fname, "w") as outfile:
-        json.dump(data, outfile)
-
-
-def load_json(fname):
-    with open(fname) as f:
-        return json.loads(f.read())
-
-
-def _model_exists(version_dir):
+def _model_exists(version_dir, data_store='local'):
+    assert data_store == 'local'
     # Metrics is the last thing the model computes.
     # If this is exists, it means the model has finished training.
     metrics_fname = _get_metrics_fname(version_dir)
@@ -82,7 +71,7 @@ def train_model(version_dir, train_fn=None, force_retrain=False):
     if train_fn is None:
         train_fn = train
 
-    config = _load_config(config_fname)
+    config = load_json(config_fname, data_store='local')
     train_config = config["train_config"]
     # Depending on where we're training the model,
     # the output is relative to the version_dir.

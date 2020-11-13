@@ -94,21 +94,13 @@ def _parse_labels(data):
     return y, problem_type, class_order
 
 
-def _load_config(config_fname):
-    config = None
-    with open(config_fname) as f:
-        config = json.loads(f.read())
-    assert config, "Missing config"
-    return config
-
-
 def _prepare_data(config_fname, data_fname):
     """
     Inputs:
         config_name: Full path to the config json
         data_fname: Full path to the data jsonl
     """
-    config = _load_config(config_fname)
+    config = load_json(config_fname)
 
     data = []
     with open(data_fname) as f:
