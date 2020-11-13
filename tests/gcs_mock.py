@@ -2,6 +2,17 @@ import pathlib
 import tempfile
 
 
+class Bucket:
+    def __init__(self, name):
+        self.name = name
+
+    def copy_blob(self, blob, destination_bucket, new_name):
+        src = Blob.tmp_dir / self.name / blob.name
+        dst = Blob.tmp_dir / destination_bucket.name / new_name
+        import shutil
+        shutil.copyfile(str(src), str(dst))
+
+
 class Blob:
     tmp_dir = pathlib.Path(tempfile.gettempdir()) / 'test'
 
@@ -46,17 +57,16 @@ class Blob:
 
     @property
     def bucket(self):
-        class Bucket:
-            def __init__(self, name):
-                self.name = name
-
-            def copy_blob(self, blob, destination_bucket, new_name):
-                src = Blob.tmp_dir / self.name / blob.name
-                dst = Blob.tmp_dir / destination_bucket.name / new_name
-                import shutil
-                shutil.copyfile(str(src), str(dst))
-
         return Bucket(self._bucket.name)
+
+    @classmethod
+    def from_string(cls, string):
+        # string= gs://{bucket_name}/{name}
+        import re
+        matches = re.match(re.compile("gs://([^/]+)/(.+)"), string)
+        bucket_name = matches.group(1)
+        name = matches.group(2)
+        return cls(name, Bucket(bucket_name))
 
 
 class Client:
