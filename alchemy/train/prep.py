@@ -1,6 +1,4 @@
 import hashlib
-import os
-import shutil
 import time
 
 from envparse import env
@@ -10,7 +8,7 @@ from alchemy.db.model import (
     EntityTypeEnum,
     TextClassificationModel,
 )
-from alchemy.shared.utils import save_json
+from alchemy.shared.file_adapters import save_json, copy_file
 from alchemy.train.text_lookup import get_entity_text_lookup_function
 from .no_deps.paths import _get_config_fname, _get_exported_data_fname
 
@@ -38,7 +36,7 @@ def generate_config():
 
 
 def prepare_next_model_for_label(
-    dbsession, label, raw_file_path, entity_type=EntityTypeEnum.COMPANY
+    dbsession, label, raw_file_path, data_store, entity_type=EntityTypeEnum.COMPANY
 ) -> TextClassificationModel:
     """Exports the model and save config when the model is training it does
     not need access to the Task object.
@@ -51,11 +49,11 @@ def prepare_next_model_for_label(
     version = TextClassificationModel.get_next_version(dbsession, model_id)
 
     entity_text_lookup_fn = get_entity_text_lookup_function(
-        raw_file_path, "meta.domain", "text", entity_type
+        raw_file_path, "meta.domain", "text", entity_type, data_store=data_store
     )
 
     data = ClassificationTrainingData.create_for_label(
-        dbsession, entity_type, label, entity_text_lookup_fn
+        dbsession, entity_type, label, entity_text_lookup_fn, data_store=data_store
     )
 
     config = generate_config()
@@ -73,10 +71,9 @@ def prepare_next_model_for_label(
 
     # Build up the model_dir
     model_dir = model.dir
-    os.makedirs(model_dir, exist_ok=True)
     # Save config
-    save_json(_get_config_fname(model_dir), config)
+    save_json(_get_config_fname(model_dir), config, data_store=data_store)
     # Copy over data
-    shutil.copyfile(data.path(abs=True), _get_exported_data_fname(model_dir))
+    copy_file(data.path(abs=True), _get_exported_data_fname(model_dir), data_store=data_store)
 
     return model
