@@ -45,12 +45,11 @@ def gen_uuid():
     return str(uuid.uuid4())
 
 
-def file_len(fname):
+def file_len(fname, data_store):
     try:
-        with open(fname) as f:
-            for i, l in enumerate(f):
-                pass
-        return i + 1
+        from .file_adapters import load_text_file
+        file_lines = int(len(load_text_file(fname, data_store).split('\n')))
+        return file_lines
     except Exception as e:
         logging.error(e)
         return -1

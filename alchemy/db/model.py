@@ -493,12 +493,12 @@ class Model(Base):
         version_dir = self.dir
         return load_inference(version_dir, fname, columns=cols, data_store=data_store)
 
-    def get_len_data(self):
+    def get_len_data(self, data_store):
         """Return how many datapoints were used to train this model.
         We measure the size of the file in the model directory, not to be
         confused with the file from a ClassificationTrainingData instance!
         """
-        return file_len(_get_exported_data_fname(self.dir))
+        return file_len(_get_exported_data_fname(self.dir), data_store)
 
     def compute_metrics(self, data_store: str, threshold: float = 0.5):
         """See train.no_deps.compute_metrics"""
