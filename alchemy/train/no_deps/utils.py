@@ -318,6 +318,13 @@ def load_file_numpy(filename, data_store='local', numpy_kwargs=dict()):
     return np.load(filename, **numpy_kwargs)
 
 
-def listdir(dirname, type='local'):
-    assert type == 'local'
-    return os.listdir(dirname)
+def listdir(dirname, data_store):
+    if data_store == 'local':
+        return os.listdir(dirname)
+    elif data_store == 'cloud':
+        client = storage.Client()
+        return [blob.name for blob in
+                client.list_blobs(storage.Bucket(storage.Client(), 'alchemy-staging'), prefix=dirname)
+                if blob.name != dirname]
+    else:
+        raise ValueError(f"Invalid data store {data_store}")
