@@ -360,8 +360,8 @@ class ClassificationTrainingData(Base):
         path = self.path(abs=True)
         return load_jsonl(path, to_df=to_df, data_store=data_store)
 
-    def length(self):
-        return file_len(self.path())
+    def length(self, data_store):
+        return file_len(self.path(), data_store=data_store)
 
 
 class ModelDeploymentConfig(Base):
