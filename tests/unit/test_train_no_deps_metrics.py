@@ -1,17 +1,18 @@
 import pandas as pd
 from pandas.testing import assert_series_equal
 
-from alchemy.shared.utils import save_json, save_jsonl
+from alchemy.shared.file_adapters import save_json, save_jsonl
 from alchemy.train.no_deps.metrics import compute_metrics
 from alchemy.train.no_deps.paths import _get_config_fname, _get_exported_data_fname
 
-
-def _setup(tmpdir):
+data_store = 'local'
+def _setup(monkeypatch, tmpdir):
     # Note: See test_train_no_deps_run:test__compute_metrics to see how
     # train & test sets are split.
 
     config_fname = _get_config_fname(tmpdir)
     data_fname = _get_exported_data_fname(tmpdir)
+    monkeypatch.setenv("STORAGE_BACKEND", data_store)
 
     save_json(
         config_fname,
@@ -26,6 +27,7 @@ def _setup(tmpdir):
                 "train_batch_size": 8,
             },
         },
+        data_store=data_store
     )
     save_jsonl(
         data_fname,
@@ -39,11 +41,12 @@ def _setup(tmpdir):
             {"text": "no3", "labels": {"foo": -1}},
             {"text": "no4", "labels": {"foo": -1}},
         ],
+        data_store = data_store
     )
 
 
-def test__compute_metrics(tmpdir):
-    _setup(tmpdir)
+def test__compute_metrics(monkeypatch, tmpdir):
+    _setup(monkeypatch, tmpdir)
 
     df = pd.DataFrame(
         [
@@ -58,7 +61,7 @@ def test__compute_metrics(tmpdir):
         ]
     )
 
-    metrics = compute_metrics(tmpdir, df, threshold=0.5)
+    metrics = compute_metrics(tmpdir, df, data_store=data_store, threshold=0.5)
 
     assert metrics == {
         "train": {
@@ -87,8 +90,8 @@ def test__compute_metrics(tmpdir):
     }
 
 
-def test__compute_metrics__with_threshold(tmpdir):
-    _setup(tmpdir)
+def test__compute_metrics__with_threshold(monkeypatch, tmpdir):
+    _setup(monkeypatch, tmpdir)
 
     df = pd.DataFrame(
         [
@@ -103,7 +106,7 @@ def test__compute_metrics__with_threshold(tmpdir):
         ]
     )
 
-    metrics = compute_metrics(tmpdir, df, threshold=0.85)
+    metrics = compute_metrics(tmpdir, df, data_store=data_store, threshold=0.85)
 
     # Use `assert_series_equal` for float equality barring numerical errors.
     assert_series_equal(
@@ -139,8 +142,8 @@ def test__compute_metrics__with_threshold(tmpdir):
     )
 
 
-def test__compute_metrics__invalid_lookup(tmpdir):
-    _setup(tmpdir)
+def test__compute_metrics__invalid_lookup(monkeypatch, tmpdir):
+    _setup(monkeypatch, tmpdir)
 
     df = pd.DataFrame(
         [
@@ -156,7 +159,7 @@ def test__compute_metrics__invalid_lookup(tmpdir):
         ]
     )
 
-    metrics = compute_metrics(tmpdir, df, threshold=0.5)
+    metrics = compute_metrics(tmpdir, df, data_store=data_store, threshold=0.5)
 
     assert metrics == {
         "train": {
@@ -185,8 +188,8 @@ def test__compute_metrics__invalid_lookup(tmpdir):
     }
 
 
-def test__compute_metrics__invalid_lookup_2(tmpdir):
-    _setup(tmpdir)
+def test__compute_metrics__invalid_lookup_2(monkeypatch, tmpdir):
+    _setup(monkeypatch, tmpdir)
 
     df = pd.DataFrame(
         [
@@ -205,7 +208,7 @@ def test__compute_metrics__invalid_lookup_2(tmpdir):
         ]
     )
 
-    metrics = compute_metrics(tmpdir, df, threshold=0.5)
+    metrics = compute_metrics(tmpdir, df, data_store=data_store, threshold=0.5)
 
     assert metrics == {
         "train": {
@@ -234,14 +237,14 @@ def test__compute_metrics__invalid_lookup_2(tmpdir):
     }
 
 
-def test__compute_metrics__sensible_defaults(tmpdir):
-    _setup(tmpdir)
+def test__compute_metrics__sensible_defaults(monkeypatch, tmpdir):
+    _setup(monkeypatch, tmpdir)
 
     # We cannot find inference for any data points, in this case the metrics
     # should fall back to sensible defaults.
     df = pd.DataFrame([{"text": "blah", "probs": 0.5}])
 
-    metrics = compute_metrics(tmpdir, df, threshold=0.5)
+    metrics = compute_metrics(tmpdir, df, data_store=data_store, threshold=0.5)
 
     # Use assert_series_equal to compare nan's
     assert_series_equal(

@@ -1,11 +1,13 @@
-from alchemy.shared.utils import save_json, save_jsonl
+from alchemy.shared.file_adapters import save_json, save_jsonl
 from alchemy.train.no_deps.paths import _get_config_fname, _get_exported_data_fname
 from alchemy.train.no_deps.utils import BINARY_CLASSIFICATION, _prepare_data
 
 
-def test__prepare_data(tmpdir):
+def test__prepare_data(monkeypatch, tmpdir):
     config_fname = _get_config_fname(tmpdir)
     data_fname = _get_exported_data_fname(tmpdir)
+    data_store = 'local'
+    monkeypatch.setenv("STORAGE_BACKEND", data_store)
 
     save_json(
         config_fname,
@@ -19,7 +21,7 @@ def test__prepare_data(tmpdir):
                 "max_seq_length": 512,
                 "train_batch_size": 8,
             },
-        },
+        }, data_store=data_store
     )
     save_jsonl(
         data_fname,
@@ -32,11 +34,11 @@ def test__prepare_data(tmpdir):
             {"text": "no2", "labels": {"foo": -1}},
             {"text": "no3", "labels": {"foo": -1}},
             {"text": "no4", "labels": {"foo": -1}},
-        ],
+        ], data_store=data_store
     )
 
     problem_type, class_order, X_train, y_train, X_test, y_test = _prepare_data(
-        config_fname, data_fname
+        config_fname, data_fname, data_store=data_store
     )
 
     assert problem_type == BINARY_CLASSIFICATION
@@ -47,12 +49,14 @@ def test__prepare_data(tmpdir):
     assert y_test == [1, 0, 1]
 
 
-def test__prepare_data_with_invalid_data(tmpdir):
+def test__prepare_data_with_invalid_data(monkeypatch, tmpdir):
     """By current design, _prepare_data is not responsible for checking the
     validity of the data; that should've been taken care of earlier.
     """
     config_fname = _get_config_fname(tmpdir)
     data_fname = _get_exported_data_fname(tmpdir)
+    data_store = 'local'
+    monkeypatch.setenv("STORAGE_BACKEND", data_store)
 
     save_json(
         config_fname,
@@ -66,7 +70,7 @@ def test__prepare_data_with_invalid_data(tmpdir):
                 "max_seq_length": 512,
                 "train_batch_size": 8,
             },
-        },
+        }, data_store=data_store
     )
     save_jsonl(
         data_fname,
@@ -79,11 +83,11 @@ def test__prepare_data_with_invalid_data(tmpdir):
             {"text": "", "labels": {"foo": -1}},
             {"text": "", "labels": {"foo": -1}},
             {"text": "", "labels": {"foo": -1}},
-        ],
+        ], data_store=data_store
     )
 
     problem_type, class_order, X_train, y_train, X_test, y_test = _prepare_data(
-        config_fname, data_fname
+        config_fname, data_fname, data_store=data_store
     )
 
     assert problem_type == BINARY_CLASSIFICATION

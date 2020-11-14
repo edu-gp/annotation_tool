@@ -185,7 +185,7 @@ def test_train_flow(dbsession, monkeypatch, tmp_path):
     assert config["train_config"] is not None
 
     # Part 2. Train model.
-    train_model(model_dir, train_fn=stub_train_fn)
+    train_model(model_dir, data_store=data_store, train_fn=stub_train_fn)
 
     data_parser_results = load_json(_get_data_parser_fname(model_dir), data_store=data_store)
     assert data_parser_results["problem_type"] == BINARY_CLASSIFICATION
