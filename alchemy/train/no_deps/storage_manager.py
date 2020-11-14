@@ -1,7 +1,6 @@
-import os
 from pathlib import Path
 
-from .utils import gs_copy_file, gs_copy_dir
+from .utils import gs_copy_file, gs_copy_dir, file_exists
 
 
 class ModelStorageManager:
@@ -71,7 +70,11 @@ class DatasetStorageManager:
         gs_copy_file(local_path, remote_path, no_clobber=True)
 
         # Make sure it exists locally.
-        assert os.path.isfile(local_path), f"Missing dataset: {local_path}"
+        if local_path.startswith("gs://"):
+            data_store = 'cloud'
+        else:
+            data_store = 'local'
+        assert file_exists(local_path, data_store=data_store), f"Missing dataset: {local_path}"
 
     def download(self, dataset):
         # Make sure dataset is a file name, not a path.

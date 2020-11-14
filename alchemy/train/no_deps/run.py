@@ -3,7 +3,6 @@ This file is designed to have minimal dependency on the rest of the codebase,
 so we can use it for distributed model training.
 """
 
-import os
 import re
 from pathlib import Path
 
@@ -25,19 +24,18 @@ from .storage_manager import DatasetStorageManager
 from .transformers_textcat import build_model, evaluate_model, train
 from .utils import (
     BINARY_CLASSIFICATION, load_original_data_text,
-    _prepare_data, load_json, save_json
+    _prepare_data, load_json, save_json, file_exists
 )
 
 
-def _model_exists(version_dir, data_store='local'):
-    assert data_store == 'local'
+def _model_exists(version_dir, data_store):
     # Metrics is the last thing the model computes.
     # If this is exists, it means the model has finished training.
     metrics_fname = _get_metrics_fname(version_dir)
-    return os.path.isfile(metrics_fname)
+    return file_exists(metrics_fname, data_store)
 
 
-def train_model(version_dir, train_fn=None, force_retrain=False):
+def train_model(version_dir, data_store, train_fn=None, force_retrain=False):
     """Train model and store model assets and evaluation metrics.
     See: prep.py:prepare_next_model_for_label to see what is in version_dir.
     """
@@ -52,7 +50,7 @@ def train_model(version_dir, train_fn=None, force_retrain=False):
     metrics_fname = _get_metrics_fname(version_dir)
 
     problem_type, class_order, X_train, y_train, X_test, y_test = _prepare_data(
-        config_fname, data_fname
+        config_fname, data_fname, data_store=data_store
     )
 
     print(f"Detected problem type: {problem_type}")
@@ -71,7 +69,7 @@ def train_model(version_dir, train_fn=None, force_retrain=False):
     if train_fn is None:
         train_fn = train
 
-    config = load_json(config_fname, data_store='local')
+    config = load_json(config_fname, data_store=data_store)
     train_config = config["train_config"]
     # Depending on where we're training the model,
     # the output is relative to the version_dir.
@@ -89,11 +87,11 @@ def train_model(version_dir, train_fn=None, force_retrain=False):
     else:
         test_result = {}
 
-    save_json(metrics_fname, {"train": train_result, "test": test_result})
+    save_json(metrics_fname, {"train": train_result, "test": test_result}, data_store=data_store)
 
 
-def load_model(version_dir, build_model_fn=None):
-    config = load_json(_get_config_fname(version_dir))
+def load_model(version_dir, data_store, build_model_fn=None):
+    config = load_json(_get_config_fname(version_dir), data_store=data_store)
 
     # You can increase TRANSFORMER_EVAL_BATCH_SIZE for faster inference.
     config['train_config']['eval_batch_size'] = env.int(
@@ -108,15 +106,15 @@ def load_model(version_dir, build_model_fn=None):
     return model
 
 
-def plot_results(version_dir, fname, inference_results) -> None:
-    data_parser = load_json(_get_data_parser_fname(version_dir))
+def plot_results(version_dir, fname, inference_results, data_store) -> None:
+    data_parser = load_json(_get_data_parser_fname(version_dir), data_store=data_store)
 
     if data_parser["problem_type"] == BINARY_CLASSIFICATION:
         # Plot positive class for binary classification
         class_name = data_parser["class_order"][0]
         class_name = re.sub("[^0-9a-zA-Z]+", "_", class_name)
         outname = _get_inference_density_plot_fname(version_dir, fname, class_name)
-        _plot(outname, inference_results.probs, f"{class_name} : {Path(fname).name}")
+        _plot(outname, inference_results.probs, f"{class_name} : {Path(fname).name}", data_store=data_store)
     else:
         raise Exception("generate_plots only supports binary classification")
 
@@ -148,7 +146,7 @@ class InferenceCache:
 
 
 def build_inference_cache(
-    version_dir: str, dsm: DatasetStorageManager
+    version_dir: str, dsm: DatasetStorageManager, data_store
 ) -> InferenceCache:
     """Build an inference cache from the previous inference results by the
     model in version_dir on the files in fnames.
@@ -160,8 +158,8 @@ def build_inference_cache(
 
     for dataset in prev_inf_datasets:
         dataset_path = dsm.download(dataset)
-        text = load_original_data_text(dataset_path)
-        inf = InferenceResults.load(_get_inference_fname(version_dir, dataset_path))
+        text = load_original_data_text(dataset_path, data_store=data_store)
+        inf = InferenceResults.load(_get_inference_fname(version_dir, dataset_path), data_store=data_store)
 
         if text and inf:
             for x, y in zip(text, inf.raw):
@@ -174,6 +172,7 @@ def build_inference_cache(
 def inference(
     version_dir,
     dataset_local_path,
+    data_store,
     build_model_fn=None,
     generate_plots=True,
     inference_cache: InferenceCache = None,
@@ -186,10 +185,10 @@ def inference(
     Results will be stored in version_dir/inference
     """
 
-    model = load_model(version_dir, build_model_fn)
+    model = load_model(version_dir, build_model_fn=build_model_fn, data_store=data_store)
 
     # Run Inference on dataset
-    text = load_original_data_text(dataset_local_path)
+    text = load_original_data_text(dataset_local_path, data_store=data_store)
     if inference_cache:
         # If using the cache, we first pick out the elements not in cache
         # and send those for inference in batch.
@@ -212,13 +211,13 @@ def inference(
         # If not using the cache, we just predict on all text.
         _, raw = model.predict(text)
 
-    inference_results = InferenceResults(raw)
+    inference_results = InferenceResults(raw, data_store=data_store)
 
     # Make sure the output dir exists and save it
     inference_results.save(_get_inference_fname(version_dir, dataset_local_path))
 
     # Generate Plots
     if generate_plots:
-        plot_results(version_dir, dataset_local_path, inference_results)
+        plot_results(version_dir, dataset_local_path, inference_results, data_store=data_store)
 
     return model, inference_results

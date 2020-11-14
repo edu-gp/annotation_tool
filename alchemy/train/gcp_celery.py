@@ -22,7 +22,7 @@ TERMINAL_STATES = ["SUCCEEDED", "FAILED", "CANCELLED"]
 
 
 @app.task
-def poll_status(job_id: str, metadata_dict: Optional[dict] = None, poll_count: int = 0):
+def poll_status(job_id: str, data_store: str, metadata_dict: Optional[dict] = None, poll_count: int = 0):
     """
     Inputs:
         job_id: GoogleAIPlatformJob job id
@@ -44,7 +44,7 @@ def poll_status(job_id: str, metadata_dict: Optional[dict] = None, poll_count: i
 
         if job_state == "SUCCEEDED":
             logging.info(f"Done AI Platform job_id={job_id}")
-            on_job_success(job, metadata_dict)
+            on_job_success(job, data_store=data_store, metadata_dict=metadata_dict)
         elif poll_count > 60:
             # A job is taking too long. Try to cancel it.
             try:
@@ -57,15 +57,18 @@ def poll_status(job_id: str, metadata_dict: Optional[dict] = None, poll_count: i
 
         if job_state in RUNNING_STATES:
             # Check again in 60 seconds
-            poll_status.apply_async(
-                args=[job_id, metadata_dict, poll_count + 1], countdown=60
-            )
+            poll_status.apply_async(kwargs=dict(
+                    job_id=job_id,
+                    metadata_dict=metadata_dict,
+                    poll_count=poll_count+1,
+                    data_store=data_store,
+            ), countdown=60)
 
 
-def on_job_success(job: GoogleAIPlatformJob, metadata_dict: Optional[dict] = None):
+def on_job_success(job: GoogleAIPlatformJob, data_store, metadata_dict: Optional[dict] = None):
     # Sync down the model assets
     for md in job.get_model_defns():
-        msm = build_model_storage_manager(md.uuid, md.version)
+        msm = build_model_storage_manager(md.uuid, md.version, data_store=data_store)
         msm.download(include_weights=False)
     # Deploy inferences to prod as needed
     if metadata_dict:

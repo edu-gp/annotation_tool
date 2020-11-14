@@ -521,7 +521,7 @@ class Model(Base):
                 inf_lookup = pd.concat([inf_lookup, df], axis=0)
                 inf_lookup = inf_lookup.drop_duplicates(subset=["text"], keep="first")
 
-            metrics = _compute_metrics(version_dir, inf_lookup, threshold=threshold)
+            metrics = _compute_metrics(version_dir, inf_lookup, data_store=data_store, threshold=threshold)
             pickle.dump(metrics, open(metrics_path, "wb"))
 
         metrics = pickle.load(open(metrics_path, "rb"))

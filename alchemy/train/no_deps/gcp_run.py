@@ -17,11 +17,14 @@ def run(
         For all files in `infer_fnames`
             Run model inference on those files using bsize `eval_batch_size`
     """
+    data_store = 'local'
+
     print("Running Training & Inference")
     print(f"remote_model_dirs={remote_model_dirs}")
     print(f"infer_fnames={infer_fnames}")
     print(f"force_retrain={force_retrain}")
     print(f"eval_batch_size={eval_batch_size}")
+    print(f"data_store={data_store}")
 
     if isinstance(eval_batch_size, int):
         os.environ["TRANSFORMER_EVAL_BATCH_SIZE"] = str(eval_batch_size)
@@ -48,7 +51,7 @@ def run(
             # 2. Train model, if needed (unless force_retrain=True)
 
             # Train Model
-            train_model(msm.local_dir, force_retrain=force_retrain)
+            train_model(msm.local_dir, data_store=data_store, force_retrain=force_retrain)
 
             # Upload trained model
             msm.upload()
@@ -69,7 +72,7 @@ def run(
                     # Cache is not nessesary but makes inference on incremental
                     # data updates a lot faster.
                     if inference_cache is None:
-                        inference_cache = build_inference_cache(msm.local_dir, dsm, data_store='local')
+                        inference_cache = build_inference_cache(msm.local_dir, dsm, data_store=data_store)
 
                     # Run Inference - results saved in local_model_dir
                     # Note the inference_cache is updated for each new file.
@@ -77,7 +80,7 @@ def run(
                         msm.local_dir,
                         dataset_local_path,
                         inference_cache=inference_cache,
-                        data_store='local'
+                        data_store=data_store
                     )
 
             # Upload inference results

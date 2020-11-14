@@ -81,7 +81,7 @@ class InferenceMetrics:
         return stats, not_found
 
 
-def compute_metrics(version_dir, inference_lookup_df, threshold: float = 0.5):
+def compute_metrics(version_dir, inference_lookup_df, data_store, threshold: float = 0.5):
     """
     Inputs:
         version_dir: Directory of the model.
@@ -126,7 +126,7 @@ def compute_metrics(version_dir, inference_lookup_df, threshold: float = 0.5):
     config_fname = _get_config_fname(version_dir)
     data_fname = _get_exported_data_fname(version_dir)
 
-    _, _, X_train, y_train, X_test, y_test = _prepare_data(config_fname, data_fname)
+    _, _, X_train, y_train, X_test, y_test = _prepare_data(config_fname, data_fname, data_store=data_store)
 
     im = InferenceMetrics(inference_lookup_df)
 

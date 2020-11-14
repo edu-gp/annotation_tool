@@ -29,18 +29,17 @@ trainingInput:
 """
 
 import json
-import os
+import re
 import tempfile
 import uuid
-import re
-from envparse import env
 from collections import namedtuple
 from pathlib import Path
 from typing import List, Optional
 
-from alchemy.db.fs import raw_data_dir
-from alchemy.train import gs_url
+from envparse import env
 
+from alchemy.db.fs import raw_data_dir, bucket_name
+from alchemy.train import gs_url
 from .no_deps.storage_manager import DatasetStorageManager, ModelStorageManager
 from .no_deps.utils import run_cmd
 from .paths import get_model_dir
@@ -195,6 +194,7 @@ class GoogleAIPlatformJob:
 
 def submit_job(
     model_defns: List[ModelDefn],
+    data_store,
     files_for_inference: Optional[List[str]] = None,
     force_retrain: bool = False,
     submit_job_fn: callable = None,
@@ -208,12 +208,12 @@ def submit_job(
     print("Upload model assets for training")
     gcs_model_dirs = []
     for md in model_defns:
-        msm = build_model_storage_manager(md.uuid, md.version)
+        msm = build_model_storage_manager(md.uuid, md.version, data_store=data_store)
         msm.upload()
         gcs_model_dirs.append(msm.remote_dir)
 
     print("Sync data for inference")
-    dsm = build_dataset_storage_manager()
+    dsm = build_dataset_storage_manager(data_store=data_store)
     for dataset in datasets_for_inference:
         # Ensure each dataset exists locally _and_ on GCS.
         # TODO: We need datasets locally because later on we'll need it to
@@ -246,18 +246,32 @@ def __generate_job_id():
     return "t_" + str(uuid.uuid4()).replace("-", "_")
 
 
-def build_model_storage_manager(uuid, version) -> ModelStorageManager:
+def build_model_storage_manager(uuid, version, data_store) -> ModelStorageManager:
     """Factory function"""
     remote_model_dir = gs_url.build_model_dir(uuid, version)
     local_model_dir = get_model_dir(uuid, version)
-    return ModelStorageManager(remote_model_dir, local_model_dir)
+    if data_store == 'local':
+        local_model_uri = local_model_dir
+    elif data_store == 'cloud':
+        local_model_uri = f'gs://{bucket_name()}/{local_model_dir}'
+    else:
+        raise ValueError(f"Invalid data store {data_store}")
+    return ModelStorageManager(remote_model_dir, local_model_uri)
 
 
-def build_dataset_storage_manager() -> DatasetStorageManager:
+def build_dataset_storage_manager(data_store) -> DatasetStorageManager:
     """Factory function"""
     remote_data_dir = gs_url.build_raw_data_dir()
     local_data_dir = raw_data_dir()
-    return DatasetStorageManager(remote_data_dir, local_data_dir)
+
+    if data_store == 'local':
+        local_data_uri = local_data_dir
+    elif data_store == 'cloud':
+        local_data_uri = f'gs://{bucket_name()}/{local_data_dir}'
+    else:
+        raise ValueError(f"Invalid data store {data_store}")
+
+    return DatasetStorageManager(remote_data_dir, local_data_uri)
 
 
 def submit_ai_platform_job(job_id, config_file):
