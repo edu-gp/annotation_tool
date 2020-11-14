@@ -40,7 +40,7 @@ def train_model(version_dir, data_store, train_fn=None, force_retrain=False):
     See: prep.py:prepare_next_model_for_label to see what is in version_dir.
     """
 
-    if not force_retrain and _model_exists(version_dir):
+    if not force_retrain and _model_exists(version_dir, data_store=data_store):
         print("Model already exists; Skip training.")
         return
 
@@ -57,7 +57,7 @@ def train_model(version_dir, data_store, train_fn=None, force_retrain=False):
     print(f"Detected classes: {class_order}")
 
     save_json(
-        data_parser_fname, {"problem_type": problem_type, "class_order": class_order}
+        data_parser_fname, {"problem_type": problem_type, "class_order": class_order}, data_store=data_store
     )
 
     assert (
