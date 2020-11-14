@@ -1,8 +1,9 @@
-from alchemy.shared.utils import json_lookup, load_jsonl
+from alchemy.shared.file_adapters import load_jsonl
+from alchemy.shared.utils import json_lookup
 
 
 def get_entity_text_lookup_function(
-    jsonl_file_path, entity_name_key, entity_text_key, entity_type
+    jsonl_file_path, entity_name_key, entity_text_key, entity_type, data_store
 ):
     """
     Inputs:
@@ -37,7 +38,7 @@ def get_entity_text_lookup_function(
         fn(1, 'blah.com')  =>  ''
     """
 
-    data = load_jsonl(jsonl_file_path, to_df=False)
+    data = load_jsonl(jsonl_file_path, to_df=False, data_store=data_store)
 
     lookup = {}
 

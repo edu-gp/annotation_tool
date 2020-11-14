@@ -26,7 +26,7 @@ app = Celery(
 
 
 @app.task
-def submit_gcp_training(label, raw_file_path, entity_type):
+def submit_gcp_training(label, raw_file_path, entity_type, data_store):
     logging.info("Raw file for the training is " + raw_file_path)
     db = Database.from_config(DevelopmentConfig)
     try:
@@ -35,17 +35,18 @@ def submit_gcp_training(label, raw_file_path, entity_type):
             label=label,
             raw_file_path=raw_file_path,
             entity_type=entity_type,
+            data_store=data_store,
         )
 
         model_defn = ModelDefn(model.uuid, model.version)
-        job = submit_job(model_defns=[model_defn], files_for_inference=[raw_file_path])
-        gcp_poll_status.delay(job.id)
+        job = submit_job(model_defns=[model_defn], files_for_inference=[raw_file_path], data_store=data_store)
+        gcp_poll_status.delay(job.id, data_store=data_store)
     finally:
         db.session.close()
 
 
 @app.task
-def submit_gcp_inference_on_new_file(dataset_name):
+def submit_gcp_inference_on_new_file(dataset_name, data_store):
     # TODO test
 
     # Check which models need to be ran, and kick them off.
@@ -75,7 +76,8 @@ def submit_gcp_inference_on_new_file(dataset_name):
                 # Kick off a new job to run inference, then deploy when done.
                 model_defn = ModelDefn(model.uuid, model.version)
                 job = submit_job(
-                    model_defns=[model_defn], files_for_inference=[dataset_name]
+                    model_defns=[model_defn], files_for_inference=[dataset_name],
+                    data_store=data_store
                 )
                 gcp_poll_status.delay(job.id, metadata_dict=metadata.to_dict())
     finally:
