@@ -79,7 +79,7 @@ bp.before_request(_before_request)
 
 @bp.route("/")
 def index():
-    tasks = db.session.query(Task).order_by(Task.created_at.desc()).all()
+    tasks = db.session.query(Task).order_by(Task.name.asc()).all()
     return render_template("tasks/index.html", tasks=tasks)
 
 
