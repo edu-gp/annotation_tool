@@ -14,8 +14,8 @@ services:
   admin_server:
     env_file: .env
     image: &img gcr.io/nlp-flywheel/alchemy:latest
-    ports:
-      - "5000:5000"
+    expose:
+      - 5000
     volumes: *default-volumes
     command: [
         '--flask-env', 'production',
@@ -29,8 +29,8 @@ services:
   annotation_server:
     env_file: .env
     image: *img
-    ports:
-      - "5001:5001"
+    expose:
+      - 5001
     volumes: *default-volumes
     command: [
         '--flask-env', 'production',
@@ -68,6 +68,23 @@ services:
     depends_on:
       - redis
       - admin_server
+  nginx:
+    env_file:
+      - .env
+    environment:
+      - ANNOTATION_SERVER_UWSGI=annotation_server:5001
+      - ADMIN_SERVER_UWSGI=admin_server:5000
+    image: nginx:stable-alpine
+    volumes:
+      - .conf/nginx:/etc/nginx/templates
+    depends_on:
+      - admin_server
+      - annotation_server
+    links:
+      - admin_server
+      - annotation_server
+    ports:
+    - "80:80"
 
   redis:
     image: "redis:alpine"

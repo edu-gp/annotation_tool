@@ -80,9 +80,12 @@ if [ $FLASK_ENV = 'development' ] || [ $FLASK_ENV = 'test' ]; then
 else
   echo Run the production server
 
-  uwsgi --http :$FLASK_RUN_PORT  \
-        --wsgi-file "alchemy/wsgi.py" \
+  uwsgi --socket :$FLASK_RUN_PORT  \
         --master \
+        --vacuum \
+        --harakiri 20 \
+        --max-requests 2000 \
+        --wsgi-file "alchemy/wsgi.py" \
         --callable app \
         ${PARAMS[*]}
 fi
