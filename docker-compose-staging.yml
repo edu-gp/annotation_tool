@@ -23,6 +23,8 @@ services:
         '--flask-port', '5000',
         'admin_server'
     ]
+    environment:
+      - SCRIPT_NAME=/admin
     depends_on:
       - redis
 

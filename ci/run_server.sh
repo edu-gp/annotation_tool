@@ -4,6 +4,7 @@ PARAMS=()
 if [ -z $FLASK_ENV ]; then export FLASK_ENV=production; fi
 if [ -z $FLASK_RUN_HOST ]; then export FLASK_RUN_HOST=0.0.0.0; fi
 if [ -z $FLASK_RUN_PORT ]; then export FLASK_RUN_PORT=5000; fi
+if [ -z $SCRIPT_NAME ]; then export SCRIPT_NAME=/; fi
 
 while test $# -gt 0; do
   case "$1" in
@@ -85,7 +86,8 @@ else
         --vacuum \
         --harakiri 20 \
         --max-requests 2000 \
-        --wsgi-file "alchemy/wsgi.py" \
+        --manage-script-name \
+        --mount $SCRIPT_NAME=alchemy/wsgi.py \
         --callable app \
         ${PARAMS[*]}
 fi
