@@ -25,8 +25,13 @@ def make_request(
     )
 
 
-def test_authorized_call_token_not_set(admin_server_client, monkeypatch):
+def test_authorized_call_token_not_set(admin_server_client, monkeypatch, tmp_path):
     # Here, API_TOKEN env var is not set.
+    data_store = 'cloud'
+    monkeypatch.setenv("STORAGE_BACKEND", data_store)
+    if data_store == 'cloud':
+        tmp_path = '__filestore'
+    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
     monkeypatch.delenv("API_TOKEN", raising=False)
     monkeypatch.setattr(SecretManagerService, "get_secret", None)
     monkeypatch.setattr(api, "run_inference_on_data", lambda *x, **y: None)
@@ -35,7 +40,12 @@ def test_authorized_call_token_not_set(admin_server_client, monkeypatch):
     assert response.status == "500 INTERNAL SERVER ERROR"
 
 
-def test_unauthorized_call(admin_server_client, monkeypatch):
+def test_unauthorized_call(admin_server_client, monkeypatch, tmp_path):
+    data_store = 'cloud'
+    monkeypatch.setenv("STORAGE_BACKEND", data_store)
+    if data_store == 'cloud':
+        tmp_path = '__filestore'
+    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
     monkeypatch.setenv("API_TOKEN", "test123")
     monkeypatch.setattr(api, "run_inference_on_data", lambda *x, **y: None)
 
@@ -43,7 +53,12 @@ def test_unauthorized_call(admin_server_client, monkeypatch):
     assert response.status == "401 UNAUTHORIZED"
 
 
-def test_authorized_call(admin_server_client, monkeypatch):
+def test_authorized_call(admin_server_client, monkeypatch, tmp_path):
+    data_store = 'cloud'
+    monkeypatch.setenv("STORAGE_BACKEND", data_store)
+    if data_store == 'cloud':
+        tmp_path = '__filestore'
+    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
     monkeypatch.setenv("API_TOKEN", "test123")
     monkeypatch.setattr(api, "run_inference_on_data", lambda *x, **y: None)
 
@@ -51,7 +66,12 @@ def test_authorized_call(admin_server_client, monkeypatch):
     assert response.status == "200 OK"
 
 
-def test_request_with_no_dataset_name(admin_server_client, monkeypatch):
+def test_request_with_no_dataset_name(admin_server_client, monkeypatch, tmp_path):
+    data_store = 'cloud'
+    monkeypatch.setenv("STORAGE_BACKEND", data_store)
+    if data_store == 'cloud':
+        tmp_path = '__filestore'
+    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
     monkeypatch.setenv("API_TOKEN", "test123")
     monkeypatch.setattr(api, "run_inference_on_data", lambda *x, **y: None)
 
@@ -59,7 +79,12 @@ def test_request_with_no_dataset_name(admin_server_client, monkeypatch):
     assert response.status == "400 BAD REQUEST"
 
 
-def test_dataset_name_thru_query_param(admin_server_client, monkeypatch):
+def test_dataset_name_thru_query_param(admin_server_client, monkeypatch, tmp_path):
+    data_store = 'cloud'
+    monkeypatch.setenv("STORAGE_BACKEND", data_store)
+    if data_store == 'cloud':
+        tmp_path = '__filestore'
+    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
     captured_calls = []
 
     def capture_call(x, data_store):
