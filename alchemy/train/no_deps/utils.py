@@ -304,8 +304,7 @@ def gs_exists(gs_url):
 def save_file_numpy(filename, data, data_store='local', numpy_kwargs=dict()):
     np.save(filename, data, **numpy_kwargs)
     if data_store == 'cloud':
-        blob = storage.Blob(filename, storage.Bucket(storage.Client(), 'alchemy-staging'))
-        blob.upload_from_filename(filename)
+        upload_file(filename)
 
 
 def load_file_numpy(filename, data_store='local', numpy_kwargs=dict()):
@@ -316,6 +315,11 @@ def load_file_numpy(filename, data_store='local', numpy_kwargs=dict()):
         return None
 
     return np.load(filename, **numpy_kwargs)
+
+
+def upload_file(filename):
+    blob = storage.Blob(filename, storage.Bucket(storage.Client(), 'alchemy-staging'))
+    blob.upload_from_filename(filename)
 
 
 def listdir(dirname, data_store):

@@ -24,7 +24,7 @@ from .storage_manager import DatasetStorageManager
 from .transformers_textcat import build_model, evaluate_model, train
 from .utils import (
     BINARY_CLASSIFICATION, load_original_data_text,
-    _prepare_data, load_json, save_json, file_exists
+    _prepare_data, load_json, save_json, file_exists, upload_file
 )
 
 
@@ -119,7 +119,7 @@ def plot_results(version_dir, fname, inference_results, data_store) -> None:
         raise Exception("generate_plots only supports binary classification")
 
 
-def _plot(outname, data, title):
+def _plot(outname, data, title, data_store):
     import seaborn as sns
     import matplotlib.pyplot as plt
 
@@ -128,6 +128,8 @@ def _plot(outname, data, title):
     plt.title(title)
     sns_plot.figure.savefig(outname)
     plt.clf()
+    if data_store == 'cloud':
+        upload_file(outname)
 
 
 class InferenceCache:
