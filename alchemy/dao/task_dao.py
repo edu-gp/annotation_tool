@@ -1,3 +1,5 @@
+import logging
+
 from sqlalchemy.exc import DBAPIError
 from tenacity import (
     stop_after_attempt,
@@ -6,8 +8,24 @@ from tenacity import (
     retry,
 )
 
-from alchemy.data.request.task_request import TaskBaseRequest
-from alchemy.db.model import Task
+from alchemy.data.request.task_request import TaskBaseRequest, TaskUpdateRequest
+from alchemy.db.model import (
+    Task,
+    delete_requests_under_task,
+    delete_requests_for_entity_type_under_task,
+    delete_requests_for_user_under_task,
+    delete_requests_for_label_under_task,
+)
+
+
+def _configure_task_common(task: Task, request: TaskBaseRequest):
+    labels = list(set(request.labels))
+    annotators = list(set(request.annotators))
+    task.name = request.name
+    task.set_labels(labels)
+    task.set_annotators(annotators)
+    task.set_data_filenames(request.data_files)
+    task.set_entity_type(request.entity_type)
 
 
 class TaskDao:
@@ -29,7 +47,7 @@ class TaskDao:
         task = Task(name=create_request.name)
 
         self._check_duplicate_labels(list(set(create_request.labels)))
-        self._configure_task_common(task, create_request)
+        _configure_task_common(task, create_request)
 
         self.dbsession.add(task)
         self._commit_to_db()
@@ -56,20 +74,13 @@ class TaskDao:
             new_labels=list(set(update_request.labels)), task_id_to_update=task.id
         )
 
-        self._configure_task_common(task, update_request)
+        self._remove_obsolete_requests_under_task(update_request)
+
+        _configure_task_common(task, update_request)
 
         self.dbsession.add(task)
         self._commit_to_db()
         return task
-
-    def _configure_task_common(self, task: Task, request: TaskBaseRequest):
-        labels = list(set(request.labels))
-        annotators = list(set(request.annotators))
-        task.name = request.name
-        task.set_labels(labels)
-        task.set_annotators(annotators)
-        task.set_data_filenames(request.data_files)
-        task.set_entity_type(request.entity_type)
 
     def _check_duplicate_labels(self, new_labels, task_id_to_update=None):
         """This is a temporary hacky solution to prevent users from creating
@@ -105,6 +116,46 @@ class TaskDao:
                 )
         if len(error_msgs) > 0:
             raise ValueError(error_msgs)
+
+    # TODO legacy code we need to refactor but have to keep it for now.
+    def _remove_obsolete_requests_under_task(
+        self, update_request: TaskUpdateRequest, task_to_update: Task
+    ):
+        if set(update_request.data_files) != set(task_to_update.get_data_filenames()):
+            logging.info(
+                "Prepare to remove all requests under task {} "
+                "since the data file has changed".format(task_to_update.id)
+            )
+            delete_requests_under_task(self.dbsession, task_to_update.id)
+        elif update_request.entity_type != task_to_update.get_entity_type():
+            logging.info(
+                "Prepare to remove all requests under task {} "
+                "since the entity type has changed".format(task_to_update.id)
+            )
+            delete_requests_for_entity_type_under_task(
+                self.dbsession, task_to_update.id, update_request.entity_type
+            )
+        else:
+            # Updating the annotators
+            for current_annotator in task_to_update.get_annotators():
+                if current_annotator not in update_request.annotators:
+                    logging.info(
+                        "Prepare to remove requests under user {} for "
+                        "task {}".format(current_annotator, task_to_update.id)
+                    )
+                    delete_requests_for_user_under_task(
+                        self.dbsession, current_annotator, task_to_update.id
+                    )
+            # Updating the labels
+            for current_label in task_to_update.get_labels():
+                if current_label not in update_request.labels:
+                    logging.info(
+                        "Prepare to remove requests under label {} for "
+                        "task {}".format(current_label, task_to_update.id)
+                    )
+                    delete_requests_for_label_under_task(
+                        self.dbsession, current_label, task_to_update.id
+                    )
 
     def _commit_to_db(self):
         try:
