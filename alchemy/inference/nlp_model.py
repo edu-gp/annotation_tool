@@ -38,7 +38,7 @@ class NLPModel(ITextCatModel):
                 self.dbsession.query(Model).filter_by(id=self.model_id).one_or_none()
             )
 
-            for fname in model.get_inference_fnames():
+            for fname in model.get_inference_fnames(data_store=self.data_store):
                 df = model.export_inference(fname, include_text=True, data_store=self.data_store)
                 df["hashed_text"] = df["text"].apply(_hash_text)
                 self._cache.update(dict(zip(df["hashed_text"], df["probs"])))

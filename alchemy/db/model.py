@@ -462,17 +462,17 @@ class Model(Base):
     def get_data_parser(self, data_store):
         return self._load_json(_get_data_parser_fname, data_store=data_store)
 
-    def get_url_encoded_plot_paths(self):
+    def get_url_encoded_plot_paths(self, data_store):
         """Return a list of urls for plots"""
-        paths = _get_all_plots(self.dir)
+        paths = _get_all_plots(self.dir, data_store=data_store)
         paths = [urllib.parse.quote(x) for x in paths]
         return paths
 
-    def get_inference_fnames(self):
+    def get_inference_fnames(self, data_store):
         """Get the original filenames of the raw data for inference"""
         return [
             stem(path) + ".jsonl"
-            for path in _get_all_inference_fnames(self.dir)
+            for path in _get_all_inference_fnames(self.dir, data_store=data_store)
         ]
 
     def export_inference(self, fname: str, data_store: str, include_text: bool = False):
@@ -514,7 +514,7 @@ class Model(Base):
 
             # TODO This loads all the inferences (deduped by text) - this could
             # be prohibitively slow, is there a good place to precompute this?
-            for fpath in _get_all_inference_fnames(version_dir):
+            for fpath in _get_all_inference_fnames(version_dir, data_store=data_store):
                 df = load_inference(version_dir, fpath, columns=cols, data_store=data_store)
 
                 # inf_lookup can get very big, so only keep unique rows by text

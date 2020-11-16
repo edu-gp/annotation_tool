@@ -153,7 +153,7 @@ def build_inference_cache(
     """
     cache = InferenceCache()
 
-    prev_inf_fnames = _get_all_inference_fnames(version_dir)
+    prev_inf_fnames = _get_all_inference_fnames(version_dir, data_store=data_store)
     prev_inf_datasets = _inference_fnames_to_datasets(prev_inf_fnames)
 
     for dataset in prev_inf_datasets:

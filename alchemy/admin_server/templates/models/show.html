@@ -44,7 +44,7 @@
 
                 {% if mv.is_ready(data_store) %}
 
-                {% for fname in mv.get_inference_fnames() %}
+                {% for fname in mv.get_inference_fnames(data_store) %}
                 <div class="row">
                   <div class="col">
                     Data File: <code>{{fname}}</code>

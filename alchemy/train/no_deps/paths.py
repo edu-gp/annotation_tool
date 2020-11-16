@@ -69,23 +69,27 @@ def _get_inference_density_plot_fname(version_dir, data_fname, class_name):
     )
 
 
-def _get_all_plots(version_dir):
+def _get_all_plots(version_dir, data_store):
     dirname = _get_inference_dir(version_dir)
     res = []
-    if os.path.isdir(dirname):
-        for f in listdir(dirname):
-            if f.endswith(".histogram.png"):
-                res.append(f"{dirname}/{f}")
+    if data_store == 'local' and not os.path.isdir(dirname):
+        return []
+
+    for f in listdir(dirname, data_store=data_store):
+        if f.endswith(".histogram.png"):
+            res.append(f"{dirname}/{f}")
     return res
 
 
-def _get_all_inference_fnames(version_dir):
+def _get_all_inference_fnames(version_dir, data_store):
     dirname = _get_inference_dir(version_dir)
     res = []
-    if os.path.isdir(dirname):
-        for f in listdir(dirname):
-            if f.endswith(".pred.npy"):
-                res.append(f"{dirname}/{f}")
+    if data_store == 'local' and not os.path.isdir(dirname):
+        return []
+
+    for f in listdir(dirname, data_store=data_store):
+        if f.endswith(".pred.npy"):
+            res.append(f"{dirname}/{f}")
     return res
 
 
