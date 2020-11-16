@@ -6,6 +6,7 @@ from alchemy.data.request.base_request import (
     InvalidRequest,
     validate_request_data_common,
     check_invalid_request_fields,
+    check_invalid_field_type,
 )
 
 
@@ -60,21 +61,6 @@ class TaskUpdateRequest(TaskBaseRequest):
 
     @classmethod
     def _validate_request_data(cls, dict_data, invalid_req):
-        valid_fields = []
-        for field in fields(cls):
-            if field.name in dict_data and isinstance(
-                dict_data[field.name], field.type
-            ):
-                valid_fields.append(field.name)
-
-        if "id" not in valid_fields:
-            invalid_req.add_error(
-                parameter="dict_data", message=f"Missing valid task id in the request."
-            )
-        elif len(valid_fields) < 2:
-            invalid_req.add_error(
-                parameter="dict_data",
-                message=f"Missing valid field(s) to update in the request.",
-            )
-
-        check_invalid_request_fields(fields(cls), dict_data, invalid_req)
+        super()._validate_request_data(dict_data, invalid_req)
+        if not invalid_req.has_errors():
+            _check_task_fields_common(dict_data, invalid_req)

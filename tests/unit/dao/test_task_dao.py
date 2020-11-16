@@ -1,8 +1,9 @@
+import pytest
 from mockito import when
 from sqlalchemy.exc import DBAPIError
 
 from alchemy.dao.task_dao import TaskDao
-from alchemy.data.request.task_request import TaskCreateRequest
+from alchemy.data.request.task_request import TaskCreateRequest, TaskUpdateRequest
 from alchemy.db.model import EntityTypeEnum, Task
 
 entity_type = EntityTypeEnum.COMPANY
@@ -10,6 +11,12 @@ name = "b2c"
 labels = ["hotdog"]
 annotators = ["user1", "user2"]
 data_files = ["file1.txt", "file2.txt"]
+
+entity_type_updated = "future_type"
+name_updated = "bbb"
+labels_updated = ["healthcare"]
+annotators_updated = annotators.copy() + ["user3"]
+data_files_updated = data_files.copy() + ["file3.txt"]
 
 
 def _count_task(dbsession):
@@ -38,6 +45,45 @@ def test_task_create_success(dbsession):
     assert set(task.get_annotators()) == set(annotators)
 
 
+def _prepare_existing_task(dbsession):
+    existing_task = Task(name=name)
+    existing_task.set_labels(labels)
+    existing_task.set_data_filenames(data_files)
+    existing_task.set_entity_type(EntityTypeEnum.COMPANY)
+    existing_task.set_annotators(annotators)
+
+    dbsession.add(existing_task)
+    dbsession.commit()
+    return existing_task
+
+
+@pytest.mark.parametrize("new_labels", [labels_updated, labels.copy() + ["new_label"]])
+def test_task_update_success(dbsession, new_labels):
+    existing_task = _prepare_existing_task(dbsession)
+
+    task_dao = TaskDao(dbsession=dbsession)
+    update_request = TaskUpdateRequest(
+        id=existing_task.id,
+        name=name_updated,
+        entity_type=entity_type_updated,
+        labels=new_labels,
+        annotators=annotators_updated,
+        data_files=data_files,
+    )
+
+    updated_task = task_dao.update_task(update_request=update_request)
+
+    num_of_tasks = _count_task(dbsession)
+    assert num_of_tasks == 1
+
+    assert updated_task is not None
+    assert updated_task.id == existing_task.id
+    assert updated_task.name == name_updated
+    assert set(updated_task.get_labels()) == set(new_labels)
+    assert set(updated_task.get_annotators()) == set(annotators_updated)
+    assert set(updated_task.get_data_filenames()) == set(data_files)
+
+
 def test_task_create_with_invalid_request(dbsession):
     task_dao = TaskDao(dbsession=dbsession)
     create_request = TaskCreateRequest.from_dict({"name": name})
@@ -51,36 +97,52 @@ def test_task_create_with_invalid_request(dbsession):
     assert num_of_tasks == 0
 
 
+def test_task_update_with_invalid_request(dbsession):
+    existing_task = _prepare_existing_task(dbsession)
+
+    task_dao = TaskDao(dbsession=dbsession)
+    update_request = TaskUpdateRequest.from_dict(
+        {"id": existing_task.id, "name": name + "_test"}
+    )
+
+    try:
+        _ = task_dao.update_task(update_request=update_request)
+    except Exception as e:
+        assert "Invalid request:" in str(e)
+
+    assert existing_task.name == name
+    assert set(existing_task.get_labels()) == set(labels)
+    assert set(existing_task.get_data_filenames()) == set(data_files)
+    assert set(existing_task.get_annotators()) == set(annotators)
+    assert existing_task.get_entity_type() == entity_type
+
+
 def test_task_create_with_duplicate_labels(dbsession):
-    label = "healthecare"
-    task1 = Task(name="task1")
-    task1.set_labels([label])
-    task1.set_annotators(annotators)
-    task1.set_entity_type(entity_type)
-    task1.set_data_filenames(data_files)
-    dbsession.add(task1)
-    dbsession.commit()
+    existing_task = _prepare_existing_task(dbsession)
 
     task_dao = TaskDao(dbsession=dbsession)
     create_request = TaskCreateRequest(
         name=name,
         entity_type=entity_type,
-        labels=[label, "b2b"],
+        labels=labels.copy() + ["new_label"],
         annotators=annotators,
         data_files=data_files,
     )
 
     try:
         _ = task_dao.create_task(create_request=create_request)
-    except Exception as e:
-        assert f"Label {label} is already created in task {task1.name}" in str(e)
+    except ValueError as e:
+        assert (
+            f"Label {labels[0]} is already created in task {existing_task.name}"
+            in str(e)
+        )
 
     num_of_tasks = _count_task(dbsession)
     assert num_of_tasks == 1
 
-    existing_task = dbsession.query(Task).one_or_none()
+    task = dbsession.query(Task).one_or_none()
 
-    assert existing_task.id == task1.id
+    assert existing_task.id == task.id
 
 
 def _prepare_for_retry_testcases(dbsession):
