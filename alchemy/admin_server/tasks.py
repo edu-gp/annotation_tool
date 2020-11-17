@@ -499,37 +499,3 @@ def parse_data(form, all_files):
     for fname in data:
         assert fname in all_files, f"Data file '{fname}' does not exist"
     return data
-
-
-def _remove_obsolete_requests_under_task(task, data, annotators, labels, entity_type):
-    if data != task.get_data_filenames()[0]:
-        logging.info(
-            "Prepare to remove all requests under task {} "
-            "since the data file has changed".format(task.id)
-        )
-        delete_requests_under_task(db.session, task.id)
-    elif entity_type != task.get_entity_type():
-        logging.info(
-            "Prepare to remove all requests under task {} "
-            "since the entity type has changed".format(task.id)
-        )
-        delete_requests_for_entity_type_under_task(db.session, task.id, entity_type)
-    else:
-        # Updating the annotators
-        for current_annotator in task.get_annotators():
-            if current_annotator not in annotators:
-                logging.info(
-                    "Prepare to remove requests under user {} for "
-                    "task {}".format(current_annotator, task.id)
-                )
-                delete_requests_for_user_under_task(
-                    db.session, current_annotator, task.id
-                )
-        # Updating the labels
-        for current_label in task.get_labels():
-            if current_label not in labels:
-                logging.info(
-                    "Prepare to remove requests under label {} for "
-                    "task {}".format(current_label, task.id)
-                )
-                delete_requests_for_label_under_task(db.session, current_label, task.id)
