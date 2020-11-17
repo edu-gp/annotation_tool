@@ -1,0 +1,26 @@
+upstream annotation_server_us {
+    server ${ANNOTATION_SERVER_UWSGI};
+}
+
+upstream admin_server_us {
+    server ${ADMIN_SERVER_UWSGI};
+}
+
+server {
+    listen 80;
+
+    server_name ${DOMAIN_NAME};
+
+    location /admin/ {
+        rewrite /admin/(.*) /$1  break;
+        include /etc/nginx/uwsgi_params;
+        uwsgi_request_buffering off;
+        uwsgi_param SCRIPT_NAME /admin;
+        uwsgi_pass admin_server_us;
+    }
+
+    location / {
+        include /etc/nginx/uwsgi_params;
+        uwsgi_pass annotation_server_us;
+    }
+}
