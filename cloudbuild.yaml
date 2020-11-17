@@ -79,7 +79,8 @@ steps:
               docker images prune -a
               docker pull gcr.io/nlp-flywheel/alchemy:latest && \
               docker-compose -f docker-compose-staging.yml down && \
-              docker-compose -f docker-compose-staging.yml up -d"
+              docker-compose -f docker-compose-staging.yml up -d && \
+              docker images -f "dangling=true" -q | xargs docker rmi"
       else
         echo "Not going to deploy"
       fi
