@@ -51,6 +51,12 @@ meta = MetaData(
 )
 Base = declarative_base(metadata=meta)
 
+def _convert_to_spacy_patterns(patterns: List[str]):
+    return [
+        {"label": "POSITIVE_CLASS", "pattern": [{"lower": x.lower()}]} for x in patterns
+    ]
+
+
 # =============================================================================
 # DB Access
 
@@ -638,7 +644,6 @@ class Task(Base):
 
     def get_pattern_model(self):
         from alchemy.inference.pattern_model import PatternModel
-        from alchemy.db._task import _convert_to_spacy_patterns
 
         if safe_getattr(self, "__cached_pattern_model") is None:
             patterns = []

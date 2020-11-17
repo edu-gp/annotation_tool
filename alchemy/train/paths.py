@@ -1,5 +1,14 @@
+import os
+
 from alchemy.db.fs import models_dir
-from alchemy.shared.utils import mkd
+
+
+def mkd(*dir_path):
+    """Return dir path, make sure it exists"""
+    dir_path = [str(x) for x in dir_path]
+    d = os.path.join(*dir_path)
+    os.makedirs(d, exist_ok=True)
+    return d
 
 
 def get_model_dir(uuid, version, abs=True):

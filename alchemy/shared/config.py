@@ -1,4 +1,5 @@
 import os
+
 from envparse import env
 
 
@@ -21,14 +22,6 @@ class Config:
     def get_annotation_server():
         '''e.g. http://localhost:5001'''
         return env('ANNOTATION_TOOL_ANNOTATION_SERVER_SERVER')
-
-    @staticmethod
-    def get_tasks_dir():
-        return env('ANNOTATION_TOOL_TASKS_DIR', default=os.path.join(os.getcwd(), '__tasks'))
-
-    @staticmethod
-    def get_data_dir():
-        return env('ANNOTATION_TOOL_DATA_DIR', default=os.path.join(os.getcwd(), '__data'))
 
     @staticmethod
     def get_inference_cache_dir():
