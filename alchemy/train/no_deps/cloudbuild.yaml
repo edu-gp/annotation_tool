@@ -7,9 +7,25 @@
 steps:
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build',
-         '--tag', 'gcr.io/$PROJECT_ID/alchemy-training:$_TARGET-$SHORT_SHA',
+         '--tag', 'gcr.io/$PROJECT_ID/alchemy-training:${_TARGET}-${SHORT_SHA}',
          '.']
   id: 'build-training-image'
+- name: 'gcr.io/cloud-builders/docker'
+  entrypoint: "bash"
+  args:
+    - "-c"
+    - |
+        if [ "${_TARGET}" = "production" ]; then
+          echo Tagging production image as latest
+          docker tag gcr.io/$PROJECT_ID/alchemy-training:${_TARGET}-${SHORT_SHA} gcr.io/$PROJECT_ID/alchemy-training:latest
+          echo Pushing gcr.io/$PROJECT_ID/alchemy-training:latest
+          docker push gcr.io/$PROJECT_ID/alchemy-training:latest
+        else
+          echo Not production target, not tagging as latest.
+        fi
+  id: 'tag-latest'
+  wait_for: ['build-training-image']
+
 timeout: 2400s  # It is a quite large image just pushing the image takes ~25 minutes
 images:
   - 'gcr.io/$PROJECT_ID/alchemy-training'

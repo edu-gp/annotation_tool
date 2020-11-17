@@ -23,39 +23,29 @@ FROM nvidia/cuda:10.1-cudnn7-runtime
 
 # Installs necessary dependencies.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-	 build-essential \
-         wget \
-         curl \
-         git \
-         python3.7 \
-	 libpython3.7-dev && \
-     rm -rf /var/lib/apt/lists/*
-
-RUN ln -s /usr/bin/python3.7 /usr/bin/python
-
-RUN apt-get update && apt-get install -y python3-distutils
-
-# Installs pip.
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+	    build-essential wget curl git python3.7 libpython3.7-dev && \
+    rm -rf /var/lib/apt/lists/* && \
+    ln -s /usr/bin/python3.7 /usr/bin/python && \
+    apt-get install -y python3-distutils && \
+    curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python get-pip.py && \
-    pip install setuptools && \
-    rm get-pip.py
+    pip install --no-cache setuptools && \
+    rm get-pip.py && \
+    pip install --no-cache simpletransformers matplotlib seaborn envparse==0.2.0 \
+        google-api-core==1.22.1 google-cloud-storage==1.31.0 \
+        torch==1.6.0+cu101 torchvision==0.7.0+cu101 \
+        -f https://download.pytorch.org/whl/torch_stable.html
+
+
 
 WORKDIR /root
-
-# Installs pytorch and torchvision.
-RUN pip install torch==1.6.0+cu101 torchvision==0.7.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html
-RUN pip install simpletransformers matplotlib seaborn envparse==0.2.0 google-api-core==1.22.1 google-cloud-storage==1.31.0
 
 # --- GCP stuff ---
 
 # Installs cloudml-hypertune for hyperparameter tuning.
 # It’s not needed if you don’t want to do hyperparameter tuning.
-RUN pip install cloudml-hypertune
-
-# Installs google cloud sdk, this is mostly for using gsutil to export model.
-RUN wget -nv \
-    https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz && \
+RUN pip install --no-cache cloudml-hypertune && \
+    wget -nv https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz && \
     mkdir /root/tools && \
     tar xvzf google-cloud-sdk.tar.gz -C /root/tools && \
     rm google-cloud-sdk.tar.gz && \
