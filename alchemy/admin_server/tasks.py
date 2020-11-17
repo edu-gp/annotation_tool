@@ -15,6 +15,7 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 
+from alchemy.data.request.task_request import TaskCreateRequest, TaskUpdateRequest
 from alchemy.ar.ar_celery import generate_annotation_requests
 from alchemy.ar.data import (
     compute_annotation_statistics_db,
@@ -246,6 +247,7 @@ def edit(id):
 
 @bp.route("/<string:id>", methods=["POST"])
 def update(id):
+    # TODO this should move to the DAO as well.
     task = db.session.query(Task).filter_by(id=id).one_or_none()
 
     try:
@@ -258,22 +260,20 @@ def update(id):
         annotators = parse_annotators(form)
         entity_type = task.get_entity_type()
 
-        _remove_obsolete_requests_under_task(
-            task, data, annotators, labels, entity_type
+        update_request = TaskUpdateRequest.from_dict(
+            {
+                "id": task.id,
+                "name": name,
+                "data_files": [data],
+                "labels": labels,
+                "annotators": annotators,
+                "entity_type": entity_type,
+            }
         )
-
-        task.set_data_filenames([data])
-        task.set_annotators(annotators)
-        task.set_labels(labels)
-        task.name = name
-
-        db.session.add(task)
-
-        db.session.commit()
+        task_dao.update_task(update_request)
         logging.info("Updated tasks and deleted requests from removed " "annotators.")
         return redirect(url_for("tasks.show", id=task.id))
     except Exception as e:
-        db.session.rollback()
         error = str(e)
         flash(error)
         return render_template(

@@ -11,6 +11,7 @@ from tenacity import (
 from alchemy.data.request.task_request import TaskBaseRequest, TaskUpdateRequest
 from alchemy.db.model import (
     Task,
+    # TODO these functions should be moved outside of the model module.
     delete_requests_under_task,
     delete_requests_for_entity_type_under_task,
     delete_requests_for_user_under_task,
@@ -74,7 +75,7 @@ class TaskDao:
             new_labels=list(set(update_request.labels)), task_id_to_update=task.id
         )
 
-        self._remove_obsolete_requests_under_task(update_request)
+        self._remove_obsolete_requests_under_task(update_request, task)
 
         _configure_task_common(task, update_request)
 
