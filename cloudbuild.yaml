@@ -83,6 +83,8 @@ steps:
       else
         echo "Not going to deploy"
       fi
+  id: 'update-server'
+  wait-for: ['tag-latest']
 timeout: 1200s
 images:
   - 'gcr.io/$PROJECT_ID/alchemy:${_TARGET}-${SHORT_SHA}'
