@@ -8,7 +8,7 @@ steps:
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build',
          '--tag', 'gcr.io/$PROJECT_ID/alchemy-training:${_TARGET}-${SHORT_SHA}',
-         '.']
+         'alchemy/train/no_deps']
   id: 'build-training-image'
 - name: 'gcr.io/cloud-builders/docker'
   entrypoint: "bash"
