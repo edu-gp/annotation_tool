@@ -76,6 +76,7 @@ steps:
             "${_DEPLOY_MACHINE}" -- " \
               cd /var/www
               git pull
+              docker images prune -a
               docker pull gcr.io/nlp-flywheel/alchemy:latest && \
               docker-compose -f docker-compose-staging.yml down && \
               docker-compose -f docker-compose-staging.yml up -d"
