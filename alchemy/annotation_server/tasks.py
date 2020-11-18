@@ -162,6 +162,8 @@ def receive_annotation():
     context = {"data": data["req"]["data"], "pattern_info": data["req"]["pattern_info"]}
 
     annotation_result = data["anno"]["labels"]
+    annotation_logging_msg = ""
+    request_logging_msg = ""
     for label in annotation_result:
         value = annotation_result[label]
 
@@ -183,6 +185,7 @@ def receive_annotation():
                 f"{entity} under label {label} with "
                 f"new value {value}"
             )
+            request_logging_msg = ""
         else:
             annotation = ClassificationAnnotation(
                 entity_type=entity_type,
