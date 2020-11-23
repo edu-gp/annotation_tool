@@ -98,3 +98,7 @@ envparse==0.2.0
 
 # Retry logic
 tenacity==6.2.0
+
+# Okta Integration
+flask-oidc>=1.4.0
+okta==0.0.4

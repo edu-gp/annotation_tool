@@ -6,8 +6,7 @@ from flask import Flask, redirect, url_for
 
 from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import db
-
-from .auth import auth
+from . import auth as auth_module
 
 if env.bool("USE_CLOUD_LOGGING", default=False):
     from google.cloud import logging as glog
@@ -41,6 +40,8 @@ def create_app(test_config=None):
         pass
 
     db.init_app(app)
+    auth_module.init_app(app)
+    auth = auth_module.auth
     # -------------------------------------------------------------------------
     # Register custom Jinja Filters
 
