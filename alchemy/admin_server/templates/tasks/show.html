@@ -460,7 +460,8 @@
                   <div class="col">
                     {% for path in mv.get_url_encoded_plot_paths(data_store) %}
                     <!-- Note: This uses the insecure way to get a file  -->
-                    <img style="max-width: 400px" src="/file?f={{path}}" />
+                    <img style="max-width: 400px" src="/admin/file?f={{path}}" />
+                        {# TODO: replace with url_for #}
                     {% endfor %}
                   </div>
                 </div>
