@@ -45,9 +45,13 @@
             <a class="nav-link" href="{{ url_for('models.index') }}">Models</a>
           </li>
         </ul>
-        <span class="navbar-text">
-            {{ g.user.profile.firstName }} {{ g.user.profile.lastName }}
-        </span>
+        {% if g.user %}
+            <span class="navbar-text">
+                {{ g.user.profile.firstName }} {{ g.user.profile.lastName }}
+            </span>
+        {% else %}
+            <a class="nav-link" href="{{ url_for('login') }}">Log in</a>
+        {% endif %}
       </div>
     </div>
   </nav>

@@ -57,9 +57,10 @@ def create_app(test_config=None):
     # -------------------------------------------------------------------------
     # Routes
 
-    @app.route("/ok")
-    def hello():
-        return "ok"
+    @app.route("/auth/login")
+    @auth.login_required
+    def login():
+        return redirect(url_for('index'))
 
     @app.route("/")
     @auth.login_required
