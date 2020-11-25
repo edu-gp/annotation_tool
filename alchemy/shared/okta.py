@@ -31,6 +31,9 @@ def init_app(app, auth):
         from flask import g
         if oidc.user_loggedin:
             g.user = okta_client.get_user(oidc.user_getfield("sub"))
+            l = g.user.profile.login
+            if '@' in l:
+                g.user.profile.login = l[:l.index('@')]
         else:
             g.user = None
 

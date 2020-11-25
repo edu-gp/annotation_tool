@@ -168,12 +168,6 @@ def show(id):
     for cjs in status_assign_jobs_stale:
         delete_status(cjs.celery_id, cjs.context_id)
 
-    # Annotator login links
-    annotator_login_links = [
-        (username, generate_annotation_server_user_login_link(username))
-        for username in task.get_annotators()
-    ]
-
     # Admin Examine Links
     admin_examine_links = [
         (username, generate_annotation_server_admin_examine_link(id, username))
@@ -226,7 +220,6 @@ def show(id):
         status_assign_jobs=status_assign_jobs_active,
         models_per_label=models_per_label,
         deployment_configs_per_model=deployment_configs_per_model,
-        annotator_login_links=annotator_login_links,
         admin_examine_links=admin_examine_links,
         labels_and_attributes=labels_and_attributes,
         kappa_analysis_for_all_users_links=kappa_analysis_for_all_users_links,

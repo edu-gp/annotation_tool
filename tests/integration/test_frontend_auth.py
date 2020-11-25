@@ -1,11 +1,5 @@
 import pytest
 
-from alchemy.shared.annotation_server_path_finder import (
-    _generate_annotation_server_user_login_path,
-    get_annotation_server_user_password,
-)
-from tests.fixtures import annotation_server_client
-
 
 def _assert_has_logged_in(response, username):
     assert response.status == "200 OK"
@@ -15,25 +9,6 @@ def _assert_has_logged_in(response, username):
     assert "Login" not in response.get_data().decode()
     # Also the username itself is displayed on the page
     assert username in response.get_data().decode()
-
-
-def test_login_with_post(annotation_server_client):
-    response = annotation_server_client.post(
-        "/auth/login",
-        data=dict(
-            username="blah", password=get_annotation_server_user_password("blah")
-        ),
-        follow_redirects=True,
-    )
-
-    _assert_has_logged_in(response, "blah")
-
-
-def test_login_with_link(annotation_server_client):
-    path = _generate_annotation_server_user_login_path("a_very_long_username")
-    response = annotation_server_client.get(path, follow_redirects=True)
-
-    _assert_has_logged_in(response, "a_very_long_username")
 
 
 def test_login_with_post_wrong_password(annotation_server_client):

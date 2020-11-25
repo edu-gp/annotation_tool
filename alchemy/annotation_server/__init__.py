@@ -9,11 +9,7 @@ from flask import (
 from alchemy.ar.data import fetch_tasks_for_user_from_db
 from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import db
-
-from .auth import login_required
-
-from alchemy.ar.data import fetch_tasks_for_user_from_db
-
+from alchemy.shared import okta
 
 if env.bool("USE_CLOUD_LOGGING", default=False):
     from google.cloud import logging as glog
@@ -51,6 +47,8 @@ def create_app(test_config=None):
         pass
 
     db.init_app(app)
+    okta.init_app(app, okta.auth)
+    login_required = okta.auth.login_required
 
     @app.route("/ok")
     def hello():
@@ -59,7 +57,7 @@ def create_app(test_config=None):
     @app.route("/")
     @login_required
     def index():
-        username = g.user["username"]
+        username = g.user.profile.login
         task_id_and_name_pairs = fetch_tasks_for_user_from_db(db.session, username)
         return render_template("index.html", tasks=task_id_and_name_pairs)
 
@@ -67,10 +65,6 @@ def create_app(test_config=None):
     @login_required
     def secret():
         return render_template("secret.html")
-
-    from . import auth
-
-    app.register_blueprint(auth.bp)
 
     from . import tasks
 
