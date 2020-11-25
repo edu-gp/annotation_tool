@@ -23,13 +23,13 @@
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb">
     <li class="breadcrumb-item">
-      <a href="{{ url_for('index') }}">Home</a>
+      <a href="{{ url_for('index') }}">Alchemy</a>
     </li>
     <li class="breadcrumb-item">
         <a href="{{ anno["update_redirect_link"] }}">{{ anno["task_page_name"] }}</a>
     </li>
     <li class="breadcrumb-item active" aria-current="page">
-        Example
+        {{ task.name }}
     </li>
   </ol>
 </nav>
