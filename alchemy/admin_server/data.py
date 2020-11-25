@@ -1,8 +1,7 @@
 from flask import Blueprint, render_template
 
 from alchemy.db.utils import get_all_data_files
-
-from .auth import auth
+from alchemy.shared.okta import auth
 
 bp = Blueprint("data", __name__, url_prefix="/data")
 

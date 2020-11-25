@@ -16,10 +16,7 @@ class _Auth:
         return f
 
 
-auth = _Auth()
-
-
-def init_app(app):
+def init_app(app, auth):
     app.config["OIDC_CLIENT_SECRETS"] = env('OIDC_CLIENT_SECRETS', '/app/.conf/okta/client_secrets.json')
     app.config["OIDC_COOKIE_SECURE"] = False
     app.config["OIDC_CALLBACK_ROUTE"] = "/auth/oktacallback"
@@ -38,3 +35,5 @@ def init_app(app):
             g.user = None
 
     auth.update_login_decorator(oidc.require_login)
+
+auth = _Auth()
