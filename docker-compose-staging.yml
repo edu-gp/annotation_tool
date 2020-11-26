@@ -74,7 +74,8 @@ services:
     env_file:
       - .env
     environment:
-      - DOMAIN_NAME=alchemy.impact.georgianpartners.com
+#      - DOMAIN_NAME=alchemy.impact.georgianpartners.com
+      - DOMAIN_NAME=alchemy.impact.georgian.io
       - ANNOTATION_SERVER_UWSGI=annotation_server:5001
       - ADMIN_SERVER_UWSGI=admin_server:5000
     image: nginx:stable-alpine
