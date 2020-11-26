@@ -24,9 +24,9 @@ FROM nvidia/cuda:10.1-cudnn7-runtime
 # Installs necessary dependencies.
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	    build-essential wget curl git python3.7 libpython3.7-dev && \
-    rm -rf /var/lib/apt/lists/* && \
     ln -s /usr/bin/python3.7 /usr/bin/python && \
     apt-get install -y python3-distutils && \
+    rm -rf /var/lib/apt/lists/* && \
     curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python get-pip.py && \
     pip install --no-cache setuptools && \
