@@ -1,4 +1,4 @@
-from alchemy.db.utils import is_data_file, is_pattern_file
+from alchemy.db.utils import _is_data_file_of_type
 
 
 def make_data_file(tmpdir):
@@ -26,10 +26,10 @@ def test_file_type_detector(tmpdir):
     pattern_file = make_pattern_file(tmpdir)
     invalid_file = make_invalid_file(tmpdir)
 
-    assert is_data_file(data_file) is True
-    assert is_data_file(pattern_file) is False
-    assert is_data_file(invalid_file) is False
+    assert _is_data_file_of_type(data_file, file_type='text') is True
+    assert _is_data_file_of_type(pattern_file, file_type='text') is False
+    assert _is_data_file_of_type(invalid_file, file_type='text') is False
 
-    assert is_pattern_file(data_file) is False
-    assert is_pattern_file(pattern_file) is True
-    assert is_pattern_file(invalid_file) is False
+    assert _is_data_file_of_type(data_file, file_type='pattern') is False
+    assert _is_data_file_of_type(pattern_file, file_type='pattern') is True
+    assert _is_data_file_of_type(invalid_file, file_type='pattern') is False
