@@ -15,6 +15,7 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 
+from alchemy.data.request.task_request import TaskCreateRequest, TaskUpdateRequest
 from alchemy.ar.ar_celery import generate_annotation_requests
 from alchemy.ar.data import (
     compute_annotation_statistics_db,
@@ -246,6 +247,7 @@ def edit(id):
 
 @bp.route("/<string:id>", methods=["POST"])
 def update(id):
+    # TODO this should move to the DAO as well.
     task = db.session.query(Task).filter_by(id=id).one_or_none()
 
     try:
@@ -258,22 +260,20 @@ def update(id):
         annotators = parse_annotators(form)
         entity_type = task.get_entity_type()
 
-        _remove_obsolete_requests_under_task(
-            task, data, annotators, labels, entity_type
+        update_request = TaskUpdateRequest.from_dict(
+            {
+                "task_id": task.id,
+                "name": name,
+                "data_files": [data],
+                "labels": labels,
+                "annotators": annotators,
+                "entity_type": entity_type,
+            }
         )
-
-        task.set_data_filenames([data])
-        task.set_annotators(annotators)
-        task.set_labels(labels)
-        task.name = name
-
-        db.session.add(task)
-
-        db.session.commit()
+        task_dao.update_task(update_request)
         logging.info("Updated tasks and deleted requests from removed " "annotators.")
         return redirect(url_for("tasks.show", id=task.id))
     except Exception as e:
-        db.session.rollback()
         error = str(e)
         flash(error)
         return render_template(
@@ -499,37 +499,3 @@ def parse_data(form, all_files):
     for fname in data:
         assert fname in all_files, f"Data file '{fname}' does not exist"
     return data
-
-
-def _remove_obsolete_requests_under_task(task, data, annotators, labels, entity_type):
-    if data != task.get_data_filenames()[0]:
-        logging.info(
-            "Prepare to remove all requests under task {} "
-            "since the data file has changed".format(task.id)
-        )
-        delete_requests_under_task(db.session, task.id)
-    elif entity_type != task.get_entity_type():
-        logging.info(
-            "Prepare to remove all requests under task {} "
-            "since the entity type has changed".format(task.id)
-        )
-        delete_requests_for_entity_type_under_task(db.session, task.id, entity_type)
-    else:
-        # Updating the annotators
-        for current_annotator in task.get_annotators():
-            if current_annotator not in annotators:
-                logging.info(
-                    "Prepare to remove requests under user {} for "
-                    "task {}".format(current_annotator, task.id)
-                )
-                delete_requests_for_user_under_task(
-                    db.session, current_annotator, task.id
-                )
-        # Updating the labels
-        for current_label in task.get_labels():
-            if current_label not in labels:
-                logging.info(
-                    "Prepare to remove requests under label {} for "
-                    "task {}".format(current_label, task.id)
-                )
-                delete_requests_for_label_under_task(db.session, current_label, task.id)

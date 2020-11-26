@@ -32,21 +32,41 @@ class ValidRequest(Request):
 def validate_request_data_common(
     fields: List[Field], dict_data: Dict, invalid_req: InvalidRequest
 ):
-    for field in fields:
-        if field.name not in dict_data:
+    check_missing_fields(fields, dict_data, invalid_req)
+    check_invalid_field_type(fields, dict_data, invalid_req)
+    check_invalid_request_fields(fields, dict_data, invalid_req)
+
+
+def check_invalid_request_fields(
+    fields: List[Field], dict_data: Dict, invalid_req: InvalidRequest
+):
+    field_names = set([field.name for field in fields])
+    for key in dict_data:
+        if key not in field_names:
             invalid_req.add_error(
-                parameter="dict_data", message=f"Missing field {field.name}."
+                parameter="dict_data", message=f"Invalid field {key}."
             )
-        elif not isinstance(dict_data[field.name], field.type):
+
+
+def check_invalid_field_type(
+    fields: List[Field], dict_data: Dict, invalid_req: InvalidRequest
+):
+    for field in fields:
+        if field.name in dict_data and not isinstance(
+            dict_data[field.name], field.type
+        ):
             invalid_req.add_error(
                 parameter="dict_data",
                 message=f"Field {field.name} expects {field.type} "
                 f"but received {type(dict_data[field.name])}",
             )
 
-    field_names = set([field.name for field in fields])
-    for key in dict_data:
-        if key not in field_names:
+
+def check_missing_fields(
+    fields: List[Field], dict_data: Dict, invalid_req: InvalidRequest
+):
+    for field in fields:
+        if field.name not in dict_data:
             invalid_req.add_error(
-                parameter="dict_data", message=f"Invalid field {key}."
+                parameter="dict_data", message=f"Missing field {field.name}."
             )
