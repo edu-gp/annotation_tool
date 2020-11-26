@@ -73,7 +73,7 @@ def _get_all_plots(version_dir, data_store):
     dirname = _get_inference_dir(version_dir)
     res = []
     if data_store == 'local' and not os.path.isdir(dirname):
-        return []
+        return res
 
     for f in listdir(dirname, data_store=data_store):
         if f.endswith(".histogram.png"):
@@ -85,7 +85,7 @@ def _get_all_inference_fnames(version_dir, data_store):
     dirname = _get_inference_dir(version_dir)
     res = []
     if data_store == 'local' and not os.path.isdir(dirname):
-        return []
+        return res
 
     for f in listdir(dirname, data_store=data_store):
         if f.endswith(".pred.npy"):
