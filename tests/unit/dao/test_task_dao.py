@@ -15,8 +15,8 @@ data_files = ["file1.txt", "file2.txt"]
 entity_type_updated = "future_type"
 name_updated = "bbb"
 labels_updated = ["healthcare"]
-annotators_updated = annotators.copy() + ["user3"]
-data_files_updated = data_files.copy() + ["file3.txt"]
+annotators_updated = annotators + ["user3"]
+data_files_updated = data_files + ["file3.txt"]
 
 
 def _count_task(dbsession):
@@ -57,13 +57,13 @@ def _prepare_existing_task(dbsession):
     return existing_task
 
 
-@pytest.mark.parametrize("new_labels", [labels_updated, labels.copy() + ["new_label"]])
+@pytest.mark.parametrize("new_labels", [labels_updated, labels + ["new_label"]])
 def test_task_update_success(dbsession, new_labels):
     existing_task = _prepare_existing_task(dbsession)
 
     task_dao = TaskDao(dbsession=dbsession)
     update_request = TaskUpdateRequest(
-        id=existing_task.id,
+        task_id=existing_task.id,
         name=name_updated,
         entity_type=entity_type_updated,
         labels=new_labels,
@@ -124,18 +124,17 @@ def test_task_create_with_duplicate_labels(dbsession):
     create_request = TaskCreateRequest(
         name=name,
         entity_type=entity_type,
-        labels=labels.copy() + ["new_label"],
+        labels=labels + ["new_label"],
         annotators=annotators,
         data_files=data_files,
     )
 
-    try:
+    expected_message = (
+        f"Label {labels[0]} is already created in task {existing_task.name}"
+    )
+    with pytest.raises(ValueError) as e:
         _ = task_dao.create_task(create_request=create_request)
-    except ValueError as e:
-        assert (
-            f"Label {labels[0]} is already created in task {existing_task.name}"
-            in str(e)
-        )
+    assert expected_message in str(e.value)
 
     num_of_tasks = _count_task(dbsession)
     assert num_of_tasks == 1

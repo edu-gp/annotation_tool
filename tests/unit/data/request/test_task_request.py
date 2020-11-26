@@ -21,7 +21,7 @@ from alchemy.db.model import EntityTypeEnum
         ),
         (
             {
-                "id": 1,
+                "task_id": 1,
                 "name": "testhotdog",
                 "entity_type": EntityTypeEnum.COMPANY,
                 "labels": ["B2C"],
@@ -75,7 +75,7 @@ def test_build_task_request_with_invalid_empty_data(dict_data, request_class):
         ),
         (
             {
-                "id": "Sdf",
+                "task_id": "Sdf",
                 "name": 123,
                 "entity_type": 321,
                 "labels": "B2C",
@@ -118,7 +118,7 @@ def test_build_task_request_with_invalid_wrong_type_data(dict_data, request_clas
         ),
         (
             {
-                "id": 1,
+                "task_id": 1,
                 "name": "testhotdog",
                 "entity_type": EntityTypeEnum.COMPANY,
                 "labels": [],

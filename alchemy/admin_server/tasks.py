@@ -262,7 +262,7 @@ def update(id):
 
         update_request = TaskUpdateRequest.from_dict(
             {
-                "id": task.id,
+                "task_id": task.id,
                 "name": name,
                 "data_files": [data],
                 "labels": labels,

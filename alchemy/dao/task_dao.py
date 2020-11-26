@@ -66,7 +66,11 @@ class TaskDao:
             #  Request Object.
             raise Exception(f"Invalid request: {update_request.errors}")
 
-        task = self.dbsession.query(Task).filter_by(id=update_request.id).one_or_none()
+        task = (
+            self.dbsession.query(Task)
+            .filter_by(id=update_request.task_id)
+            .one_or_none()
+        )
 
         if not task:
             raise ValueError(f"Invalid task id: {update_request.id}")

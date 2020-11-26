@@ -57,7 +57,7 @@ class TaskCreateRequest(TaskBaseRequest):
 
 @dataclass
 class TaskUpdateRequest(TaskBaseRequest):
-    id: int
+    task_id: int
 
     @classmethod
     def _validate_request_data(cls, dict_data, invalid_req):
