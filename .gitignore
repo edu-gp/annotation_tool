@@ -38,5 +38,3 @@ alchemy.db
 *.csv
 
 __filestore
-
-.conf/okta/client_secrets.json
