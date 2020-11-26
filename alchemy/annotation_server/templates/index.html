@@ -2,7 +2,7 @@
 
 {% block content %}
 <h2>
-  Hi {% if g.user %} {{ g.user.profile.firstName }} {% endif %}
+  Hi {% if g.user %} {{ g.user['name'] }} {% endif %}
 </h2>
 <p>
   {% if tasks|length > 0 %}

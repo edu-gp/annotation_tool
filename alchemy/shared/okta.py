@@ -1,6 +1,5 @@
 from envparse import env
 from flask_oidc import OpenIDConnect
-from okta import UsersClient
 
 
 class _Auth:
@@ -17,26 +16,30 @@ class _Auth:
 
 
 def init_app(app, auth):
-    app.config["OIDC_CLIENT_SECRETS"] = env('OIDC_CLIENT_SECRETS', '/app/.conf/okta/client_secrets.json')
-    app.config["OIDC_COOKIE_SECURE"] = False
-    app.config["OIDC_CALLBACK_ROUTE"] = "/auth/oktacallback"
-    app.config["OIDC_SCOPES"] = ["openid", "email", "profile"]
-    app.config["OIDC_ID_TOKEN_COOKIE_NAME"] = "oidc_token"
+    app.config.update({
+        "OIDC_CLIENT_SECRETS": env('OIDC_CLIENT_SECRETS', '/app/.conf/okta/client_secrets.json'),
+        "OIDC_COOKIE_SECURE": False,
+        "OIDC_CALLBACK_ROUTE": "/auth/oktacallback",
+        "OIDC_SCOPES": ["openid", "email", "profile"],
+        "OIDC_ID_TOKEN_COOKIE_NAME": "oidc_token",
+    })
 
     oidc = OpenIDConnect(app)
-    okta_client = UsersClient(env("OKTA_ORG_URL"), env("OKTA_AUTH_TOKEN"))
 
     @app.before_request
     def before_request():
         from flask import g
         if oidc.user_loggedin:
-            g.user = okta_client.get_user(oidc.user_getfield("sub"))
-            l = g.user.profile.login
+            user_info = oidc.user_getinfo(['sub', 'email', 'name'])
+            l = user_info['email']
             if '@' in l:
-                g.user.profile.login = l[:l.index('@')]
+                user_info['email'] = l[:l.index('@')]
+
+            g.user = user_info
         else:
             g.user = None
 
     auth.update_login_decorator(oidc.require_login)
+
 
 auth = _Auth()

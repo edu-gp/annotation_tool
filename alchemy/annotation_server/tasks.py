@@ -37,7 +37,7 @@ bp = Blueprint("tasks", __name__, url_prefix="/tasks")
 @bp.route("/<string:id>")
 @auth.login_required
 def show(id):
-    username = g.user.profile.login
+    username = g.user['email']
 
     import time
 
@@ -121,7 +121,7 @@ def compare_annotations(task_id):
 @bp.route("/<string:task_id>/annotate/<string:ar_id>")
 @auth.login_required
 def annotate(task_id, ar_id):
-    annotator = g.user.profile.login
+    annotator = g.user['email']
     task, anno, next_example_id = _prepare_annotation_common(
         task_id=task_id, example_id=ar_id, is_request=True, username=annotator
     )
@@ -150,7 +150,7 @@ def annotate(task_id, ar_id):
 @auth.login_required
 def receive_annotation():
     """API meant for Javascript to consume"""
-    username = g.user.profile.login
+    username = g.user['email']
     user_id = fetch_user_id_by_username(db.session, username=username)
 
     data = json.loads(request.data)
@@ -238,7 +238,7 @@ def receive_annotation():
 @auth.login_required
 def reannotate(task_id, annotation_id):
     annotation_owner = request.args.get(
-        "username", default=g.user.profile.login, type=str
+        "username", default=g.user['email'], type=str
     )
     task, anno, next_example_id = _prepare_annotation_common(
         task_id=task_id,
