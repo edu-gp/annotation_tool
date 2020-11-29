@@ -23,7 +23,7 @@ class AlchemyOpenIDConnect(OpenIDConnect):
         okta_base_url = f'https://{organization_name}.okta.com/oauth2/default'
         secret_manager_client = create_gcp_client()
         if app.config['DEBUG']:
-            suffix = '-debug'
+            suffix = '-dev'
         else:
             suffix = ''
 
