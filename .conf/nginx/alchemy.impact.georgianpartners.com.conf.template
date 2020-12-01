@@ -12,6 +12,7 @@ server {
 
     location ^~ /.well-known/acme-challenge/ {
       default_type "text/plain";
+      autoindex off;
       root /var/www/letsencrypt;
     }
 
