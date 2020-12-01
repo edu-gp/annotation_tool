@@ -79,6 +79,8 @@ services:
     image: nginx:stable-alpine
     volumes:
       - .conf/nginx:/etc/nginx/templates
+      - /etc/letsencrypt/challenge:/var/www/letsencrypt
+      - /etc/letsencrypt:/etc/letsencrypt
     depends_on:
       - admin_server
       - annotation_server
@@ -87,6 +89,7 @@ services:
       - annotation_server
     ports:
     - "80:80"
+    - "443:443"
 
   redis:
     image: "redis:alpine"
