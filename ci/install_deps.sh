@@ -45,7 +45,7 @@ done
 
 echo Installing extra python dependencies
 pip install --no-cache torch==1.6.0+cu101 torchvision==0.7.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html
-pip install --no-cache simpletransformers matplotlib seaborn
+pip install --no-cache transformers==3.5.1 simpletransformers==0.49.7 matplotlib seaborn
 
 if test $INSTALL_SPACY -eq 1; then
   echo Downloading the spacy english language model
