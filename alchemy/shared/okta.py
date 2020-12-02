@@ -20,7 +20,7 @@ class _Auth:
 class AlchemyOpenIDConnect(OpenIDConnect):
     def load_secrets(self, app):
         organization_name = env("OKTA_ORG_NAME", default='georgian-io')
-        okta_base_url = f'https://{organization_name}.okta.com/oauth2/default'
+        okta_base_url = f'https://{organization_name}.okta.com/oauth2'
         secret_manager_client = create_gcp_client()
         if app.config['DEBUG']:
             suffix = '-dev'
