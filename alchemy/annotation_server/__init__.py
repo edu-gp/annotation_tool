@@ -28,9 +28,6 @@ def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
     # TODO add credentials for sqlite, probably from environment vars
-    app.config.from_mapping(
-        SECRET_KEY='athena_todo_change_this_in_prod',
-    )
 
     if test_config is None:
         # load the instance config, if it exists, when not testing
@@ -39,6 +36,11 @@ def create_app(test_config=None):
     else:
         # load the test config if passed in
         app.config.from_object(test_config)
+
+    app.config.update({
+        'SECRET_KEY': 'athena_todo_change_this_in_prod',
+        'OKTA_BACKEND': 'alchemy.shared.okta.openid_connect',
+    })
 
     # ensure the instance folder exists
     try:

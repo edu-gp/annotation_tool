@@ -1,20 +1,8 @@
+# In case you want to use this, add flask-oidc>=1.4.0 to the requirements
 from envparse import env
 from flask_oidc import OpenIDConnect
 
 from alchemy.cloud_function.inference.inference_api_invoker import create_gcp_client, get_secret
-
-
-class _Auth:
-    def __init__(self):
-        self._check_login_decorator = None
-
-    def update_login_decorator(self, decorator):
-        self._check_login_decorator = decorator
-
-    def login_required(self, f):
-        if self._check_login_decorator:
-            return self._check_login_decorator(f)
-        return f
 
 
 class AlchemyOpenIDConnect(OpenIDConnect):
@@ -69,6 +57,3 @@ def init_app(app, auth):
             g.user = None
 
     auth.update_login_decorator(oidc.require_login)
-
-
-auth = _Auth()
