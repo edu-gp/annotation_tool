@@ -126,10 +126,13 @@ def init_app(app, auth):
     login_manager = flask_login.LoginManager()
     login_manager.init_app(app)
     login_manager.login_view = 'SAML.sp_initiated'
+    metadata_url = app.config.get('SAML_METADATA_URL', default=None)
+    if metadata_url:
+        rv = requests.get(metadata_url)
+        metadata = rv.text
+    else:
+        metadata = ''
 
-    metadata_url = app.config['SAML_METADATA_URL']
-    rv = requests.get(metadata_url)
-    metadata = rv.text
     app.register_blueprint(_create_blueprint(metadata=metadata), url_prefix='/auth/')
 
     auth.update_login_decorator(flask_login.login_required)
