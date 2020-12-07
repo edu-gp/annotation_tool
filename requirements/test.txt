@@ -2,4 +2,5 @@
 
 # Have both authentication backends while testing
 flask-oidc>=1.4.0
-flask-saml2>=0.3.0
+pysaml2==6.3.1
+

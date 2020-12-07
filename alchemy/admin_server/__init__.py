@@ -33,7 +33,8 @@ def create_app(test_config=None):
 
     app.config.update({
         'SECRET_KEY': 'athena_todo_change_this_in_prod',
-        'OKTA_BACKEND': 'alchemy.shared.okta.openid_connect',
+        'OKTA_BACKEND': 'alchemy.shared.okta.saml',
+        'SAML_METADATA_URL': env('SAML_METADATA_URL'),
     })
 
     # ensure the instance folder exists
@@ -60,6 +61,7 @@ def create_app(test_config=None):
     # -------------------------------------------------------------------------
     # Routes
 
+    # TODO: move it to auth blueprint
     @app.route("/auth/login")
     @auth.login_required
     def login():

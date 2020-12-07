@@ -5,6 +5,7 @@ import pickle
 import urllib.parse
 from typing import List, Optional
 
+import flask_login
 import pandas as pd
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Boolean, MetaData, UniqueConstraint, create_engine, desc, inspect
@@ -128,7 +129,7 @@ DUMMY_ENTITY = "__dummy__"
 # Tables
 
 
-class User(Base):
+class User(Base, flask_login.UserMixin):
     __tablename__ = "user"
     id = Column(Integer, primary_key=True)
     username = Column(String(64), index=True, unique=True, nullable=False)
