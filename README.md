@@ -50,6 +50,7 @@ New env vars:
 - `FLOWER_BASIC_AUTH`: Basic auth for the Celery monitoring UI, Flower. Set to `foo:bar` so foo is the username and bar is the password.
 - `CELERY_BROKER_URL`: Full URL to the message broker used by celery.
 - `SAML_METADATA_URL`
+- `SECRET_KEY`: The key used for encrypting session cookies
 
 # Development
 You can use the provided docker-compose file to run the dev server. 

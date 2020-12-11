@@ -38,7 +38,7 @@ def create_app(test_config=None):
         app.config.from_object(test_config)
 
     app.config.update({
-        'SECRET_KEY': 'athena_todo_change_this_in_prod',
+        'SECRET_KEY': env('SECRET_KEY'),
         'OKTA_BACKEND': 'alchemy.shared.okta.saml',
         'SAML_METADATA_URL': env('SAML_METADATA_URL', default=None),
     })
