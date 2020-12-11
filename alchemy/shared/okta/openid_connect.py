@@ -50,7 +50,7 @@ def init_app(app, auth):
             user_info = oidc.user_getinfo(['sub', 'email', 'name'])
             l = user_info['email']
             if '@' in l:
-                user_info['email'] = l[:l.index('@')]
+                user_info['username'] = l[:l.index('@')]
 
             g.user = user_info
         else:

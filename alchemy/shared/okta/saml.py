@@ -83,6 +83,7 @@ def _create_blueprint(*, metadata):
         }
         user_model = db.session.query(User).filter_by(username=username).one_or_none()
         if not user_model:
+            # TODO: add name and email to the user model
             user_model = User(username=username)
             db.session.add(user_model)
 
@@ -148,7 +149,8 @@ def init_app(app, auth):
         if current_user.is_authenticated:
             g.user = {
                 'name': current_user.username,
-                'email': current_user.username,
+                'email': f'{current_user.username}@georgian.io',
+                'username': current_user.username,
             }
         else:
             g.user = None

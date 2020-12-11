@@ -60,7 +60,7 @@ def create_app(test_config=None):
     @app.route("/")
     @login_required
     def index():
-        username = g.user['email']
+        username = g.user['username']
         task_id_and_name_pairs = fetch_tasks_for_user_from_db(db.session, username)
         return render_template("index.html", tasks=task_id_and_name_pairs)
 
