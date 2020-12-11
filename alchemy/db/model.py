@@ -18,6 +18,7 @@ from sqlalchemy.types import JSON, DateTime, Float, Integer, String
 from werkzeug.utils import secure_filename
 
 from alchemy.db.fs import raw_data_dir, training_data_dir, filestore_base_dir
+from alchemy.shared.config import Config
 from alchemy.shared.utils import (
     _format_float_numbers,
     file_len,
@@ -660,6 +661,10 @@ class Task(Base):
             self.__cached_pattern_model = PatternModel(patterns)
 
         return self.__cached_pattern_model
+
+    def get_annotation_link(self):
+        # FIXME: SUCH A SMELLY WAY OF CREATING THE LINK!
+        return f'{Config.get_annotation_server()}/tasks/{self.id}'
 
     def __repr__(self):
         return "<Task with id {}, \nname {}, \ndefault_params {}>".format(
