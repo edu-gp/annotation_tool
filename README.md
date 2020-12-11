@@ -15,7 +15,6 @@ Or use the --env or --env-file args for Docker.
 
 Descriptions of the env vars:
 
-- `ANNOTATION_TOOL_ANNOTATION_SERVER_SECRET`: The secret used to generate login links for annotators. If you change this, all login links will change.
 - `ANNOTATION_TOOL_ANNOTATION_SERVER_SERVER`: URL of annotation server, e.g. `http://localhost:5001`.
 - `ANNOTATION_TOOL_INFERENCE_CACHE_DIR`: Where some model inference are cached. Default is `./__infcache`
 - `ANNOTATION_TOOL_MAX_PER_ANNOTATOR`: How many examples to assign to each annotator in a batch. Default is 100.
