@@ -12,16 +12,17 @@ from flask import (
     request,
     url_for,
     send_file,
+    abort,
 )
 from werkzeug.utils import secure_filename
 
-from alchemy.data.request.task_request import TaskCreateRequest, TaskUpdateRequest
 from alchemy.ar.ar_celery import generate_annotation_requests
 from alchemy.ar.data import (
     compute_annotation_statistics_db,
     compute_annotation_request_statistics,
 )
 from alchemy.data.request.task_request import TaskCreateRequest
+from alchemy.data.request.task_request import TaskUpdateRequest
 from alchemy.db.model import (
     db,
     ClassificationAnnotation,
@@ -32,10 +33,6 @@ from alchemy.db.model import (
     LabelPatterns,
     ModelDeploymentConfig,
     EntityTypeEnum,
-    delete_requests_for_user_under_task,
-    delete_requests_for_label_under_task,
-    delete_requests_under_task,
-    delete_requests_for_entity_type_under_task,
 )
 from alchemy.db.utils import get_all_data_files
 from alchemy.shared.annotation_server_path_finder import (
@@ -80,16 +77,23 @@ def index():
 
 @bp.route("/new", methods=["GET"])
 def new():
+    users = db.session.query(User).all()
+    for u in users:
+        u.is_selected = False
     return render_template(
         "tasks/new.html",
         data_fnames=get_all_data_files(),
         entity_types=EntityTypeEnum.get_all_entity_types(),
+        users=users,
     )
 
 
 @bp.route("/", methods=["POST"])
 def create():
     data_fnames = get_all_data_files()
+    users = db.session.query(User).all()
+    for u in users:
+        u.is_selected = False
 
     try:
         form = request.form
@@ -99,6 +103,9 @@ def create():
         labels = parse_labels(form)
         annotators = parse_annotators(form)
         data_files = parse_data(form, data_fnames)
+        annotators_set = set(annotators)
+        for u in users:
+            u.is_selected = u.username in annotators_set
 
         create_request = TaskCreateRequest.from_dict(
             {
@@ -116,7 +123,7 @@ def create():
         db.session.rollback()
         error = str(e)
         flash(error)
-        return render_template("tasks/new.html", data_fnames=data_fnames)
+        return render_template("tasks/new.html", data_fnames=data_fnames, users=users)
 
 
 @bp.route("/<string:id>", methods=["GET"])
@@ -237,11 +244,19 @@ def show(id):
 @bp.route("/<string:id>/edit", methods=["GET"])
 def edit(id):
     task = db.session.query(Task).filter_by(id=id).one_or_none()
+    if not task:
+        abort(404)
+    annotators = set(task.get_annotators())
+    users = db.session.query(User).all()
+    for u in users:
+        u.is_selected = u.username in annotators
+
     return render_template(
         "tasks/edit.html",
         task=task,
         list_to_textarea=list_to_textarea,
         entity_types=EntityTypeEnum.get_all_entity_types(),
+        users=users,
     )
 
 
@@ -249,6 +264,13 @@ def edit(id):
 def update(id):
     # TODO this should move to the DAO as well.
     task = db.session.query(Task).filter_by(id=id).one_or_none()
+    if not task:
+        abort(404)
+
+    users = db.session.query(User).all()
+    annotators_set = set(task.get_annotators())
+    for u in users:
+        u.is_selected = u.username in annotators_set
 
     try:
         form = request.form
@@ -259,6 +281,9 @@ def update(id):
 
         annotators = parse_annotators(form)
         entity_type = task.get_entity_type()
+        annotators_set = set(annotators)
+        for u in users:
+            u.is_selected = u.username in annotators_set
 
         update_request = TaskUpdateRequest.from_dict(
             {
@@ -277,7 +302,7 @@ def update(id):
         error = str(e)
         flash(error)
         return render_template(
-            "tasks/edit.html", task=task, list_to_textarea=list_to_textarea
+            "tasks/edit.html", task=task, list_to_textarea=list_to_textarea, users=users
         )
 
 
@@ -478,17 +503,13 @@ def parse_labels(form):
 
 
 def parse_annotators(form):
-    annotators = form["annotators"]
-    assert annotators, "Annotators is required"
+    annotators = [int(uid) for uid in form.getlist("annotators[]")]
+    assert annotators and len(annotators) > 0, "You should select at least one person to annotate"  # but why?
 
-    try:
-        annotators = textarea_to_list(annotators)
-    except Exception as e:
-        raise Exception(f"Unable to load Annotators: {e}")
+    usernames = [username for username, in db.session.query(User.username).filter(User.id.in_(annotators)).all()]
+    # If an invalid ID is supplied here it'll just ignore it.
 
-    assert isinstance(annotators, list), "Annotators must be a list"
-    assert len(annotators) > 0, "Annotators must not be empty"
-    return annotators
+    return usernames
 
 
 def parse_data(form, all_files):
