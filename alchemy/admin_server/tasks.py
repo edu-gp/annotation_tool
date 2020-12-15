@@ -12,16 +12,17 @@ from flask import (
     request,
     url_for,
     send_file,
+    abort,
 )
 from werkzeug.utils import secure_filename
 
-from alchemy.data.request.task_request import TaskCreateRequest, TaskUpdateRequest
 from alchemy.ar.ar_celery import generate_annotation_requests
 from alchemy.ar.data import (
     compute_annotation_statistics_db,
     compute_annotation_request_statistics,
 )
 from alchemy.data.request.task_request import TaskCreateRequest
+from alchemy.data.request.task_request import TaskUpdateRequest
 from alchemy.db.model import (
     db,
     ClassificationAnnotation,
@@ -32,10 +33,6 @@ from alchemy.db.model import (
     LabelPatterns,
     ModelDeploymentConfig,
     EntityTypeEnum,
-    delete_requests_for_user_under_task,
-    delete_requests_for_label_under_task,
-    delete_requests_under_task,
-    delete_requests_for_entity_type_under_task,
 )
 from alchemy.db.utils import get_all_data_files
 from alchemy.shared.annotation_server_path_finder import (
@@ -122,6 +119,8 @@ def create():
 @bp.route("/<string:id>", methods=["GET"])
 def show(id):
     task = db.session.query(Task).filter_by(id=id).one_or_none()
+    if not task:
+        abort(404)
 
     # -------------------------------------------------------------------------
     # Labels
@@ -306,6 +305,8 @@ def assign(id):
 @bp.route("/<string:id>/train", methods=["POST"])
 def train(id):
     task = db.session.query(Task).filter_by(id=id).one_or_none()
+    if not task:
+        abort(404)
 
     label = request.form["label"]
     assert (
@@ -332,6 +333,9 @@ def train(id):
 def download_training_data():
     model_id = int(request.form["model_id"])
     model = db.session.query(Model).filter_by(id=model_id).one_or_none()
+    if not model:
+        abort(404)
+
     fname = model.classification_training_data.path(abs=True)
     return send_file(fname, mimetype="text/csv", cache_timeout=0, as_attachment=True)
 
@@ -344,96 +348,96 @@ def download_prediction():
 
     model = db.session.query(Model).filter_by(id=model_id).one_or_none()
 
-    if model is not None:
-        # --- 1. Get the model inference file ---
-        label = model.label or "UNK_LABEL"
-        df = model.export_inference(fname, include_text=True)
-
-        # --- 2. Merge it with the existing annotations from all users ---
-        # This makes it easier to QA the model.
-        q = (
-            db.session.query(
-                User.username,
-                ClassificationAnnotation.entity,
-                ClassificationAnnotation.value,
-                ClassificationAnnotation.weight,
-            )
-            .join(User)
-            .filter(
-                ClassificationAnnotation.label == label,
-                ClassificationAnnotation.entity_type == entity_type,
-            )
-        )
-        res = q.all()
-
-        all_annos = []
-        for anno in res:
-            # we want a column to group the value and weight together.
-            if anno[3] and anno[3] > 0:
-                anno = anno + (WeightedVote(value=anno[2], weight=anno[3]),)
-            else:
-                anno = anno + (WeightedVote(value=anno[2]),)
-            all_annos.append(anno)
-
-        # Convert query result into a dataframe
-        df_all_annos = pd.DataFrame(
-            all_annos,
-            columns=["username", "entity", "value", "weight", "value_weight_tuple"],
-        )
-
-        # Make sure the annotations are unique on (user, entity)
-        df_all_annos = df_all_annos.drop_duplicates(
-            ["username", "entity"], keep="first"
-        )
-
-        # Make sure none of the entities are missing
-        # (otherwise this will result in extra rows when merging)
-        df_all_annos = df_all_annos.dropna(subset=["entity"])
-        # Merge it with the existing annotation one by one
-        n_cols = len(df.columns)
-        usernames = df_all_annos["username"].drop_duplicates().values
-        for username in usernames:
-            # Get just this user's annotations.
-            _df = df_all_annos[df_all_annos["username"] == username]
-            # Rename the "value" column to the username.
-            _df = _df.drop(columns=["username"])
-            _df = _df.rename(
-                columns={
-                    "value": username,
-                    "entity": "domain",
-                    "weight": username + "_vote_weight",
-                    "value_weight_tuple": username + "_value_weight_tuple",
-                }
-            )
-            # Merge it with the main dataframe.
-            df = df.merge(_df, on="domain", how="left")
-
-        # Compute some statistics of the annotations
-        # Only consider the columns with the user annotations
-        df_annos = df[usernames]
-        df["CONTENTION (ENTROPY)"] = df_annos.apply(get_entropy, axis=1)
-
-        user_weighted_value_columns = [
-            username + "_value_weight_tuple" for username in usernames
-        ]
-
-        df_annos_with_weights = df[user_weighted_value_columns]
-
-        df["MAJORITY_VOTE"] = df_annos_with_weights.apply(
-            get_weighted_majority_vote, axis=1
-        )  # get_majority_vote,
-        df = df.drop(columns=user_weighted_value_columns)
-
-        # 3. --- Write it to a temp file and send it ---
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            name = f"{secure_filename(label)}__{stem(fname)}.csv"
-            final_fname = os.path.join(tmpdirname, name)
-            df.to_csv(final_fname, index=False)
-            return send_file(
-                final_fname, mimetype="text/csv", cache_timeout=0, as_attachment=True
-            )
-    else:
+    if not model:
         return "Inference file not found", 404
+
+    # --- 1. Get the model inference file ---
+    label = model.label or "UNK_LABEL"
+    df = model.export_inference(fname, include_text=True)
+
+    # --- 2. Merge it with the existing annotations from all users ---
+    # This makes it easier to QA the model.
+    q = (
+        db.session.query(
+            User.username,
+            ClassificationAnnotation.entity,
+            ClassificationAnnotation.value,
+            ClassificationAnnotation.weight,
+        )
+        .join(User)
+        .filter(
+            ClassificationAnnotation.label == label,
+            ClassificationAnnotation.entity_type == entity_type,
+        )
+    )
+    res = q.all()
+
+    all_annos = []
+    for anno in res:
+        # we want a column to group the value and weight together.
+        if anno[3] and anno[3] > 0:
+            anno = anno + (WeightedVote(value=anno[2], weight=anno[3]),)
+        else:
+            anno = anno + (WeightedVote(value=anno[2]),)
+        all_annos.append(anno)
+
+    # Convert query result into a dataframe
+    df_all_annos = pd.DataFrame(
+        all_annos,
+        columns=["username", "entity", "value", "weight", "value_weight_tuple"],
+    )
+
+    # Make sure the annotations are unique on (user, entity)
+    df_all_annos = df_all_annos.drop_duplicates(
+        ["username", "entity"], keep="first"
+    )
+
+    # Make sure none of the entities are missing
+    # (otherwise this will result in extra rows when merging)
+    df_all_annos = df_all_annos.dropna(subset=["entity"])
+    # Merge it with the existing annotation one by one
+    n_cols = len(df.columns)
+    usernames = df_all_annos["username"].drop_duplicates().values
+    for username in usernames:
+        # Get just this user's annotations.
+        _df = df_all_annos[df_all_annos["username"] == username]
+        # Rename the "value" column to the username.
+        _df = _df.drop(columns=["username"])
+        _df = _df.rename(
+            columns={
+                "value": username,
+                "entity": "domain",
+                "weight": username + "_vote_weight",
+                "value_weight_tuple": username + "_value_weight_tuple",
+            }
+        )
+        # Merge it with the main dataframe.
+        df = df.merge(_df, on="domain", how="left")
+
+    # Compute some statistics of the annotations
+    # Only consider the columns with the user annotations
+    df_annos = df[usernames]
+    df["CONTENTION (ENTROPY)"] = df_annos.apply(get_entropy, axis=1)
+
+    user_weighted_value_columns = [
+        username + "_value_weight_tuple" for username in usernames
+    ]
+
+    df_annos_with_weights = df[user_weighted_value_columns]
+
+    df["MAJORITY_VOTE"] = df_annos_with_weights.apply(
+        get_weighted_majority_vote, axis=1
+    )  # get_majority_vote,
+    df = df.drop(columns=user_weighted_value_columns)
+
+    # 3. --- Write it to a temp file and send it ---
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        name = f"{secure_filename(label)}__{stem(fname)}.csv"
+        final_fname = os.path.join(tmpdirname, name)
+        df.to_csv(final_fname, index=False)
+        return send_file(
+            final_fname, mimetype="text/csv", cache_timeout=0, as_attachment=True
+        )
 
 
 # def _extract_prediction_data_for_model(model):
