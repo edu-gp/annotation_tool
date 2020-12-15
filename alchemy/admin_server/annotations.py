@@ -65,7 +65,7 @@ def bulk_post_positive_annotations():
 
         # Insert into Database
         user = (db.session.query(User)
-                .filter(username=user)
+                .filter_by(username=user)
                 .one_or_none())
         if not user:
             raise ValueError(f"Annotator {user} is not registered on the website.")
@@ -131,7 +131,7 @@ def bulk_post():
         # Insert into Database
 
         user = (db.session.query(User)
-                .filter(username=user)
+                .filter_by(username=user)
                 .one_or_none())
         if not user:
             raise ValueError(f"Annotator {user} is not registered on the website.")

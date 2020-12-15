@@ -46,8 +46,8 @@ def save_new_ar_for_user_db(
     entity_type,
     clean_existing=True,
 ):
-    user = (db.session.query(User)
-            .filter(username=username)
+    user = (dbsession.query(User)
+            .filter_by(username=username)
             .one_or_none())
     if not user:
         # Should not happen since the annotator usernames are not arbitrary anymore

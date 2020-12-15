@@ -275,7 +275,7 @@ def update_annotation():
 
     data = json.loads(request.data)
     annotation_owner = (db.session.query(User)
-                        .filter(username=data["username"])
+                        .filter_by(username=data["username"])
                         .one_or_none())
     if not annotation_owner:
         return {"error": f"Annotator {annotation_owner} is not registered on the website."}, 403
