@@ -1,4 +1,4 @@
-from pandas import np
+import numpy as np
 
 from alchemy.shared.utils import (
     WeightedVote,
