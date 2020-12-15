@@ -21,7 +21,6 @@ from alchemy.db.model import (
     User,
     db,
     delete_requests_for_user_under_task,
-    get_or_create,
     update_instance,
 )
 from alchemy.shared.annotation_server_path_finder import (
@@ -47,7 +46,12 @@ def save_new_ar_for_user_db(
     entity_type,
     clean_existing=True,
 ):
-    user = get_or_create(dbsession=dbsession, model=User, username=username)
+    user = (db.session.query(User)
+            .filter(username=username)
+            .one_or_none())
+    if not user:
+        # Should not happen since the annotator usernames are not arbitrary anymore
+        raise ValueError(f"Annotator {user} is not registered on the website.")
     if clean_existing:
         try:
             delete_requests_for_user_under_task(

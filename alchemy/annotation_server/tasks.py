@@ -274,9 +274,11 @@ def update_annotation():
     username = g.user["username"]
 
     data = json.loads(request.data)
-    annotation_owner = get_or_create(
-        dbsession=db.session, model=User, username=data["username"]
-    )
+    annotation_owner = (db.session.query(User)
+                        .filter(username=data["username"])
+                        .one_or_none())
+    if not annotation_owner:
+        return {"error": f"Annotator {annotation_owner} is not registered on the website."}, 403
 
     entity_type = data["req"]["entity_type"]
     entity = data["req"]["entity"]
