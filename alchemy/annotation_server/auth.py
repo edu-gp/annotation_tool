@@ -9,8 +9,10 @@ from flask import (
     request,
     session,
     url_for,
+    abort,
 )
 
+from alchemy.db.model import User, db
 from alchemy.shared.annotation_server_path_finder import (
     get_annotation_server_user_password,
 )
@@ -22,6 +24,11 @@ from alchemy.shared.annotation_server_path_finder import (
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
+def _log_out():
+    session.clear()
+    load_logged_in_user()
+
+
 @bp.route("/login", methods=("GET", "POST"))
 def login():
     if request.method == "GET":
@@ -31,40 +38,34 @@ def login():
     elif request.method == "POST":
         username = request.form["username"]
         password = request.form["password"]
+    else:
+        abort(405)
+        return  # noqa
 
-    if username is not None and password is not None:
-        error = None
-
-        # db = get_db()
-        # error = None
-        # user = db.execute(
-        #     'SELECT * FROM user WHERE username = ?', (username,)
-        # ).fetchone()
-
-        # user = DUMMY_USER
-
-        # if user is None:
-        #     error = 'Incorrect username.'
-        # elif not check_password_hash(user['password'], password):
-        #     error = 'Incorrect password.'
-
-        if get_annotation_server_user_password(username) != password:
-            error = "Incorrect password."
-
-        if error is None:
+    if username and password:
+        user = db.session.query(User).filter_by(username=username).one_or_none()
+        expected_password = get_annotation_server_user_password(username)
+        # This is to prevent short circuiting the conditions and protect against timing
+        # side channel attacks.
+        conditions = [
+            expected_password == password,
+            user is not None,
+        ]
+        if all(conditions):
             session.clear()
             session["user_id"] = username
             session["username"] = username
             return redirect(url_for("index"))
-
-        flash(error)
+        else:
+            _log_out()
+            flash("Invalid username or password, please use a fresh log in link.")
 
     return render_template("auth/login.html")
 
 
 @bp.route("/logout")
 def logout():
-    session.clear()
+    _log_out()
     return redirect(url_for("index"))
 
 
@@ -82,6 +83,12 @@ def load_logged_in_user():
     if session.get("user_id") is None:
         g.user = None
     else:
+        user = db.session.query(User).filter_by(username=session.get("user_id")).one_or_none()
+        if not user:
+            flash("Login expired")
+            _log_out()
+
+        # TODO: replace this whole dictionary with the user object (rel. okta)
         g.user = {
             "user_id": session.get("user_id"),
             "username": str(session.get("username")),
