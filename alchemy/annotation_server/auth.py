@@ -17,10 +17,6 @@ from alchemy.shared.annotation_server_path_finder import (
     get_annotation_server_user_password,
 )
 
-# from werkzeug.security import check_password_hash, generate_password_hash
-# from main_server.db import get_db
-
-
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
@@ -58,7 +54,7 @@ def login():
             return redirect(url_for("index"))
         else:
             _log_out()
-            flash("Invalid username or password, please use a fresh log in link.")
+            flash("Incorrect username or password, please use a fresh log in link.")
 
     return render_template("auth/login.html")
 
