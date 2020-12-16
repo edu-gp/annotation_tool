@@ -1,10 +1,11 @@
 import pytest
 
+from alchemy.db.model import db, User
 from alchemy.shared.annotation_server_path_finder import (
     _generate_annotation_server_user_login_path,
     get_annotation_server_user_password,
 )
-from tests.fixtures import annotation_server_client
+from tests.fixtures import annotation_server_client  # noqa
 
 
 def _assert_has_logged_in(response, username):
@@ -17,7 +18,7 @@ def _assert_has_logged_in(response, username):
     assert username in response.get_data().decode()
 
 
-def test_login_with_post(annotation_server_client):
+def test_login_with_post_Incorrect_user(annotation_server_client):
     response = annotation_server_client.post(
         "/auth/login",
         data=dict(
@@ -25,18 +26,40 @@ def test_login_with_post(annotation_server_client):
         ),
         follow_redirects=True,
     )
+    assert "Incorrect username or password" in response.get_data().decode()
 
+
+def test_login_with_post(annotation_server_client):
+    blah = User(username='blah')
+    db.session.add(blah)
+    response = annotation_server_client.post(
+        "/auth/login",
+        data=dict(
+            username="blah", password=get_annotation_server_user_password("blah")
+        ),
+        follow_redirects=True,
+    )
     _assert_has_logged_in(response, "blah")
 
 
+def test_login_with_link_Incorrect_user(annotation_server_client):
+    path = _generate_annotation_server_user_login_path("a_very_long_username")
+    response = annotation_server_client.get(path, follow_redirects=True)
+
+    assert "Incorrect username or password" in response.get_data().decode()
+
+
 def test_login_with_link(annotation_server_client):
+    a_very_long_username = User(username='a_very_long_username')
+    db.session.add(a_very_long_username)
+
     path = _generate_annotation_server_user_login_path("a_very_long_username")
     response = annotation_server_client.get(path, follow_redirects=True)
 
     _assert_has_logged_in(response, "a_very_long_username")
 
 
-def test_login_with_post_wrong_password(annotation_server_client):
+def test_login_with_post_wrong_password_and_username(annotation_server_client):
     response = annotation_server_client.post(
         "/auth/login",
         data=dict(username="blah", password="wrong_password"),
@@ -44,6 +67,22 @@ def test_login_with_post_wrong_password(annotation_server_client):
     )
 
     assert response.status == "200 OK"
-    assert "Incorrect password" in response.get_data().decode()
+    assert "Incorrect username or password" in response.get_data().decode()
+    with pytest.raises(Exception):
+        _assert_has_logged_in(response, "blah")
+
+
+def test_login_with_post_wrong_password_only(annotation_server_client):
+    blah = User(username='blah')
+    db.session.add(blah)
+
+    response = annotation_server_client.post(
+        "/auth/login",
+        data=dict(username="blah", password="wrong_password"),
+        follow_redirects=True,
+    )
+
+    assert response.status == "200 OK"
+    assert "Incorrect username or password" in response.get_data().decode()
     with pytest.raises(Exception):
         _assert_has_logged_in(response, "blah")
