@@ -41,7 +41,7 @@ def get_saml_client(*, metadata):
                 },
                 # Don't verify that the incoming requests originate from us via
                 # the built-in cache for authn request ids in pysaml2
-                'allow_unsolicited': True,
+                'allow_unsolicited': False,
                 # Don't sign authn requests, since signed requests only make
                 # sense in a situation where you control both the SP and IdP
                 'authn_requests_signed': False,
@@ -68,10 +68,16 @@ def _create_blueprint(*, metadata):
         try:
             authn_response = saml_client.parse_authn_request_response(
                 flask.request.form['SAMLResponse'],
-                entity.BINDING_HTTP_POST)
+                entity.BINDING_HTTP_POST,
+                outstanding={
+                    flask.session['saml_reqid']: '/',
+                }
+            )
         except ResponseLifetimeExceed:
             flask.flash('Login link expired, please log in again.')
             return flask.redirect('/')
+        else:
+            del flask.session['saml_reqid']
 
         authn_response.get_identity()
         saml_user_info = authn_response.get_subject()
@@ -102,6 +108,7 @@ def _create_blueprint(*, metadata):
     def sp_initiated():
         saml_client = get_saml_client(metadata=metadata)
         reqid, info = saml_client.prepare_for_authenticate()
+        flask.session['saml_reqid'] = reqid
 
         redirect_url = None
         # Select the IdP URL to send the AuthN request to
