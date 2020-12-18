@@ -73,7 +73,7 @@ def _create_blueprint(*, metadata):
                     flask.session['saml_reqid']: '/',
                 }
             )
-        except ResponseLifetimeExceed:
+        except (ResponseLifetimeExceed, KeyError):
             flask.flash('Login link expired, please log in again.')
             return flask.redirect('/')
         else:
