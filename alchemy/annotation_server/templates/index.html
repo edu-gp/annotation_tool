@@ -2,7 +2,7 @@
 
 {% block content %}
 <h2>
-  Hi {% if g.user %} {{ g.user['name'] }} {% endif %}
+  Hi {% if current_user %}{{ current_user.first_name }}{% endif %}!
 </h2>
 <p>
   {% if tasks|length > 0 %}
