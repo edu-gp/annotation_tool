@@ -103,6 +103,11 @@ def _create_blueprint(*, metadata):
         logging.info("redirect to " + str(url))
         return flask.redirect(url)
 
+    @bp.route("/logout")
+    def logout():
+        flask_login.logout_user()
+        return flask.redirect('/')
+
     # Start log in
     @bp.route('/saml/login')
     def sp_initiated():
