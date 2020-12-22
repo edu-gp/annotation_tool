@@ -10,6 +10,7 @@ from saml2 import (
 )
 from saml2.client import Saml2Client
 from saml2.config import Config as Saml2Config
+from saml2.saml import NAME_FORMAT_BASIC
 from saml2.validate import ResponseLifetimeExceed
 
 from alchemy.db.model import db, User
@@ -50,10 +51,27 @@ def get_saml_client(*, metadata):
                 'want_response_signed': False,
             },
         },
+        "entity_attributes": [
+            {
+                "name": "urn:mace:dir:attribute-def:givenname",
+                "friendly_name": "FirstName",
+                "name_format": NAME_FORMAT_BASIC,
+                "values": ["any"],
+            },
+            {
+                "name": "urn:mace:dir:attribute-def:surname",
+                "friendly_name": "LastName",
+                "name_format": NAME_FORMAT_BASIC,
+            },
+            {
+                "name": "urn:mace:dir:attribute-def:emailaddress",
+                "friendly_name": "Email",
+                "name_format": NAME_FORMAT_BASIC,
+            },
+        ]
     }
     spConfig = Saml2Config()
     spConfig.load(settings)
-    spConfig.allow_unknown_attributes = True
     saml_client = Saml2Client(config=spConfig)
     return saml_client
 
@@ -84,8 +102,9 @@ def _create_blueprint(*, metadata):
         username = saml_user_info.text
         user_info = {
             'username': username,
-            'first_name': authn_response.ava.get('FirstName', [''])[0],
-            'last_name': authn_response.ava.get('LastName', [''])[0],
+            'first_name': authn_response.ava.get('givenName', [''])[0],
+            'last_name': authn_response.ava.get('surname', [''])[0],
+            'email': authn_response.ava.get('emailAddress', [''])[0],
         }
         user_model = db.session.query(User).filter_by(username=username).one_or_none()
         if not user_model:
