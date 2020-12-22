@@ -134,6 +134,9 @@ class User(Base, flask_login.UserMixin):
     __tablename__ = "user"
     id = Column(Integer, primary_key=True)
     username = Column(String(64), index=True, unique=True, nullable=False)
+    first_name = Column(String(64), index=False, unique=False, nullable=True)
+    last_name = Column(String(64), index=False, unique=False, nullable=True)
+    email = Column(String(128), index=False, unique=False, nullable=True)
     # A user can do many annotations.
     classification_annotations = relationship(
         "ClassificationAnnotation", back_populates="user", lazy="dynamic"

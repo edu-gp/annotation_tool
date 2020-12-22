@@ -106,11 +106,29 @@ def _create_blueprint(*, metadata):
             'last_name': authn_response.ava.get('surname', [''])[0],
             'email': authn_response.ava.get('emailAddress', [''])[0],
         }
+        user_changed = False
         user_model = db.session.query(User).filter_by(username=username).one_or_none()
         if not user_model:
-            # TODO: add name and email to the user model
-            user_model = User(username=username)
+            user_model = User(
+                username=username,
+                first_name=user_info['first_name'],
+                last_name=user_info['last_name'],
+                email=user_info['email'],
+            )
             db.session.add(user_model)
+            user_changed = True
+            logging.info(f"Registered new user {username}")
+        else:
+            for k, v in user_info.items():
+                if getattr(user_model, k) != v:
+                    user_changed = True
+                    setattr(user_model, k, v)
+            if user_changed:
+                db.session.add(user_model)
+                logging.info(f"Updated user info {username}")
+
+        if user_changed:
+            db.session.commit()
 
         # Relate to user model
         flask_login.login_user(user_model)
@@ -119,7 +137,7 @@ def _create_blueprint(*, metadata):
             url = url or flask.request.form['RelayState']
             # TODO: check if url is valid (in the same website)
 
-        logging.info("redirect to " + str(url))
+        logging.debug("redirect to " + str(url))
         return flask.redirect(url)
 
     @bp.route("/logout")
