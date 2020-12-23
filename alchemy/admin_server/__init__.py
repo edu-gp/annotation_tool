@@ -60,13 +60,6 @@ def create_app(test_config=None):
 
     # -------------------------------------------------------------------------
     # Routes
-
-    # TODO: move it to auth blueprint
-    @app.route("/auth/login")
-    @auth.login_required
-    def login():
-        return redirect(url_for('index'))
-
     @app.route("/")
     @auth.login_required
     def index():

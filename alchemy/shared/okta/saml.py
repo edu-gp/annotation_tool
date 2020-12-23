@@ -140,11 +140,6 @@ def _create_blueprint(*, metadata):
         logging.debug("redirect to " + str(url))
         return flask.redirect(url)
 
-    @bp.route("/logout")
-    def logout():
-        flask_login.logout_user()
-        return flask.redirect('/')
-
     # Start log in
     @bp.route('/saml/login')
     def sp_initiated():
@@ -168,6 +163,16 @@ def _create_blueprint(*, metadata):
         response.headers['Cache-Control'] = 'no-cache, no-store'
         response.headers['Pragma'] = 'no-cache'
         return response
+
+    @bp.route("/logout")
+    def logout():
+        flask_login.logout_user()
+        return flask.redirect(flask.url_for('index'))
+
+    @bp.route("/login")
+    @flask_login.login_required
+    def login():
+        return flask.redirect(flask.url_for('index'))
 
     return bp
 
