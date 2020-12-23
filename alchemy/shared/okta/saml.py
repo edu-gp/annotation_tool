@@ -176,6 +176,7 @@ def init_app(app, auth):
     login_manager = flask_login.LoginManager()
     login_manager.init_app(app)
     login_manager.login_view = 'SAML.sp_initiated'
+    login_manager.login_message = None
     metadata_url = app.config.get('SAML_METADATA_URL')
     if metadata_url:
         rv = requests.get(metadata_url)
