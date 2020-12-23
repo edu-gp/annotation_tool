@@ -190,16 +190,3 @@ def init_app(app, auth):
     @login_manager.user_loader
     def load_user(user_id):
         return db.session.query(User).filter_by(id=user_id).one_or_none()
-
-    @app.before_request
-    def before_request():
-        from flask import g
-        current_user = flask_login.current_user
-        if current_user.is_authenticated:
-            g.user = {
-                'name': current_user.username,
-                'email': f'{current_user.username}@georgian.io',
-                'username': current_user.username,
-            }
-        else:
-            g.user = None

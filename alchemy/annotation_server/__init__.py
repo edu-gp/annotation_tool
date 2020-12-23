@@ -1,9 +1,10 @@
 import logging
 import os
 
+import flask_login
 from envparse import env
 from flask import (
-    Flask, render_template, g
+    Flask, render_template
 )
 
 from alchemy.ar.data import fetch_tasks_for_user_from_db
@@ -60,7 +61,7 @@ def create_app(test_config=None):
     @app.route("/")
     @login_required
     def index():
-        username = g.user['username']
+        username = flask_login.current_user.username
         task_id_and_name_pairs = fetch_tasks_for_user_from_db(db.session, username)
         return render_template("index.html", tasks=task_id_and_name_pairs)
 

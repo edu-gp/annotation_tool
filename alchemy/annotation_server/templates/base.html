@@ -33,9 +33,9 @@
               <a class="nav-link disabled" href="#" tabindex="-1" aria-disabled="true">Disabled</a>
             </li> -->
         </ul>
-        {% if g.user %}
+        {% if current_user %}
             <span class="navbar-text">
-                {{ g.user['name'] }}
+                {{ current_user.first_name }} {{ current_user.last_name }}
             </span>
         {% else %}
             <a class="nav-link" href="{{ url_for('auth.login') }}">Log in</a>
