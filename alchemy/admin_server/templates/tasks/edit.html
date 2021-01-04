@@ -60,7 +60,7 @@
         <small class="form-text text-muted mt-0 mb-2">At least one person required. You can add more later.</small>
         <select name="annotators[]" id="annotators" multiple="multiple" class="form-control">
         {% for u in users %}
-            <option value="{{ u.id }}"{% if u.is_selected %} selected{% endif %}>{{ u.username }}</option>
+            <option value="{{ u.id }}"{% if u.username in annotators_set %} selected{% endif %}>{{ u.username }}</option>
         {% endfor %}
         </select>
       </div>

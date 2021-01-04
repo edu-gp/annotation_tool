@@ -78,13 +78,12 @@ def index():
 @bp.route("/new", methods=["GET"])
 def new():
     users = db.session.query(User).all()
-    for u in users:
-        u.is_selected = False
     return render_template(
         "tasks/new.html",
         data_fnames=get_all_data_files(),
         entity_types=EntityTypeEnum.get_all_entity_types(),
         users=users,
+        annotators_set=set(),
     )
 
 
@@ -92,9 +91,7 @@ def new():
 def create():
     data_fnames = get_all_data_files()
     users = db.session.query(User).all()
-    for u in users:
-        u.is_selected = False
-
+    annotators_set = set()
     try:
         form = request.form
 
@@ -104,8 +101,6 @@ def create():
         annotators = parse_annotators(form)
         data_files = parse_data(form, data_fnames)
         annotators_set = set(annotators)
-        for u in users:
-            u.is_selected = u.username in annotators_set
 
         create_request = TaskCreateRequest.from_dict(
             {
@@ -123,7 +118,7 @@ def create():
         db.session.rollback()
         error = str(e)
         flash(error)
-        return render_template("tasks/new.html", data_fnames=data_fnames, users=users)
+        return render_template("tasks/new.html", data_fnames=data_fnames, users=users, annotators_set=annotators_set)
 
 
 @bp.route("/<string:id>", methods=["GET"])
@@ -246,10 +241,8 @@ def edit(id):
     task = db.session.query(Task).filter_by(id=id).one_or_none()
     if not task:
         abort(404)
-    annotators = set(task.get_annotators())
+    annotators_set = set(task.get_annotators())
     users = db.session.query(User).all()
-    for u in users:
-        u.is_selected = u.username in annotators
 
     return render_template(
         "tasks/edit.html",
@@ -257,6 +250,7 @@ def edit(id):
         list_to_textarea=list_to_textarea,
         entity_types=EntityTypeEnum.get_all_entity_types(),
         users=users,
+        annotators_set=annotators_set,
     )
 
 
@@ -269,8 +263,6 @@ def update(id):
 
     users = db.session.query(User).all()
     annotators_set = set(task.get_annotators())
-    for u in users:
-        u.is_selected = u.username in annotators_set
 
     try:
         form = request.form
@@ -281,9 +273,6 @@ def update(id):
 
         annotators = parse_annotators(form)
         entity_type = task.get_entity_type()
-        annotators_set = set(annotators)
-        for u in users:
-            u.is_selected = u.username in annotators_set
 
         update_request = TaskUpdateRequest.from_dict(
             {
@@ -302,7 +291,8 @@ def update(id):
         error = str(e)
         flash(error)
         return render_template(
-            "tasks/edit.html", task=task, list_to_textarea=list_to_textarea, users=users
+            "tasks/edit.html", task=task, list_to_textarea=list_to_textarea, users=users,
+            annotators_set=annotators_set,
         )
 
 
