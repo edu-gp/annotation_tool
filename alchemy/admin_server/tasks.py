@@ -494,7 +494,7 @@ def parse_labels(form):
 
 def parse_annotators(form):
     annotators = [int(uid) for uid in form.getlist("annotators[]")]
-    assert annotators and len(annotators) > 0, "You should select at least one person to annotate"  # but why?
+    assert annotators and len(annotators) > 0, "You should select at least one person to annotate"
 
     usernames = [username for username, in db.session.query(User.username).filter(User.id.in_(annotators)).all()]
     # If an invalid ID is supplied here it'll just ignore it.
