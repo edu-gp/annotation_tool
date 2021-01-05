@@ -51,6 +51,7 @@ meta = MetaData(
 )
 Base = declarative_base(metadata=meta)
 
+
 def _convert_to_spacy_patterns(patterns: List[str]):
     return [
         {"label": "POSITIVE_CLASS", "pattern": [{"lower": x.lower()}]} for x in patterns
@@ -330,12 +331,10 @@ class ClassificationTrainingData(Base):
 
         final = []
         for entity, anno_value, _ in query.yield_per(batch_size):
-            final.append(
-                {
-                    "text": entity_text_lookup_fn(entity_type, entity),
-                    "labels": {label: anno_value},
-                }
-            )
+            looked_up_text = entity_text_lookup_fn(entity_type, entity)
+            if looked_up_text is None or looked_up_text == "":
+                continue
+            final.append({"text": looked_up_text, "labels": {label: anno_value}})
 
         # Save the database object, use it to generate filename, then save the
         # file on disk.
@@ -355,7 +354,7 @@ class ClassificationTrainingData(Base):
         if abs:
             base = None
         else:
-            base = ''
+            base = ""
 
         p = os.path.join(
             training_data_dir(base),
