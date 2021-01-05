@@ -9,10 +9,8 @@ from alchemy.db.model import (
     EntityTypeEnum,
     User,
     db,
-    get_or_create,
 )
 from alchemy.shared.component import annotation_dao
-
 from .annotations_utils import parse_bulk_upload_v2_form, parse_form
 from .auth import auth
 
@@ -66,8 +64,11 @@ def bulk_post_positive_annotations():
         )
 
         # Insert into Database
-
-        user = get_or_create(db.session, User, username=user)
+        user = (db.session.query(User)
+                .filter_by(username=user)
+                .one_or_none())
+        if not user:
+            raise ValueError(f"Annotator {user} is not registered on the website.")
 
         for entity, label in zip(entities, labels):
             anno = _upsert_annotations(
@@ -129,7 +130,11 @@ def bulk_post():
 
         # Insert into Database
 
-        user = get_or_create(db.session, User, username=user)
+        user = (db.session.query(User)
+                .filter_by(username=user)
+                .one_or_none())
+        if not user:
+            raise ValueError(f"Annotator {user} is not registered on the website.")
 
         # TODO: Best way to do upsert is using db-specific functionality,
         # e.g. https://docs.sqlalchemy.org/en/13/dialects/postgresql.html#insert-on-conflict-upsert
