@@ -101,10 +101,10 @@ def _create_blueprint(*, metadata):
         saml_user_info = authn_response.get_subject()
         username = saml_user_info.text
         user_info = {
-            'username': username,
+            'username': username.lower(),
             'first_name': authn_response.ava.get('givenName', [''])[0],
             'last_name': authn_response.ava.get('surname', [''])[0],
-            'email': authn_response.ava.get('emailAddress', [''])[0],
+            'email': authn_response.ava.get('emailAddress', [''])[0].lower(),
         }
         user_changed = False
         user_model = db.session.query(User).filter_by(username=username).one_or_none()
