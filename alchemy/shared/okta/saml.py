@@ -99,9 +99,9 @@ def _create_blueprint(*, metadata):
 
         authn_response.get_identity()
         saml_user_info = authn_response.get_subject()
-        username = saml_user_info.text
+        username = saml_user_info.text.lower()
         user_info = {
-            'username': username.lower(),
+            'username': username,
             'first_name': authn_response.ava.get('givenName', [''])[0],
             'last_name': authn_response.ava.get('surname', [''])[0],
             'email': authn_response.ava.get('emailAddress', [''])[0].lower(),
