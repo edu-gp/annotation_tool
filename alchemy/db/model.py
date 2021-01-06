@@ -5,6 +5,7 @@ import pickle
 import urllib.parse
 from typing import List, Optional
 
+import flask_login
 import pandas as pd
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Boolean, MetaData, UniqueConstraint, create_engine, desc, inspect
@@ -17,6 +18,7 @@ from sqlalchemy.types import JSON, DateTime, Float, Integer, String
 from werkzeug.utils import secure_filename
 
 from alchemy.db.fs import raw_data_dir, training_data_dir, filestore_base_dir
+from alchemy.shared.config import Config
 from alchemy.shared.utils import (
     _format_float_numbers,
     file_len,
@@ -128,10 +130,13 @@ DUMMY_ENTITY = "__dummy__"
 # Tables
 
 
-class User(Base):
+class User(Base, flask_login.UserMixin):
     __tablename__ = "user"
     id = Column(Integer, primary_key=True)
     username = Column(String(64), index=True, unique=True, nullable=False)
+    first_name = Column(String(64), index=False, unique=False, nullable=True)
+    last_name = Column(String(64), index=False, unique=False, nullable=True)
+    email = Column(String(128), index=False, unique=False, nullable=True)
     # A user can do many annotations.
     classification_annotations = relationship(
         "ClassificationAnnotation", back_populates="user", lazy="dynamic"
@@ -659,6 +664,10 @@ class Task(Base):
             self.__cached_pattern_model = PatternModel(patterns)
 
         return self.__cached_pattern_model
+
+    def get_annotation_link(self):
+        # FIXME: SUCH A SMELLY WAY OF CREATING THE LINK!
+        return f'{Config.get_annotation_server()}/tasks/{self.id}'
 
     def __repr__(self):
         return "<Task with id {}, \nname {}, \ndefault_params {}>".format(

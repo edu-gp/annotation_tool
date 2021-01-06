@@ -11,14 +11,6 @@ class Config:
     """
 
     @staticmethod
-    def get_admin_server_password():
-        return env('ANNOTATION_TOOL_ADMIN_SERVER_PASSWORD')
-
-    @staticmethod
-    def get_annotation_server_secret():
-        return env('ANNOTATION_TOOL_ANNOTATION_SERVER_SECRET')
-
-    @staticmethod
     def get_annotation_server():
         '''e.g. http://localhost:5001'''
         return env('ANNOTATION_TOOL_ANNOTATION_SERVER_SERVER')

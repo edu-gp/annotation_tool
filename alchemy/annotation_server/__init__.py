@@ -1,19 +1,16 @@
 import logging
 import os
 
+import flask_login
 from envparse import env
 from flask import (
-    Flask, render_template, g
+    Flask, render_template
 )
 
 from alchemy.ar.data import fetch_tasks_for_user_from_db
 from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import db
-
-from .auth import login_required
-
-from alchemy.ar.data import fetch_tasks_for_user_from_db
-
+from alchemy.shared import okta
 
 if env.bool("USE_CLOUD_LOGGING", default=False):
     from google.cloud import logging as glog
@@ -32,9 +29,6 @@ def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
     # TODO add credentials for sqlite, probably from environment vars
-    app.config.from_mapping(
-        SECRET_KEY='athena_todo_change_this_in_prod',
-    )
 
     if test_config is None:
         # load the instance config, if it exists, when not testing
@@ -44,6 +38,12 @@ def create_app(test_config=None):
         # load the test config if passed in
         app.config.from_object(test_config)
 
+    app.config.update({
+        'SECRET_KEY': env('SECRET_KEY'),
+        'OKTA_BACKEND': 'alchemy.shared.okta.saml',
+        'SAML_METADATA_URL': env('SAML_METADATA_URL', default=None),
+    })
+
     # ensure the instance folder exists
     try:
         os.makedirs(app.instance_path)
@@ -51,6 +51,8 @@ def create_app(test_config=None):
         pass
 
     db.init_app(app)
+    okta.init_app(app, okta.auth)
+    login_required = okta.auth.login_required
 
     @app.route("/ok")
     def hello():
@@ -59,7 +61,7 @@ def create_app(test_config=None):
     @app.route("/")
     @login_required
     def index():
-        username = g.user["username"]
+        username = flask_login.current_user.username
         task_id_and_name_pairs = fetch_tasks_for_user_from_db(db.session, username)
         return render_template("index.html", tasks=task_id_and_name_pairs)
 
@@ -67,10 +69,6 @@ def create_app(test_config=None):
     @login_required
     def secret():
         return render_template("secret.html")
-
-    from . import auth
-
-    app.register_blueprint(auth.bp)
 
     from . import tasks
 

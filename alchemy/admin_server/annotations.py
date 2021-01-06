@@ -11,8 +11,8 @@ from alchemy.db.model import (
     db,
 )
 from alchemy.shared.component import annotation_dao
+from alchemy.shared.okta import auth
 from .annotations_utils import parse_bulk_upload_v2_form, parse_form
-from .auth import auth
 
 bp = Blueprint("annotations", __name__, url_prefix="/annotations")
 

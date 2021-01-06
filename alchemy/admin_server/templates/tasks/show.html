@@ -170,14 +170,13 @@
             </ul>
           </div>
         </div>
-
         <div class="row">
           <div class="col">
             <h6>Annotator Login Links</h6>
             <ul>
-              {% for user, link in annotator_login_links %}
+              {% for user in task.get_annotators() %}
               <li>
-                <b>{{user}}</b>: <span onclick="selectText(this.id)" id="{{link}}">{{link}}</span>
+                <b>{{user}}</b>: <span onclick="selectText(this.id)" id="{{user}}_annotation_link">{{task.get_annotation_link()}}</span>
               </li>
               {% endfor %}
             </ul>

@@ -1,1 +1,6 @@
 -r base.txt
+
+# Have both authentication backends while testing
+flask-oidc>=1.4.0
+pysaml2==6.3.1
+

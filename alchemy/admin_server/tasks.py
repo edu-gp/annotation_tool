@@ -36,7 +36,6 @@ from alchemy.db.model import (
 )
 from alchemy.db.utils import get_all_data_files
 from alchemy.shared.annotation_server_path_finder import (
-    generate_annotation_server_user_login_link,
     generate_annotation_server_admin_examine_link,
     generate_annotation_server_compare_link,
 )
@@ -46,6 +45,7 @@ from alchemy.shared.celery_job_status import (
     delete_status,
 )
 from alchemy.shared.component import task_dao
+from alchemy.shared.okta import auth
 from alchemy.shared.utils import (
     stem,
     list_to_textarea,
@@ -55,7 +55,6 @@ from alchemy.shared.utils import (
     WeightedVote,
 )
 from alchemy.train.train_celery import submit_gcp_training
-from .auth import auth
 
 bp = Blueprint("tasks", __name__, url_prefix="/tasks")
 
@@ -171,12 +170,6 @@ def show(id):
     for cjs in status_assign_jobs_stale:
         delete_status(cjs.celery_id, cjs.context_id)
 
-    # Annotator login links
-    annotator_login_links = [
-        (username, generate_annotation_server_user_login_link(username))
-        for username in task.get_annotators()
-    ]
-
     # Admin Examine Links
     admin_examine_links = [
         (username, generate_annotation_server_admin_examine_link(id, username))
@@ -229,7 +222,6 @@ def show(id):
         status_assign_jobs=status_assign_jobs_active,
         models_per_label=models_per_label,
         deployment_configs_per_model=deployment_configs_per_model,
-        annotator_login_links=annotator_login_links,
         admin_examine_links=admin_examine_links,
         labels_and_attributes=labels_and_attributes,
         kappa_analysis_for_all_users_links=kappa_analysis_for_all_users_links,

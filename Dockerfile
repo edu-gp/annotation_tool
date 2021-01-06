@@ -4,8 +4,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	 build-essential \
          wget \
          curl \
-         git && \
+         git \
+         xmlsec1 && \
      rm -rf /var/lib/apt/lists/*
+# xmlsec1: for SAML
 
 WORKDIR /base
 

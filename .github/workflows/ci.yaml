@@ -28,6 +28,7 @@ jobs:
 
         echo "ALCHEMY_DATABASE_URI=\"sqlite://$RUNNER_TEMP/alchemy.db\"" >> $GITHUB_ENV
         echo "ALCHEMY_FILESTORE_DIR=\"$RUNNER_TEMP/__filestore\"" >> $GITHUB_ENV
+        echo "SECRET_KEY=randomsecretkeytopreventerrors" >> $GITHUB_ENV
     - name: Run tests
       run: |
         export TEST_ARGS="--basetemp=$RUNNER_TEMP"

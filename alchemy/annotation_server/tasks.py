@@ -2,7 +2,8 @@ import json
 import logging
 from typing import Dict, Tuple
 
-from flask import Blueprint, g, render_template, request, url_for
+import flask_login
+from flask import Blueprint, render_template, request, url_for
 from sqlalchemy.exc import DatabaseError
 from werkzeug.urls import url_decode
 
@@ -29,15 +30,15 @@ from alchemy.db.model import (
     fetch_annotation_entity_and_ids_done_by_user_under_labels,
     get_or_create,
 )
-from .auth import login_required
+from alchemy.shared.okta import auth
 
 bp = Blueprint("tasks", __name__, url_prefix="/tasks")
 
 
 @bp.route("/<string:id>")
-@login_required
+@auth.login_required
 def show(id):
-    username = g.user["username"]
+    username = flask_login.current_user.username
 
     import time
 
@@ -68,7 +69,7 @@ def show(id):
 
 
 @bp.route("/<string:task_id>/examine/<string:user_under_exam>")
-@login_required
+@auth.login_required
 def examine(task_id, user_under_exam):
     # TODO we should add UserRole control. Right now I'm just assuming only
     #  the admin can see the admin server control page.
@@ -86,7 +87,7 @@ def examine(task_id, user_under_exam):
 
 
 @bp.route("/<string:task_id>/compare")
-@login_required
+@auth.login_required
 def compare_annotations(task_id):
     params = url_decode(request.query_string)
     user1 = params.get("user1", None)
@@ -119,9 +120,9 @@ def compare_annotations(task_id):
 
 
 @bp.route("/<string:task_id>/annotate/<string:ar_id>")
-@login_required
+@auth.login_required
 def annotate(task_id, ar_id):
-    annotator = g.user["username"]
+    annotator = flask_login.current_user.username
     task, anno, next_example_id = _prepare_annotation_common(
         task_id=task_id, example_id=ar_id, is_request=True, username=annotator
     )
@@ -147,11 +148,10 @@ def annotate(task_id, ar_id):
 
 
 @bp.route("/receive_annotation", methods=["POST"])
-@login_required
+@auth.login_required
 def receive_annotation():
     """API meant for Javascript to consume"""
-    username = g.user["username"]
-    user_id = fetch_user_id_by_username(db.session, username=username)
+    user_id = flask_login.current_user.id
 
     data = json.loads(request.data)
     task_id = data["task_id"]
@@ -235,10 +235,10 @@ def receive_annotation():
 
 
 @bp.route("/<string:task_id>/reannotate/<string:annotation_id>")
-@login_required
+@auth.login_required
 def reannotate(task_id, annotation_id):
     annotation_owner = request.args.get(
-        "username", default=g.user["username"], type=str
+        "username", default=flask_login.current_user.username, type=str
     )
     task, anno, next_example_id = _prepare_annotation_common(
         task_id=task_id,
@@ -267,12 +267,10 @@ def reannotate(task_id, annotation_id):
 
 
 @bp.route("/update_annotation", methods=["POST"])
-@login_required
+@auth.login_required
 def update_annotation():
     """API meant for Javascript to consume"""
     # TODO need to check if this is for admin correction flow.
-    username = g.user["username"]
-
     data = json.loads(request.data)
     annotation_owner = (db.session.query(User)
                         .filter_by(username=data["username"])

@@ -6,8 +6,7 @@ from flask import Flask, redirect, url_for
 
 from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import db
-
-from .auth import auth
+from alchemy.shared import okta
 
 if env.bool("USE_CLOUD_LOGGING", default=False):
     from google.cloud import logging as glog
@@ -25,14 +24,18 @@ if env.bool("USE_CLOUD_LOGGING", default=False):
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
-    app.config.from_mapping(SECRET_KEY="athena_todo_change_this_in_prod")
-
     if test_config is None:
         # load the instance config, if it exists, when not testing
         app.config.from_object(DevelopmentConfig)
     else:
         # load the test config if passed in
         app.config.from_object(test_config)
+
+    app.config.update({
+        'SECRET_KEY': env('SECRET_KEY'),
+        'OKTA_BACKEND': 'alchemy.shared.okta.saml',
+        'SAML_METADATA_URL': env('SAML_METADATA_URL', default=None),
+    })
 
     # ensure the instance folder exists
     try:
@@ -41,6 +44,8 @@ def create_app(test_config=None):
         pass
 
     db.init_app(app)
+    okta.init_app(app, okta.auth)
+    auth = okta.auth
     # -------------------------------------------------------------------------
     # Register custom Jinja Filters
 
@@ -55,11 +60,6 @@ def create_app(test_config=None):
 
     # -------------------------------------------------------------------------
     # Routes
-
-    @app.route("/ok")
-    def hello():
-        return "ok"
-
     @app.route("/")
     @auth.login_required
     def index():

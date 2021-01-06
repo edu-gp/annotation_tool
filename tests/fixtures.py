@@ -9,7 +9,6 @@ from alchemy.db.model import db
 @pytest.fixture
 def admin_server_client(monkeypatch, tmp_path):
     monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
-    monkeypatch.setenv("ANNOTATION_TOOL_ADMIN_SERVER_PASSWORD", "password")
 
     app = create_admin_server_app(TestingConfig)
 
@@ -23,7 +22,6 @@ def admin_server_client(monkeypatch, tmp_path):
 @pytest.fixture
 def annotation_server_client(monkeypatch, tmp_path):
     monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
-    monkeypatch.setenv("ANNOTATION_TOOL_ANNOTATION_SERVER_SECRET", "asdsad")
 
     app = create_annotation_server_app(TestingConfig)
 
