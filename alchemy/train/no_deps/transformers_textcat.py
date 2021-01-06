@@ -88,7 +88,7 @@ def evaluate_model(model, X_test, y_test):
     from sklearn import metrics
 
     probs_pos_class = raw_to_pos_prob(raw)
-    roc_auc = metrics.roc_auc_score(y_test, probs_pos_class)
+    roc_auc = metrics.average_precision_score(y_test, probs_pos_class)
 
     preds = [int(x > 0.5) for x in probs_pos_class]
     precision, recall, fscore, support = metrics.precision_recall_fscore_support(

@@ -2,7 +2,7 @@ import pandas as pd
 from sklearn.metrics import (
     confusion_matrix,
     precision_recall_fscore_support,
-    roc_auc_score,
+    average_precision_score,
 )
 
 from .paths import _get_config_fname, _get_exported_data_fname
@@ -34,9 +34,12 @@ class InferenceMetrics:
         not_found = []
 
         res = pd.DataFrame(zip(X, y), columns=["text", "y"])
+        print(res)
         res = res.merge(self.df, on="text", how="left")
+        print(res)
 
         not_found += list(res[res["probs"].isna()]["text"])
+        print(not_found)
 
         res = res.dropna(subset=["probs"])
 
@@ -57,8 +60,8 @@ class InferenceMetrics:
             su = [float("nan"), float("nan")]
 
         try:
-            ro = roc_auc_score(res["y"], res["probs"])
-        except ValueError:
+            ro = average_precision_score(res["y"], res["probs"])
+        except ValueError and IndexError:
             ro = float("nan")
 
         try:
