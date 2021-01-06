@@ -5,15 +5,28 @@ from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import Database, User, AnnotationRequest, LabelOwner, ClassificationAnnotation, Task
 
 logger = logging.getLogger('okta_migration')
+logger.setLevel(logging.INFO)
 
 
-def _merge_users(session, merged_user: str, target_user: User):
+def _merge_users(session, merged_user: str, merge_to: str, create_users: bool):
     user: Optional[User] = (session.query(User)
                             .filter(User.username == merged_user)
                             .one_or_none())
     if user is None:
         logger.warning(f"Merge candidate {merged_user}(?) does not exist, skipping.")
         return
+    target_user: Optional[User] = (
+        session.query(User)
+            .filter(User.username == merge_to)
+            .one_or_none()
+    )
+    if not target_user:
+        if not create_users:
+            logger.warning(f"Skipping merges into {merge_to}(?) since it does not exist")
+            return
+        target_user = User(username=merge_to)
+        session.add(target_user)
+
     (session.query(AnnotationRequest)
      .filter(AnnotationRequest.user_id == user.id)
      .update(dict(user_id=target_user.id)))
@@ -38,8 +51,7 @@ def _replace_mapper(items_list):
             changed = True
             return_val.append(new_name)
         else:
-            return_val.append(items_list)
-
+            return_val.extend(items_list)
     if changed:
         logger.info(f"Annotators list updated from {','.join(items_list)} to {','.join(return_val)}")
         return return_val
@@ -48,25 +60,37 @@ def _replace_mapper(items_list):
     return items_list
 
 
-def main(mergers: Dict[str, List[str]], annotators_mapping: Dict[str, str], dry_run: bool = False):
+def _delete_merged_users(mergers, session):
+    users_to_drop_list = []
+
+    for old_users in mergers.values():
+        users_to_drop_list.extend(old_users)
+
+    affected_rows = session.query(User).filter(User.username.in_(users_to_drop_list)).delete(synchronize_session='fetch')
+    logger.info(f"Deleted {affected_rows} Users")
+
+
+def main(
+        mergers: Dict[str, List[str]],
+        annotators_mapping: Dict[str, str],
+        create_users: bool = False
+):
     db = Database(DevelopmentConfig.SQLALCHEMY_DATABASE_URI)
     session = db.session
 
     logger.info("STEP 1: update FKs to Users table (merging duplicate users)")
-    _perform_user_mergers(mergers, session)
+    _perform_user_mergers(mergers, session, create_users)
 
     logger.info("STEP 2: Updating annotator names in task definitions to match the new okta usernames")
     _update_annotator_names(session)
 
+    logger.info("STEP 3: Delete the merged usernames")
+    _delete_merged_users(mergers, session)
+
     logger.info("STEP 3: Update the usernames in the Users table to match the new okta usernames")
     _update_usernames(annotators_mapping, session)
 
-    if dry_run:
-        logger.info('Rolling back the changes (dry run)')
-        session.rollback()
-    else:
-        logger.info('Committing changes to the DB')
-        session.commit()
+    session.commit()
 
 
 def _update_usernames(annotators_mapping, session):
@@ -75,12 +99,14 @@ def _update_usernames(annotators_mapping, session):
     for user in session.query(User).all():
         un = str(user.username)
         if un not in annotators_mapping:
-            logger.warning(f"Not updating user {un} in Users table")
+            logger.warning(f"Not updating user {un} in Users table, it does not exist")
             continue
 
         user.username = annotators_mapping[un]
         users_to_update_list.append(user)
-    session.add_all(users_to_update_list)
+
+    affected_rows = session.add_all(users_to_update_list)
+    logger.info(f"Updated {affected_rows} Users")
 
 
 def _update_annotator_names(session):
@@ -98,21 +124,11 @@ def _update_annotator_names(session):
     session.add_all(updated_tasks)
 
 
-def _perform_user_mergers(mergers, session):
+def _perform_user_mergers(mergers, session, create_users):
     # Merge users
     for merge_to in mergers:
-        merge_to_user: Optional[User] = (
-            session.query(User)
-                .filter(User.username == merge_to)
-                .one_or_none()
-        )
-
-        if merge_to_user is None:
-            logger.warning(f"Skipping merges into {merge_to}(?) since it does not exist")
-            continue
-
         for merged_user in mergers[merge_to]:
-            _merge_users(session, merged_user, merge_to_user)
+            _merge_users(session, merged_user, merge_to, create_users)
 
 
 if __name__ == '__main__':
@@ -121,7 +137,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="Migrate the data according to specified mappings")
     parser.add_argument("mapping", type=argparse.FileType('r'))
-    parser.add_argument("--dry", default=False, action="store_true", help="Dry run")
+    parser.add_argument("--create-users", default=False, action="store_true", help="Create non-existing users")
     args = parser.parse_args()
 
     mapping_file = json.loads(args.mapping.read())
@@ -137,4 +153,4 @@ if __name__ == '__main__':
     # This is used to update the annotator usernames in task definitions also the users in Users table
     annotators_mapping = mapping_file['annotators_mapping']
 
-    main(mergers, annotators_mapping, args.dry)
+    main(mergers, annotators_mapping, args.create_users)
