@@ -272,9 +272,11 @@ def update_annotation():
     """API meant for Javascript to consume"""
     # TODO need to check if this is for admin correction flow.
     data = json.loads(request.data)
-    annotation_owner = get_or_create(
-        dbsession=db.session, model=User, username=data["username"]
-    )
+    annotation_owner = (db.session.query(User)
+                        .filter_by(username=data["username"])
+                        .one_or_none())
+    if not annotation_owner:
+        return {"error": f"Annotator {annotation_owner} is not registered on the website."}, 403
 
     entity_type = data["req"]["entity_type"]
     entity = data["req"]["entity"]

@@ -1,5 +1,13 @@
 {% extends 'base.html' %}
 
+{% block head %}
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/css/select2.min.css" rel="stylesheet" />
+  <link href="/admin/static/select2-bootstrap4.min.css" rel="stylesheet" />
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/js/select2.min.js"></script>
+  <script src="/admin/static/task_edit.js"></script>
+{% endblock %}
+
 {% block header %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb">
@@ -48,11 +56,13 @@
     <div class="col">
 
       <div class="form-group">
-        <label for="annotators">Annotators (one per line)</label>
-        <textarea class="form-control" name="annotators" id="annotators" rows=5 required>
-          {{- request.form['annotators'] | default(list_to_textarea(task.get_annotators())) -}}
-        </textarea>
-
+        <label for="annotators">Annotators</label>
+        <small class="form-text text-muted mt-0 mb-2">At least one person required. You can add more later.</small>
+        <select name="annotators[]" id="annotators" multiple="multiple" class="form-control">
+        {% for u in users %}
+            <option value="{{ u.id }}"{% if u.username in annotators_set %} selected{% endif %}>{{ u.username }}</option>
+        {% endfor %}
+        </select>
       </div>
 
     </div>
