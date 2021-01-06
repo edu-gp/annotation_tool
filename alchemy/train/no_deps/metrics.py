@@ -34,12 +34,9 @@ class InferenceMetrics:
         not_found = []
 
         res = pd.DataFrame(zip(X, y), columns=["text", "y"])
-        print(res)
         res = res.merge(self.df, on="text", how="left")
-        print(res)
 
         not_found += list(res[res["probs"].isna()]["text"])
-        print(not_found)
 
         res = res.dropna(subset=["probs"])
 
