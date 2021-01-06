@@ -332,7 +332,7 @@ class ClassificationTrainingData(Base):
         final = []
         for entity, anno_value, _ in query.yield_per(batch_size):
             looked_up_text = entity_text_lookup_fn(entity_type, entity)
-            if looked_up_text == "":
+            if not looked_up_text or not looked_up_text.strip():
                 continue
             final.append({"text": looked_up_text, "labels": {label: anno_value}})
 
