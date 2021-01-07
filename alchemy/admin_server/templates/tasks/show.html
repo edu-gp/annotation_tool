@@ -488,8 +488,8 @@
                 <table class="table table-sm table-bordered text-center">
                   <tr class="font-weight-bold">
                     <td rowspan="2"></td>
-                    <td colspan="5">Train</td>
-                    <td colspan="5">Test</td>
+                    <td colspan="6">Train</td>
+                    <td colspan="6">Test</td>
                   </tr>
                   <tr class="font-weight-bold">
                     <td>N</td>
@@ -497,11 +497,13 @@
                     <td>Re</td>
                     <td>F1</td>
                     <td>ROC AUC</td>
+                      <td>AUPR</td>
                     <td>N</td>
                     <td>Pr</td>
                     <td>Re</td>
                     <td>F1</td>
                     <td>ROC AUC</td>
+                    <td>AUPR</td>
                   </tr>
                   <tr>
                     <td>Negative Class</td>
@@ -511,11 +513,13 @@
                     <td>{{metrics['train']['re'][0]}}</td>
                     <td>{{metrics['train']['f1'][0]}}</td>
                     <td>-</td>
+                    <td>-</td>
 
                     <td>{{metrics['test']['su'][0]}}</td>
                     <td>{{metrics['test']['pr'][0]}}</td>
                     <td>{{metrics['test']['re'][0]}}</td>
                     <td>{{metrics['test']['f1'][0]}}</td>
+                    <td>-</td>
                     <td>-</td>
                   </tr>
                   <tr>
@@ -526,12 +530,14 @@
                     <td>{{metrics['train']['re'][1]}}</td>
                     <td>{{metrics['train']['f1'][1]}}</td>
                     <td>{{metrics['train']['ro']}}</td>
+                    <td>{{metrics['train']['aupr']}}</td>
 
                     <td>{{metrics['test']['su'][1]}}</td>
                     <td>{{metrics['test']['pr'][1]}}</td>
                     <td>{{metrics['test']['re'][1]}}</td>
                     <td>{{metrics['test']['f1'][1]}}</td>
                     <td>{{metrics['test']['ro']}}</td>
+                    <td>{{metrics['test']['aupr']}}</td>
                   </tr>
                 </table>
 
