@@ -1,4 +1,5 @@
 ![CI](https://github.com/georgianpartners/annotation_tool/workflows/CI/badge.svg)
+[![codecov](https://codecov.io/gh/georgianpartners/annotation_tool/branch/master/graph/badge.svg?token=DR90HIIVYF)](https://codecov.io/gh/georgianpartners/annotation_tool)
 
 # Getting Started
 
