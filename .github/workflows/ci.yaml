@@ -30,6 +30,9 @@ jobs:
         echo "ALCHEMY_FILESTORE_DIR=\"$RUNNER_TEMP/__filestore\"" >> $GITHUB_ENV
         echo "SECRET_KEY=randomsecretkeytopreventerrors" >> $GITHUB_ENV
     - name: Run tests
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        COVERAGE: 1
       run: |
         export TEST_ARGS="--basetemp=$RUNNER_TEMP"
         sh ci/run_tests.sh
