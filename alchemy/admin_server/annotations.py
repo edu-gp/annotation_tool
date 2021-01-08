@@ -47,6 +47,7 @@ def bulk_upload_positive_annotations():
         "annotations/bulk_upload_positive_annotations.html",
         annotation_values=acceptable_values,
         redirect_to=request.referrer,
+        users=db.session.query(User).all(),
         entity_types=EntityTypeEnum.get_all_entity_types(),
     )
 
@@ -96,7 +97,7 @@ def bulk_post_positive_annotations():
     except Exception as e:
         logging.error(e)
         flash(str(e))
-        return render_template("annotations/bulk_upload_positive_annotations.html")
+        return render_template("annotations/bulk_upload_positive_annotations.html", users=db.session.query(User).all())
     else:
         return redirect(redirect_to)
 
@@ -113,6 +114,7 @@ def bulk():
     return render_template(
         "annotations/bulk.html",
         redirect_to=request.referrer,
+        users=db.session.query(User).all(),
         entity_types=EntityTypeEnum.get_all_entity_types(),
     )
 
@@ -165,7 +167,7 @@ def bulk_post():
     except Exception as e:
         logging.error(e)
         flash(str(e))
-        return render_template("annotations/bulk.html")
+        return render_template("annotations/bulk.html", users=db.session.query(User).all())
     else:
         return redirect(redirect_to)
 
