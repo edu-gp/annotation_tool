@@ -34,8 +34,8 @@
           </li>
           <li>
             Annotators:
-            {% for annotator in task.get_annotators() %}
-            <span class="badge badge-light">{{annotator}}</span>
+            {% for annotator in task.get_annotators(resolve_user=True) %}
+            <span class="badge badge-light">{{annotator.get_display_name()}}</span>
             {% endfor %}
           </li>
         </ul>
