@@ -378,10 +378,11 @@ def compute_annotation_statistics_db(dbsession, label, task_id):
     )
 
     total_num_of_annotations_done_by_users = sum(
-        [num for num, username, user_id in num_of_annotations_done_per_user]
+        [num for num, username, first_name, last_name, user_id in num_of_annotations_done_per_user]
     )
     n_annotations_done_per_user_dict = {
-        username: num for num, username, user_id in num_of_annotations_done_per_user
+        (f'{first_name or ""} {last_name or ""}'.strip() or username): num
+        for num, username, first_name, last_name, user_id in num_of_annotations_done_per_user
     }
 
     num_of_annotations_per_value = _compute_num_of_annotations_per_value(
@@ -391,7 +392,7 @@ def compute_annotation_statistics_db(dbsession, label, task_id):
     # kappa stats calculation
     distinct_users = set(
         [
-            UserNameAndIdPair(username=item[1], id=item[2])
+            UserNameAndIdPair(username=item[1], id=item[4])
             for item in num_of_annotations_done_per_user
         ]
     )
@@ -448,7 +449,13 @@ def _compute_total_distinct_number_of_annotated_entities_for_label(dbsession, la
 
 def _compute_number_of_annotations_done_per_user(dbsession, label):
     num_of_annotations_done_per_user = (
-        dbsession.query(func.count(ClassificationAnnotation.id), User.username, User.id)
+        dbsession.query(
+            func.count(ClassificationAnnotation.id),
+            User.username,
+            User.first_name,
+            User.last_name,
+            User.id
+        )
         .join(User)
         .filter(ClassificationAnnotation.label == label)
         .group_by(User.username, User.id)

@@ -222,7 +222,7 @@ def test__compute_total_annotations(dbsession):
         res = _compute_number_of_annotations_done_per_user(
             dbsession=dbsession, label=label
         )
-        for num, name, user_id in res:
+        for num, name, first_name, last_name, user_id in res:
             assert expected[UserNameIdPair(name, user_id)] == num
 
 
