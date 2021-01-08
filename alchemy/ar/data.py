@@ -377,11 +377,16 @@ def compute_annotation_statistics_db(dbsession, label, task_id):
         dbsession=dbsession, label=label
     )
 
+    user_names_mapping = {
+        username: (f'{first_name or ""} {last_name or ""}'.strip() or username)
+        for _, username, first_name, last_name, _ in num_of_annotations_done_per_user
+    }
+
     total_num_of_annotations_done_by_users = sum(
         [num for num, username, first_name, last_name, user_id in num_of_annotations_done_per_user]
     )
     n_annotations_done_per_user_dict = {
-        (f'{first_name or ""} {last_name or ""}'.strip() or username): num
+        user_names_mapping[username]: num
         for num, username, first_name, last_name, user_id in num_of_annotations_done_per_user
     }
 
@@ -392,7 +397,7 @@ def compute_annotation_statistics_db(dbsession, label, task_id):
     # kappa stats calculation
     distinct_users = set(
         [
-            UserNameAndIdPair(username=item[1], id=item[4])
+            UserNameAndIdPair(username=user_names_mapping[item[1]], id=item[4])
             for item in num_of_annotations_done_per_user
         ]
     )
