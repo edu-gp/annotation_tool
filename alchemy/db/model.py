@@ -145,6 +145,13 @@ class User(Base, flask_login.UserMixin):
     def __repr__(self):
         return "<User {}>".format(self.username)
 
+    def get_display_name(self):
+        full_name = ' '.join([
+            p for p in [self.first_name, self.last_name]
+        ]).strip()
+
+        return full_name or self.username
+
     def fetch_ar_count_per_task(self):
         """Returns a list of tuples (name, task_id, count)
         """
