@@ -3,7 +3,7 @@ import logging
 import os
 import pickle
 import urllib.parse
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import flask_login
 import pandas as pd
@@ -146,9 +146,7 @@ class User(Base, flask_login.UserMixin):
         return "<User {}>".format(self.username)
 
     def get_display_name(self):
-        full_name = ' '.join([
-            p for p in [self.first_name, self.last_name]
-        ]).strip()
+        full_name = f'{self.first_name or ""} {self.last_name or ""}'.strip()
 
         return full_name or self.username
 
@@ -613,8 +611,13 @@ class Task(Base):
         self.default_params["entity_type"] = entity_type
         flag_modified(self, "default_params")
 
-    def set_annotators(self, annotators: List[str]):
-        self.default_params["annotators"] = annotators
+    def set_annotators(self, annotators: List[Union[str, User]]):
+        def to_username(annotator):
+            if isinstance(annotator, User):
+                return annotator.username
+            return str(annotator)
+
+        self.default_params["annotators"] = [to_username(a) for a in annotators]
         flag_modified(self, "default_params")
 
     def set_patterns(self, patterns: List[str]):
@@ -642,8 +645,12 @@ class Task(Base):
     def get_labels(self):
         return self.default_params.get("labels", [])
 
-    def get_annotators(self):
-        return self.default_params.get("annotators", [])
+    def get_annotators(self, resolve_user=False):
+        annotator_list = self.default_params.get("annotators", [])
+        if not resolve_user:
+            return annotator_list
+        logging.error(f"Annotator list = {annotator_list}")
+        return db.session.query(User).filter(User.username.in_(annotator_list)).all()
 
     def get_patterns(self):
         return self.default_params.get("patterns", [])

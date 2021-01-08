@@ -174,9 +174,9 @@
           <div class="col">
             <h6>Annotator Login Links</h6>
             <ul>
-              {% for user in task.get_annotators() %}
+              {% for user in task.get_annotators(resolve_user=True) %}
               <li>
-                <b>{{user}}</b>: <span onclick="selectText(this.id)" id="{{user}}_annotation_link">{{task.get_annotation_link()}}</span>
+                <b>{{ user.get_display_name() }}</b>: <span onclick="selectText(this.id)" id="{{user.username}}_annotation_link">{{task.get_annotation_link()}}</span>
               </li>
               {% endfor %}
             </ul>
@@ -224,7 +224,7 @@
     <ul>
       {% for user, link in admin_examine_links %}
       <li>
-        <a href="{{link}}" target="_blank">{{user}}</a>
+        <a href="{{link}}" target="_blank">{{ user.get_display_name() }}</a>
       </li>
       {% endfor %}
     </ul>
@@ -322,13 +322,13 @@
     <h5>Annotations Bulk Upload Quick Links</h5>
     <table class="table table-sm table-bordered table-striped w-auto">
       <tbody>
-        {% for user in task.get_annotators() %}
+        {% for user in task.get_annotators(resolve_user=True) %}
         <tr>
-          <td class="align-middle">{{user}}</td>
+          <td class="align-middle">{{ user.get_display_name() }}</td>
           {% for label in task.get_labels() %}
           <td class="align-middle">
             <a class="btn btn-secondary btn-sm"
-              href="{{url_for('annotations.bulk', user=user, label=label, entity_type=task.get_entity_type())}}"
+              href="{{url_for('annotations.bulk', user=user.username, label=label, entity_type=task.get_entity_type())}}"
               target="_blank">{{label}}</a>
           </td>
           {% endfor %}
