@@ -78,6 +78,7 @@ services:
       - ADMIN_SERVER_UWSGI=admin_server:5000
     image: nginx:stable-alpine
     volumes:
+      - .conf/nginx:/etc/nginx/templates
       - /etc/letsencrypt/challenge:/var/www/letsencrypt
       - /etc/letsencrypt:/etc/letsencrypt
     depends_on:
