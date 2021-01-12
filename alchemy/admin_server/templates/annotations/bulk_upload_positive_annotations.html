@@ -4,6 +4,14 @@
 <h1>Bulk Upload Positive Annotations</h1>
 {% endblock %}
 
+{% block head %}
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/css/select2.min.css" rel="stylesheet" />
+  <link href="/admin/static/select2-bootstrap4.min.css" rel="stylesheet" />
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/js/select2.min.js"></script>
+  <script src="/admin/static/bulk_upload.js"></script>
+{% endblock %}
+
 {% block content %}
 
 <div class="row">
@@ -22,8 +30,18 @@
 
             <div class="form-group">
                 <label for="user">User</label>
-                <input type="text" class="form-control" name="user" id="user" value="{{ request.form['user'] }}"
-                    required>
+                <select name="user" id="user" class="form-control" required>
+                {% for u in users %}
+                    <option value="{{ u.username }}"{% if u.username == request.form['user'] %} selected{% endif %}>
+                    {% if u.first_name or u.last_name %}
+                        {{ u.first_name }} {{ u.last_name }}
+                    {% else %}
+                        {{ u.username }}
+                    {% endif %}
+                    {# TODO: change to {{ u.get_display_name() }} after #201 is merged #}
+                    </option>
+                {% endfor %}
+                </select>
             </div>
 
             <div class="form-group">
