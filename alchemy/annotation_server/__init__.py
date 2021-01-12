@@ -1,3 +1,4 @@
+import json
 import os
 
 import flask_login
@@ -9,7 +10,7 @@ from flask import (
 from alchemy.ar.data import fetch_tasks_for_user_from_db
 from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import db
-from alchemy.shared import okta, cloud_logging
+from alchemy.shared import okta, cloud_logging, health_check
 
 
 def create_app(test_config=None):
@@ -45,16 +46,20 @@ def create_app(test_config=None):
     okta.init_app(app, okta.auth)
     login_required = okta.auth.login_required
 
-    @app.route("/ok")
-    def hello():
-        return "ok"
-
     @app.route("/")
     @login_required
     def index():
         username = flask_login.current_user.username
         task_id_and_name_pairs = fetch_tasks_for_user_from_db(db.session, username)
         return render_template("index.html", tasks=task_id_and_name_pairs)
+
+    @app.route("/status")
+    def status_page():
+        status = dict()
+        status_map = {True: 'ok', False: 'error'}
+        status['web'] = status_map[True]
+        status['filesystem'] = status_map[health_check.check_file_system()]
+        return json.dumps(status)
 
     @app.route("/secret")
     @login_required
