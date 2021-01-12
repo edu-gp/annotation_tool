@@ -1,4 +1,3 @@
-import logging
 import os
 
 import flask_login
@@ -10,22 +9,14 @@ from flask import (
 from alchemy.ar.data import fetch_tasks_for_user_from_db
 from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import db
-from alchemy.shared import okta
-
-if env.bool("USE_CLOUD_LOGGING", default=False):
-    from google.cloud import logging as glog
-    from google.cloud.logging.handlers import CloudLoggingHandler, setup_logging
-
-    client = glog.Client()
-
-    handler = CloudLoggingHandler(client,
-                                  name=env("ANNOTATION_SERVER_LOGGER",
-                                           default="alchemy-annotation-server"))
-    logging.getLogger().setLevel(logging.INFO)
-    setup_logging(handler)
+from alchemy.shared import okta, cloud_logging
 
 
 def create_app(test_config=None):
+    if cloud_logging.is_enabled():
+        name = env("ANNOTATION_SERVER_LOGGER", default="alchemy-annotation-server")
+        cloud_logging.setup(name)
+
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
     # TODO add credentials for sqlite, probably from environment vars

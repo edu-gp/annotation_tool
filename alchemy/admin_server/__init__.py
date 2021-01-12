@@ -1,4 +1,3 @@
-import logging
 import os
 
 from envparse import env
@@ -6,22 +5,14 @@ from flask import Flask, redirect, url_for
 
 from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import db
-from alchemy.shared import okta
-
-if env.bool("USE_CLOUD_LOGGING", default=False):
-    from google.cloud import logging as glog
-    from google.cloud.logging.handlers import CloudLoggingHandler, setup_logging
-
-    client = glog.Client()
-
-    handler = CloudLoggingHandler(
-        client, name=env("ADMIN_SERVER_LOGGER", default="alchemy-admin-server")
-    )
-    logging.getLogger().setLevel(logging.INFO)
-    setup_logging(handler)
+from alchemy.shared import okta, cloud_logging
 
 
 def create_app(test_config=None):
+    if cloud_logging.is_enabled():
+        name = env("ADMIN_SERVER_LOGGER", default="alchemy-admin-server")
+        cloud_logging.setup(name)
+
     # create and configure the app
     app = Flask(__name__, instance_relative_config=True)
     if test_config is None:
