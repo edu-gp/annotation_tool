@@ -30,7 +30,7 @@ select distinct on (ca.entity_type, ca.entity, ca."label")
 	wa_row_num.weight,
 	wa_row_num.entity_type,
 	wa_row_num."label",
-	ca.context->'text' as company_description
+	ca.context->>'text' as company_description
 from weighted_annotation_with_row_number as wa_row_num
 join classification_annotation ca
 on wa_row_num.entity = ca.entity and wa_row_num.entity_type = ca.entity_type and wa_row_num."label" = ca."label" 
