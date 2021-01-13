@@ -89,7 +89,7 @@ def evaluate_model(model, X_test, y_test):
 
     probs_pos_class = raw_to_pos_prob(raw)
     roc_auc = metrics.roc_auc_score(y_test, probs_pos_class)
-
+    aupr = metrics.average_precision_score(y_test, probs_pos_class)
     preds = [int(x > 0.5) for x in probs_pos_class]
     precision, recall, fscore, support = metrics.precision_recall_fscore_support(
         y_test, preds
@@ -97,6 +97,7 @@ def evaluate_model(model, X_test, y_test):
 
     result = {
         "roc_auc": roc_auc,
+        "aupr": aupr,
         "precision": list(precision),
         "recall": list(recall),
         "fscore": list(fscore),

@@ -3,6 +3,7 @@ from sklearn.metrics import (
     confusion_matrix,
     precision_recall_fscore_support,
     roc_auc_score,
+    average_precision_score,
 )
 
 from .paths import _get_config_fname, _get_exported_data_fname
@@ -62,6 +63,11 @@ class InferenceMetrics:
             ro = float("nan")
 
         try:
+            aupr = average_precision_score(res["y"], res["probs"])
+        except ValueError and IndexError:
+            aupr = float("nan")
+
+        try:
             tn, fp, fn, tp = confusion_matrix(res["y"], res["preds"]).ravel()
         except ValueError:
             tn = fp = fn = tp = float("nan")
@@ -72,6 +78,7 @@ class InferenceMetrics:
             "f1": f1,
             "su": su,
             "ro": ro,
+            "aupr": aupr,
             "tn": tn,
             "fp": fp,
             "fn": fn,
@@ -97,6 +104,7 @@ def compute_metrics(version_dir, inference_lookup_df, threshold: float = 0.5):
             "f1": [neg_class:float, pos_class:float],
             "su": [neg_class:int, pos_class:int],
             "ro": float,
+            "aupr": float,
             "tn": int (count),
             "tp": int (count),
             "fn": int (count),
@@ -114,6 +122,7 @@ def compute_metrics(version_dir, inference_lookup_df, threshold: float = 0.5):
     - f1: F1 Score
     - su: Support, the number of items considered for this metric
     - ro: ROC AUC
+    - aupr: AUPR
     - tn: True Negative
     - tp: True Positive
     - fn: False Negative
