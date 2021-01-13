@@ -75,11 +75,7 @@
         <select name="annotators[]" id="annotators" multiple="multiple" class="form-control">
         {% for u in users %}
             <option value="{{ u.id }}"{% if u.username in annotators_set %} selected{% endif %}>
-            {% if u.first_name or u.last_name %}
-                {{ u.first_name }} {{ u.last_name }}
-            {% else %}
-                {{ u.username }}
-            {% endif %}
+                {{ u.get_display_name() }}
             </option>
         {% endfor %}
         </select>

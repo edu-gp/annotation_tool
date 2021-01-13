@@ -172,8 +172,8 @@ def show(id):
 
     # Admin Examine Links
     admin_examine_links = [
-        (username, generate_annotation_server_admin_examine_link(id, username))
-        for username in task.get_annotators()
+        (user, generate_annotation_server_admin_examine_link(id, user.username))
+        for user in task.get_annotators(resolve_user=True)
     ]
 
     kappa_analysis_for_all_users_links = {
