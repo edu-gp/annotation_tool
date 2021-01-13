@@ -1,14 +1,9 @@
-import json
-import os
+import subprocess
 import tempfile
 import uuid
-import re
+from typing import List, Optional, Iterable
+
 from envparse import env
-from collections import namedtuple
-from pathlib import Path
-from typing import List, Optional
-import subprocess
-import shlex
 
 VERSION = 2
 
@@ -50,8 +45,8 @@ def __fmt_yaml_list(key, values: List[str], nspaces=0):
 
 def build_job_config(
     model_dirs: List[str],
-    files_for_inference: List[str] = None,
-    docker_image_uri: str = None,
+    files_for_inference: Optional[List[str]] = None,
+    docker_image_uri: Optional[str] = None,
     label_type: str = "production",
     label_owner: str = "alchemy",
     version: str = VERSION,
@@ -68,9 +63,8 @@ def build_job_config(
         label_owner: Label for who ran the model.
     """
 
-    if docker_image_uri is None:
+    if not docker_image_uri:
         docker_image_uri = env("GOOGLE_AI_PLATFORM_DOCKER_IMAGE_URI")
-    assert docker_image_uri
 
     # Format lists into proper yaml.
     formatted_model_dirs = __fmt_yaml_list("dirs", model_dirs, nspaces=4)
@@ -95,9 +89,9 @@ def submit_ai_platform_job(job_id, config_file):
         job_id: The id of the new job.
         config_file: Path to a config file on disk.
     """
-    run_cmd(
-        f"gcloud ai-platform jobs submit training {job_id}" f" --config {config_file}"
-    )
+    run_cmd([
+        "gcloud", "ai-platform", "jobs", "submit", "training", job_id, "--config", config_file
+    ])
 
 
 def __generate_job_id():
@@ -106,22 +100,22 @@ def __generate_job_id():
     return "t_" + str(uuid.uuid4()).replace("-", "_")
 
 
-def run_cmd(cmd: str):
+def run_cmd(cmd: Iterable[str]):
     """Run a command line command
     Inputs:
         cmd: A command line command.
     """
     # print the command for easier debugging
-    print(cmd)
+    print(" ".join(cmd))
     # check=True makes this function raise an Exception if the command fails.
     try:
-        output = subprocess.run(shlex.split(cmd), check=True, capture_output=True)
-        print("stdout:", output.stdout)
-        print("stderr:", output.stderr)
+        output = subprocess.run([*cmd], check=True, capture_output=True)
+        print("stdout:", str(output.stdout, 'utf-8'))
+        print("stderr:", str(output.stderr, 'utf-8'))
         return output
     except subprocess.CalledProcessError as e:
-        print("stdout:", e.stdout)
-        print("stderr:", e.stderr)
+        print("stdout:", str(e.stdout, 'utf-8'))
+        print("stderr:", str(e.stderr, 'utf-8'))
         raise
 
 
@@ -149,7 +143,7 @@ if __name__ == "__main__":
         fp.write(model_config)
         fp.flush()
 
-        if submit_job_fn is None:
+        if not submit_job_fn:
             submit_job_fn = submit_ai_platform_job
         submit_job_fn(job_id, fp.name)
 
