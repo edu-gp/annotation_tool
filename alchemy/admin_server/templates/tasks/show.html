@@ -64,11 +64,11 @@
 
                 <!-- Modal -->
                 <div class="modal fade" id="anno-guide-{{loop.index}}" tabindex="-1" role="dialog"
-                  aria-labelledby="exampleModalLabel" aria-hidden="true">
+                  aria-labelledby="anno-guide-{{loop.index}}-label" aria-hidden="true">
                   <div class="modal-dialog" role="document">
                     <div class="modal-content">
                       <div class="modal-header">
-                        <h5 class="modal-title" id="exampleModalLabel">Annotation Guide for "{{label}}"</h5>
+                        <h5 class="modal-title" id="anno-guide-{{loop.index}}-label">Annotation Guide for "{{label}}"</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                           <span aria-hidden="true">&times;</span>
                         </button>
@@ -96,11 +96,11 @@
 
                 <!-- Modal -->
                 <div class="modal fade" id="label_patterns-{{loop.index}}" tabindex="-1" role="dialog"
-                  aria-labelledby="exampleModalLabel" aria-hidden="true">
+                  aria-labelledby="label_patterns-{{loop.index}}-label" aria-hidden="true">
                   <div class="modal-dialog" role="document">
                     <div class="modal-content">
                       <div class="modal-header">
-                        <h5 class="modal-title" id="exampleModalLabel">Patterns for "{{label}}"</h5>
+                        <h5 class="modal-title" id="label_patterns-{{loop.index}}-label">Patterns for "{{label}}"</h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                           <span aria-hidden="true">&times;</span>
                         </button>
@@ -395,7 +395,7 @@
                         </td>
                         <td>
                           <!-- Button trigger modal -->
-                          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModal">
+                          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#training_data_modal_{{ mv.id }}">
                             Export to new Data File
                           </button>
                         </td>
@@ -410,12 +410,12 @@
                   </table>
 
                   <!-- Modal -->
-                  <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog"
-                    aria-labelledby="exampleModalLabel" aria-hidden="true">
+                  <div class="modal fade" id="training_data_modal_{{ mv.id }}" tabindex="-1" role="dialog"
+                    aria-labelledby="training_data_modal_{{ mv.id }}_label" aria-hidden="true">
                     <div class="modal-dialog" role="document">
                       <div class="modal-content">
                         <div class="modal-header">
-                          <h5 class="modal-title" id="exampleModalLabel">Export to a new raw data file</h5>
+                          <h5 class="modal-title" id="#training_data_modal_{{ mv.id }}_label">Export to a new raw data file</h5>
                           <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
                           </button>
