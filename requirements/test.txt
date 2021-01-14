@@ -6,3 +6,4 @@ pysaml2==6.3.1
 
 # Code coverage
 pytest-cov==2.10.1
+pytest-timeout==1.4.2

@@ -29,7 +29,10 @@ def check_file_system() -> bool:
 def check_celery() -> bool:
     try:
         from alchemy.ar.ar_celery import hello
-        task_result = hello.apply_async()
+        task_result = hello.apply_async(retry=False, retry_policy={
+            'timeout': 5.0,
+            'max_retries': 1,
+        })
         task_result.wait(timeout=5)
         assert task_result.successful()
     except:
