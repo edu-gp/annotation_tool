@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from alchemy.db.fs import models_dir
+from alchemy.db.fs import raw_data_dir
 from alchemy.db.utils import get_all_data_files
 
 
@@ -12,7 +12,7 @@ def check_file_system() -> bool:
         return False
 
     # Check write
-    f = (models_dir(as_path=True) / datetime.utcnow().strftime("test-%Y%m%d%H%M%S.txt"))
+    f = (raw_data_dir(as_path=True) / datetime.utcnow().strftime("fs-health-check-%Y%m%d%H%M%S.txt"))
     try:
         f.write_text("test", encoding='utf-8', errors='ignore')
     except:
