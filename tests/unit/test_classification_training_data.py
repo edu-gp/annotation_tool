@@ -76,6 +76,26 @@ def test_create_for_label(dbsession, monkeypatch, tmp_path):
     assert data[1] == {"text": "text for B", "labels": {LABEL: -1}}
 
 
+def test_create_for_label_empty_text(dbsession, monkeypatch, tmp_path):
+    monkeypatch.setenv("ALCHEMY_FILESTORE_DIR", str(tmp_path))
+
+    _populate_db_manual(dbsession)
+
+    def entity_text_lookup_fn(entity_type_id, entity_name):
+        if entity_name == "A":
+            return f""
+        else:
+            return f"text for {entity_name}"
+
+    data = ClassificationTrainingData.create_for_label(
+        dbsession, ENTITY_TYPE, LABEL, entity_text_lookup_fn
+    )
+
+    data = data.load_data(to_df=False)
+    assert len(data) == 1
+    assert data[0] == {"text": "text for B", "labels": {LABEL: -1}}
+
+
 def _populate_db_variable(dbsession, n_users, n_entities):
     ents = [f"Thing{i}" for i in range(n_entities)]
 
