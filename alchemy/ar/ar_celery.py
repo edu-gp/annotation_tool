@@ -9,13 +9,14 @@ from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import Database, Task, get_or_create
 from alchemy.shared.celery_job_status import JobStatus, set_status
 
+celery_broker = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")
 app = Celery(
     # module name
     "ar_celery",
     # redis://:password@hostname:port/db_number
-    broker=env("CELERY_BROKER_URL", default="redis://localhost:6379/0"),
-    # # store the results here
-    # backend='redis://localhost:6379/0',
+    broker=celery_broker,
+    # store the results here
+    backend=celery_broker,
 )
 
 

@@ -76,6 +76,11 @@ unset 'PARAMS[0]'
 export DB_URL_FOR_MIGRATION=$ALCHEMY_DATABASE_URI
 alembic upgrade head
 
+python alchemy/scripts/check_filesystem_health.py
+if [ $? -ne 0 ]; then
+  exit $?
+fi
+
 if [ $FLASK_ENV = 'development' ] || [ $FLASK_ENV = 'test' ]; then
   flask run ${PARAMS[*]}
 else

@@ -5,7 +5,7 @@ from flask import Flask, redirect, url_for
 
 from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import db
-from alchemy.shared import okta, cloud_logging
+from alchemy.shared import okta, cloud_logging, health_check
 
 
 def create_app(test_config=None):
@@ -55,6 +55,14 @@ def create_app(test_config=None):
     @auth.login_required
     def index():
         return redirect(url_for("tasks.index"))
+
+    @app.route("/status")
+    def status_page():
+        status = dict()
+        status_map = {True: 'ok', False: 'error'}
+        status['web'] = status_map[True]
+        status['celery'] = status_map[health_check.check_celery()]
+        return json.dumps(status)
 
     # TODO insecure way to access local files
     from flask import request, send_file
