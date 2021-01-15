@@ -7,10 +7,8 @@ models_dir(as_path=True).mkdir(parents=True, exist_ok=True)
 training_data_dir(as_path=True).mkdir(parents=True, exist_ok=True)
 
 # Check if they're read and writable
-file_system_status = health_check.check_file_system()
-
-if not file_system_status:
+if health_check.check_file_system():
+    print("File system is operational and healthy")
+else:
     print("ERROR: file system is either not readable or mounted as read only")
     exit(1)
-
-print("File system is operational and healthy")
