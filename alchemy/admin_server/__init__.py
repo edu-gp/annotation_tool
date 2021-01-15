@@ -61,7 +61,6 @@ def create_app(test_config=None):
         status = dict()
         status_map = {True: 'ok', False: 'error'}
         status['web'] = status_map[True]
-        status['filesystem'] = status_map[health_check.check_file_system()]
         status['celery'] = status_map[health_check.check_celery()]
         return json.dumps(status)
 

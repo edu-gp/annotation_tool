@@ -58,20 +58,16 @@ def test_celery_fails():
 
 @pytest.mark.timeout(10)
 @pytest.mark.parametrize("server_name,expected_response", [
-    ('annotation_server_client', dict(web='ok', filesystem='ok')),
-    ('admin_server_client', dict(web='ok', celery='error', filesystem='ok'))
+    ('annotation_server_client', dict(web='ok')),
+    ('admin_server_client', dict(web='ok', celery='error'))
 ])
 def test_status_page(
         annotation_server_client, admin_server_client, server_name,
         expected_response,
-        monkeypatch, tmp_path
 ):
-    _setup_temp_path(monkeypatch, tmp_path)
-
     server = eval(server_name)
     status = server.get("/status")
     assert status.status == "200 OK"
     response_json = json.loads(status.get_data().decode())
     assert isinstance(response_json, dict)
-
     assert response_json == expected_response

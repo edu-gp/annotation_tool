@@ -10,7 +10,7 @@ from flask import (
 from alchemy.ar.data import fetch_tasks_for_user_from_db
 from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import db
-from alchemy.shared import okta, cloud_logging, health_check
+from alchemy.shared import okta, cloud_logging
 
 
 def create_app(test_config=None):
@@ -58,7 +58,6 @@ def create_app(test_config=None):
         status = dict()
         status_map = {True: 'ok', False: 'error'}
         status['web'] = status_map[True]
-        status['filesystem'] = status_map[health_check.check_file_system()]
         return json.dumps(status)
 
     @app.route("/secret")
