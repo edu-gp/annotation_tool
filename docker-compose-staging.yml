@@ -1,22 +1,21 @@
 version: '3.4'
 
-# https://docs.docker.com/compose/compose-file/#extension-fields
-x-volumes:
-  &default-volumes
-  - $GCLOUD_LOCAL_DIR:/root/.config/gcloud
-  # By default the credential location is under $GCLOUD_LOCAL_DIR/credentials.
-  # Unless it is customized, there is no need to use the next line.
-  #- $GOOGLE_APPLICATION_CREDENTIALS_LOCAL_DIR:/root/.secret
-  - $FILESTORE_LOCAL_DIR:/app/__filestore
+volumes:
+  admin_static_files:
+  annotation_static_files:
 
 services:
-
   admin_server:
     env_file: .env
     image: &img gcr.io/nlp-flywheel/alchemy:latest
     expose:
       - 5000
-    volumes: *default-volumes
+    volumes:
+      - $GCLOUD_LOCAL_DIR:/root/.config/gcloud
+      - $FILESTORE_LOCAL_DIR:/app/__filestore
+      - type: volume
+        source: admin_static_files
+        target: /app/alchemy/admin_server/static
     command: [
         '--flask-env', 'production',
         '--flask-host', '0.0.0.0',
@@ -33,7 +32,12 @@ services:
     image: *img
     expose:
       - 5001
-    volumes: *default-volumes
+    volumes:
+      - $GCLOUD_LOCAL_DIR:/root/.config/gcloud
+      - $FILESTORE_LOCAL_DIR:/app/__filestore
+      - type: volume
+        source: annotation_static_files
+        target: /app/alchemy/annotation_server/static
     command: [
         '--flask-env', 'production',
         '--flask-host', '0.0.0.0',
@@ -47,7 +51,9 @@ services:
   ar_celery:
     env_file: .env
     image: *img
-    volumes: *default-volumes
+    volumes:
+      - $GCLOUD_LOCAL_DIR:/root/.config/gcloud
+      - $FILESTORE_LOCAL_DIR:/app/__filestore
     entrypoint: ["celery", "--app=alchemy.ar.ar_celery", "worker", "-Q", "ar_celery", "-c", "2", "--autoscale=100,2", "-l", "info", "--max-tasks-per-child", "1", "-n", "ar_celery"]
     depends_on:
       - redis
@@ -56,7 +62,9 @@ services:
   train_celery:
     env_file: .env
     image: *img
-    volumes: *default-volumes
+    volumes:
+      - $GCLOUD_LOCAL_DIR:/root/.config/gcloud
+      - $FILESTORE_LOCAL_DIR:/app/__filestore
     entrypoint: ["celery", "--app=alchemy.train.train_celery", "worker", "-Q", "train_celery", "-c", "2", "--autoscale=100,2", "-l", "info", "--max-tasks-per-child", "1", "-n", "train_celery"]
     depends_on:
       - redis
@@ -65,7 +73,9 @@ services:
   gcp_celery:
     env_file: .env
     image: *img
-    volumes: *default-volumes
+    volumes:
+      - $GCLOUD_LOCAL_DIR:/root/.config/gcloud
+      - $FILESTORE_LOCAL_DIR:/app/__filestore
     entrypoint: ["celery", "--app=alchemy.train.gcp_celery", "worker", "-Q", "gcp_celery", "-c", "5", "--autoscale=100,2", "-l", "info", "-n", "gcp_celery"]
     depends_on:
       - redis
@@ -81,6 +91,14 @@ services:
       - .conf/nginx:/etc/nginx/templates
       - /etc/letsencrypt/challenge:/var/www/letsencrypt
       - /etc/letsencrypt:/etc/letsencrypt
+      - type: volume
+        source: admin_static_files
+        target: /static_files/admin_server
+        read_only: true
+      - type: volume
+        source: annotation_static_files
+        target: /static_files/annotation_server
+        read_only: true
     depends_on:
       - admin_server
       - annotation_server
