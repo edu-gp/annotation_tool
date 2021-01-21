@@ -44,6 +44,20 @@ server {
     include             /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
 
+    location /static/ {
+        rewrite /static/(.*) /$1 break;
+        autoindex off;
+        access_log off;
+        root /static_files/annotation_server/;
+    }
+
+    location /admin/static/ {
+        rewrite /admin/static/(.*) /$1 break;
+        autoindex off;
+        access_log off;
+        root /static_files/admin_server/;
+    }
+
     location /admin/ {
         rewrite /admin/(.*) /$1  break;
         include /etc/nginx/uwsgi_params;
