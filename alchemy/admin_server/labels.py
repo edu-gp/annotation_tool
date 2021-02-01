@@ -7,7 +7,7 @@ from alchemy.db.model import (
     db,
     get_or_create,
 )
-from alchemy.shared.okta import auth
+from alchemy.shared.auth_backends import auth
 from alchemy.shared.utils import list_to_textarea, textarea_to_list
 
 bp = Blueprint("labels", __name__, url_prefix="/labels")

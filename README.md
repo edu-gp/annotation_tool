@@ -40,19 +40,18 @@ Descriptions of the env vars:
 - `API_TOKEN_NAME`: The secret name for the inference API token.
 - `INFERENCE_OUTPUT_DATA_SOURCE_NAME_FOR_PUBSUB`: The inference output dataset source name for pubsub.
 - `USE_CLOUD_LOGGING`: Use GCP logging instead of the default logging. If set to true, `ADMIN_SERVER_LOGGGER` and `ANNOTATION_SERVER_LOGGER` must be set properly.
-
-New env vars:
-
 - `ALCHEMY_FILESTORE_DIR`: Local filestore location.
 - `ALCHEMY_DATABASE_URI`: The URI of SQL database.
 - `ALCHEMY_ENV`: The environemnt the server is running in.
 - `API_TOKEN`: API token for /api/* calls.
 - `FLOWER_BASIC_AUTH`: Basic auth for the Celery monitoring UI, Flower. Set to `foo:bar` so foo is the username and bar is the password.
 - `CELERY_BROKER_URL`: Full URL to the message broker used by celery.
-- `SAML_METADATA_URL`
 - `SECRET_KEY`: The key used for encrypting session cookies
+- `SAML_METADATA_URL`: Path to metadata xml file in case of using `saml` authentication backend.
+- `ANNOTATION_TOOL_ADMIN_SERVER_PASSWORD`: The password to use in case of using `basic_auth` authentication backend.
 
 # Development
+## Running the code
 You can use the provided docker-compose file to run the dev server. 
 
 ```bash
@@ -70,12 +69,25 @@ bash ci/run_server.sh \
         [optional flask run flags here]
 ```
 
+## Authentication in Development environment
+Change the authentication backend to basic authentication.
+Change the following setting in `admin_server/__init__.py` and `annotation_server/__init__.py`
+from 
 
-# Exposing Port on Google Cloud
+```python
+'AUTH_BACKEND': 'alchemy.shared.auth_backends.saml'
+```
 
-Add a Firewall group, then tag your instance with that group.
+to
 
-# Tests
+```python
+'AUTH_BACKEND': 'alchemy.shared.auth_backends.basic_auth'
+```
+
+The password for the login form is set by `ANNOTATION_TOOL_ADMIN_SERVER_PASSWORD`. 
+Be careful not to commit this change over to production.
+
+## Tests
 You may run the tests using `ci/run_tests.sh` in a docker container, in ci, etc.
 By default, it will look for tests in `tests/` directory, however you can also 
 specify a certain directory or file to run. 
@@ -95,3 +107,6 @@ root:/app# ci/run_tests.sh tests/unit/test_nlp_model.py
 root:/app# TEST_ARGS="--setup-show" ci/run_tests.sh 
 ```
 
+# Notes for production
+## Exposing Port on Google Cloud
+Add a Firewall group, then tag your instance with that group.

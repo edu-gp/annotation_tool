@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<br />
+<br />
+
+<div class="row">
+  <div class="col-6 mx-auto">
+
+    <h1>Login</h1>
+    <form method="post" action="{{ url_for('auth.login') }}">
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" class="form-control" name="username" id="username" aria-describedby="username" required>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" class="form-control" name="password" id="password" aria-describedby="password" required>
+      </div>
+
+      <input class="btn btn-primary" type="submit" value="Log In">
+    </form>
+
+  </div>
+</div>
+{% endblock %}

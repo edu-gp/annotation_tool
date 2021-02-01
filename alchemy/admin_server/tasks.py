@@ -45,7 +45,7 @@ from alchemy.shared.celery_job_status import (
     delete_status,
 )
 from alchemy.shared.component import task_dao
-from alchemy.shared.okta import auth
+from alchemy.shared.auth_backends import auth
 from alchemy.shared.utils import (
     stem,
     list_to_textarea,
