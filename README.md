@@ -16,7 +16,7 @@ Or use the --env or --env-file args for Docker.
 
 Descriptions of the env vars:
 
-- `ANNOTATION_TOOL_ANNOTATION_SERVER_SERVER`: URL of annotation server, e.g. `http://localhost:5001`.
+- `ANNOTATION_TOOL_ANNOTATION_SERVER_SERVER`: URL of annotation server, e.g. `http://127.0.0.1:5001`.
 - `ANNOTATION_TOOL_INFERENCE_CACHE_DIR`: Where some model inference are cached. Default is `./__infcache`
 - `ANNOTATION_TOOL_MAX_PER_ANNOTATOR`: How many examples to assign to each annotator in a batch. Default is 100.
 - `ANNOTATION_TOOL_MAX_PER_DP`: How many annotators should see the same example. Default is 3.
@@ -62,7 +62,12 @@ docker-compose up -d
 Or use the run_server script directly outside the docker environment:
 
 ```
-bash ci/run_server.sh --flask-env local --flask-host 127.0.0.1 --flask-port 8080 --database postgres://alchemy:pswd@localhost:5432/alchemy [optional flask run flags here]
+bash ci/run_server.sh \
+        --flask-env local \
+        --flask-host 127.0.0.1 \
+        --flask-port 8080 \
+        --database postgres://alchemy:pswd@localhost:5432/alchemy \
+        [optional flask run flags here]
 ```
 
 
