@@ -2,9 +2,9 @@ from tests.fixtures import *  # noqa
 
 
 def test_password_required(admin_server_client):
-    from alchemy.shared import okta
+    from alchemy.shared import auth_backends
 
-    with okta.ReverseMock():
+    with auth_backends.ReverseMock():
         response = admin_server_client.get("/", follow_redirects=False)
         assert response.status == "302 FOUND"
 

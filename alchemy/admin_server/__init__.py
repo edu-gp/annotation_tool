@@ -5,7 +5,7 @@ from flask import Flask, redirect, url_for
 
 from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import db
-from alchemy.shared import okta, cloud_logging, health_check
+from alchemy.shared import auth_backends, cloud_logging, health_check
 
 
 def create_app(test_config=None):
@@ -24,7 +24,7 @@ def create_app(test_config=None):
 
     app.config.update({
         'SECRET_KEY': env('SECRET_KEY'),
-        'OKTA_BACKEND': 'alchemy.shared.okta.saml',
+        'AUTH_BACKEND': 'alchemy.shared.auth_backends.saml',
         'SAML_METADATA_URL': env('SAML_METADATA_URL', default=None),
     })
 
@@ -35,8 +35,8 @@ def create_app(test_config=None):
         pass
 
     db.init_app(app)
-    okta.init_app(app, okta.auth)
-    auth = okta.auth
+    auth_backends.init_app(app, auth_backends.auth)
+    auth = auth_backends.auth
     # -------------------------------------------------------------------------
     # Register custom Jinja Filters
 

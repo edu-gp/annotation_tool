@@ -30,7 +30,7 @@ from alchemy.db.model import (
     fetch_annotation_entity_and_ids_done_by_user_under_labels,
     get_or_create,
 )
-from alchemy.shared.okta import auth
+from alchemy.shared.auth_backends import auth
 
 bp = Blueprint("tasks", __name__, url_prefix="/tasks")
 

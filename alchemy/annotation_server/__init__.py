@@ -10,7 +10,7 @@ from flask import (
 from alchemy.ar.data import fetch_tasks_for_user_from_db
 from alchemy.db.config import DevelopmentConfig
 from alchemy.db.model import db
-from alchemy.shared import okta, cloud_logging
+from alchemy.shared import auth_backends, cloud_logging
 
 
 def create_app(test_config=None):
@@ -32,7 +32,7 @@ def create_app(test_config=None):
 
     app.config.update({
         'SECRET_KEY': env('SECRET_KEY'),
-        'OKTA_BACKEND': 'alchemy.shared.okta.saml',
+        'AUTH_BACKEND': 'alchemy.shared.auth_backends.saml',
         'SAML_METADATA_URL': env('SAML_METADATA_URL', default=None),
     })
 
@@ -43,8 +43,8 @@ def create_app(test_config=None):
         pass
 
     db.init_app(app)
-    okta.init_app(app, okta.auth)
-    login_required = okta.auth.login_required
+    auth_backends.init_app(app, auth_backends.auth)
+    login_required = auth_backends.auth.login_required
 
     @app.route("/")
     @login_required

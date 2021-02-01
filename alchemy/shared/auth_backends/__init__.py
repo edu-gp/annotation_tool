@@ -15,8 +15,8 @@ class _Auth:
 
 
 def init_app(app, auth):
-    okta_backend = app.config['OKTA_BACKEND']
-    auth_backend = importlib.import_module(okta_backend)
+    auth_backend_name = app.config['AUTH_BACKEND']
+    auth_backend = importlib.import_module(auth_backend_name)
     auth_backend.init_app(app, auth)
 
 
