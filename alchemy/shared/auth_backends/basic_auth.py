@@ -23,7 +23,6 @@ def _create_blueprint():
     # Start log in
     @bp.route('/login', methods=['GET', 'POST'])
     def login():
-        error = False
         if flask.request.method == 'POST':
             # Check password
             username = flask.request.form['username']
@@ -35,9 +34,8 @@ def _create_blueprint():
                 flask.flash("Welcome to alchemy!", category='info')
                 return flask.redirect(url)
             flask.flash("Incorrect username or password.", category='error')
-            error = True
 
-        return flask.render_template('auth/login.html', error=error)
+        return flask.render_template('auth/login.html')
 
     @bp.route("/logout")
     def logout():
