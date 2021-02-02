@@ -143,6 +143,13 @@ def _create_blueprint(*, metadata):
     # Start log in
     @bp.route('/saml/login')
     def sp_initiated():
+        # Handle all logins through the annotator website, to
+        # fix the admin callback's malformed request issue.
+        # More info: Clickup SA-3149
+        redirect_to = _check_admin_server()
+        if redirect_to:
+            return flask.redirect(redirect_to)
+
         saml_client = get_saml_client(metadata=metadata)
         reqid, info = saml_client.prepare_for_authenticate()
         flask.session['saml_reqid'] = reqid
@@ -173,6 +180,31 @@ def _create_blueprint(*, metadata):
     @flask_login.login_required
     def login():
         return flask.redirect(flask.url_for('index'))
+
+    def _check_admin_server():
+        full_url = flask.request.base_url
+        if not ('/admin' in full_url or ':5000/' in full_url):
+            # I wish I could check the url against SAML SP
+            # entity ID, however Okta does not provide it in
+            # the metadata. So this if condition is a hacky
+            # way to know if we're on admin site. Note that it
+            # will break if you change some of the deployment
+            # configurations (changing the port or the mount
+            # point of admin website).
+            return None
+
+        frontend_login_page = (
+            full_url
+                .replace('/admin', '')
+                .replace(':5000/', ':5001/')
+        )
+
+        if not flask_login.current_user.is_authenticated:
+            redirect_url = frontend_login_page
+        else:
+            redirect_url = flask.url_for('index')
+
+        return redirect_url
 
     return bp
 
