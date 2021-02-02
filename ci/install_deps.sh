@@ -10,9 +10,9 @@ while test $# -gt 0; do
     echo "This script is used to install all the dependencies that"
     echo "Alchemy needs to work with."
     echo ""
-    echo "--no-gcp\tDoes not install GCP tools"
-    echo "--no-spacy\tDoes not download the language model"
-    echo "--spacy-model [model_name]\tSpecifies the spacy model name to download"
+    echo -e "--no-gcp\tDoes not install GCP tools"
+    echo -e "--no-spacy\tDoes not download the language model"
+    echo -e "--spacy-model [model_name]\tSpecifies the spacy model name to download"
     exit 0
     ;;
     --no-gcp)
