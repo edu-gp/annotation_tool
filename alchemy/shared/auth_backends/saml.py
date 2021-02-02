@@ -145,7 +145,6 @@ def _create_blueprint(*, metadata):
     def sp_initiated():
         # Handle all logins through the annotator website, to
         # fix the admin callback's malformed request issue.
-        # More info: Clickup SA-3149
         redirect_to = _check_admin_server()
         if redirect_to:
             return flask.redirect(redirect_to)
