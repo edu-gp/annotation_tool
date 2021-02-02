@@ -6,8 +6,8 @@ while test $# -gt 0; do
   case "$1" in
     -h|--help)
       echo "Usage ci/gcloud_build.sh [gcloud ops] -t TARGET [-t TARGET [-t TARGET]]"
-      echo "This script is used to  easily submit a gcloud build job"
-      echo "from your local development environment. It should be run from"
+      echo "This script is used to easily submit a gcloud build job from"
+      echo "your local development environment. It should be run from"
       echo "the repository's root directory."
       echo ""
       echo -e "-t\tAdd a build target. At least one required."
