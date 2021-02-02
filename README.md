@@ -108,5 +108,16 @@ root:/app# TEST_ARGS="--setup-show" ci/run_tests.sh
 ```
 
 # Notes for production
+## Building
+You can submit cloud build jobs from your local development environment
+using `ci/gcloud_build.sh` script. This script comes in handy particularly
+when you need to build an image to manually deploy on staging server.
+example usage:
+
+```bash
+ci/gcloud_build.sh -t production
+ci/gcloud_build.sh -t production -t staging --async
+```
+
 ## Exposing Port on Google Cloud
 Add a Firewall group, then tag your instance with that group.
