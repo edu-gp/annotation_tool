@@ -14,6 +14,7 @@ from saml2.saml import NAME_FORMAT_BASIC
 from saml2.validate import ResponseLifetimeExceed
 
 from alchemy.db.model import db, User
+from alchemy.shared.config import Config
 
 
 def get_saml_client(*, metadata):
@@ -182,21 +183,17 @@ def _create_blueprint(*, metadata):
 
     def _check_admin_server():
         full_url = flask.request.base_url
-        if not ('/admin' in full_url or ':5000/' in full_url):
+        annotation_server_url = Config.get_annotation_server()
+        if annotation_server_url not in full_url:
             # I wish I could check the url against SAML SP
             # entity ID, however Okta does not provide it in
             # the metadata. So this if condition is a hacky
-            # way to know if we're on admin site. Note that it
-            # will break if you change some of the deployment
-            # configurations (changing the port or the mount
-            # point of admin website).
+            # way to know if we're on admin site.
             return None
 
-        frontend_login_page = (
-            full_url
-                .replace('/admin', '')
-                .replace(':5000/', ':5001/')
-        )
+        if annotation_server_url[:-1] != '/':
+            annotation_server_url = f'{annotation_server_url}/'
+        frontend_login_page = full_url.replace(flask.request.url_root, annotation_server_url)
 
         if not flask_login.current_user.is_authenticated:
             redirect_url = frontend_login_page
