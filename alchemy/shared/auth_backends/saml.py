@@ -14,6 +14,7 @@ from saml2.saml import NAME_FORMAT_BASIC
 from saml2.validate import ResponseLifetimeExceed
 
 from alchemy.db.model import db, User
+from alchemy.shared.config import Config
 
 
 def get_saml_client(*, metadata):
@@ -143,6 +144,12 @@ def _create_blueprint(*, metadata):
     # Start log in
     @bp.route('/saml/login')
     def sp_initiated():
+        # Handle all logins through the annotator website, to
+        # fix the admin callback's malformed request issue.
+        redirect_to = _check_admin_server()
+        if redirect_to:
+            return flask.redirect(redirect_to)
+
         saml_client = get_saml_client(metadata=metadata)
         reqid, info = saml_client.prepare_for_authenticate()
         flask.session['saml_reqid'] = reqid
@@ -173,6 +180,27 @@ def _create_blueprint(*, metadata):
     @flask_login.login_required
     def login():
         return flask.redirect(flask.url_for('index'))
+
+    def _check_admin_server():
+        full_url = flask.request.base_url
+        annotation_server_url = Config.get_annotation_server()
+        if annotation_server_url not in full_url:
+            # I wish I could check the url against SAML SP
+            # entity ID, however Okta does not provide it in
+            # the metadata. So this if condition is a hacky
+            # way to know if we're on admin site.
+            return None
+
+        if annotation_server_url[-1] != '/':
+            annotation_server_url = f'{annotation_server_url}/'
+        frontend_login_page = full_url.replace(flask.request.url_root, annotation_server_url)
+
+        if not flask_login.current_user.is_authenticated:
+            redirect_url = frontend_login_page
+        else:
+            redirect_url = flask.url_for('index')
+
+        return redirect_url
 
     return bp
 
