@@ -182,9 +182,12 @@ def _create_blueprint(*, metadata):
         return flask.redirect(flask.url_for('index'))
 
     def _check_admin_server():
+        def _drop_protocol(url):
+            return url.replace('http://', '').replace('https://', '')
+
         full_url = flask.request.base_url
         annotation_server_url = Config.get_annotation_server()
-        if annotation_server_url not in full_url:
+        if _drop_protocol(annotation_server_url) == _drop_protocol(flask.request.url_root):
             # I wish I could check the url against SAML SP
             # entity ID, however Okta does not provide it in
             # the metadata. So this if condition is a hacky
