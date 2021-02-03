@@ -1,4 +1,5 @@
 import logging
+import re
 
 import flask
 import flask_login
@@ -182,21 +183,22 @@ def _create_blueprint(*, metadata):
         return flask.redirect(flask.url_for('index'))
 
     def _check_admin_server():
-        def _drop_protocol(url):
-            return url.replace('http://', '').replace('https://', '')
+        def _strip_url(url):
+            # Removes the protocol and the trailing slash.
+            # Assumes there is no query string
+            return re.sub("^([^:]+://)?(([^/]+/)*)([^/]+)(/?)", r"\2\4", url.strip())
 
-        full_url = flask.request.base_url
-        annotation_server_url = Config.get_annotation_server()
-        if _drop_protocol(annotation_server_url) == _drop_protocol(flask.request.url_root):
+        annotation_server_url = _strip_url(Config.get_annotation_server())
+        url_root = _strip_url(flask.request.url_root)
+        if annotation_server_url == url_root:
             # I wish I could check the url against SAML SP
             # entity ID, however Okta does not provide it in
             # the metadata. So this if condition is a hacky
             # way to know if we're on admin site.
             return None
 
-        if annotation_server_url[-1] != '/':
-            annotation_server_url = f'{annotation_server_url}/'
-        frontend_login_page = full_url.replace(flask.request.url_root, annotation_server_url)
+        full_url = flask.request.base_url
+        frontend_login_page = full_url.replace(url_root, annotation_server_url)
 
         if not flask_login.current_user.is_authenticated:
             redirect_url = frontend_login_page
