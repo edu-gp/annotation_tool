@@ -1,5 +1,5 @@
 import logging
-import re
+import urllib.parse
 
 import flask
 import flask_login
@@ -184,9 +184,12 @@ def _create_blueprint(*, metadata):
 
     def _check_admin_server():
         def _strip_url(url):
-            # Removes the protocol and the trailing slash.
-            # Assumes there is no query string
-            return re.sub("^([^:]+://)?(([^/]+/)*)([^/]+)(/?)", r"\2\4", url.strip())
+            # https://foo.bar.com/path/to/baz/?x=1&y=2#anchor -> foo.bar.com/path/to/baz
+            url_parts = urllib.parse.urlparse(url)
+            stripped = f'{url_parts.netloc}{url_parts.path}'
+            if stripped[-1] == '/':
+                stripped = stripped[:-1]
+            return stripped
 
         annotation_server_url = _strip_url(Config.get_annotation_server())
         url_root = _strip_url(flask.request.url_root)
