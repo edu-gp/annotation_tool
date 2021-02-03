@@ -191,7 +191,7 @@ def _create_blueprint(*, metadata):
             # way to know if we're on admin site.
             return None
 
-        if annotation_server_url[:-1] != '/':
+        if annotation_server_url[-1] != '/':
             annotation_server_url = f'{annotation_server_url}/'
         frontend_login_page = full_url.replace(flask.request.url_root, annotation_server_url)
 
