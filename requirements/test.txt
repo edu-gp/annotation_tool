@@ -2,7 +2,7 @@
 
 # Have both authentication backends while testing
 flask-oidc>=1.4.0
-pysaml2==6.3.1
+pysaml2==6.5.0
 
 # Code coverage
 pytest-cov==2.10.1
