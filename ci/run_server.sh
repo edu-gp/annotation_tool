@@ -14,12 +14,12 @@ while test $# -gt 0; do
       echo "  $0 [OPTIONS] (admin_server|annotation_server)"
       echo "  "
       echo "OPTIONS:"
-      echo "  --flask-env (development|production|...)"
-      echo "                        \t Overrides FLASK_ENV"
-      echo "  --flask-host ip       \t Overrides FLASK_RUN_HOST"
-      echo "  --flask-port port,    \t Overrides FLASK_RUN_PORT"
-      echo "    -p port"
-      echo "  --database databse_uri\t Overrides ALCHEMY_DATABASE_URI"
+      echo -e "  --flask-env (development|production|...)"
+      echo -e "                        \t Overrides FLASK_ENV"
+      echo -e "  --flask-host ip       \t Overrides FLASK_RUN_HOST"
+      echo -e "  --flask-port port,    \t Overrides FLASK_RUN_PORT"
+      echo -e "    -p port"
+      echo -e "  --database databse_uri\t Overrides ALCHEMY_DATABASE_URI"
       exit 0
       ;;
     --flask-env)
