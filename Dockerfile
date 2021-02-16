@@ -5,8 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
          wget \
          curl \
          git \
-         xmlsec1 && \
-     rm -rf /var/lib/apt/lists/*
+         xmlsec1
 # xmlsec1: for SAML
 
 WORKDIR /base
@@ -62,15 +61,10 @@ RUN set -ex \
     && deps=' \
         libexpat1 \
     ' \
-    && apt-get update && apt-get install -y $buildDeps $deps --no-install-recommends  && rm -rf /var/lib/apt/lists/* \
+    && apt-get install -y $buildDeps $deps --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache -r requirements/production.txt \
-    && apt-get purge -y --auto-remove $buildDeps \
-    && find /usr/local -depth \
-    \( \
-        \( -type d -a -name test -o -name tests \) \
-        -o \
-        \( -type f -a -name '*.pyc' -o -name '*.pyo' \) \
-    \) -exec rm -rf '{}' +
+    && apt-get purge -y --auto-remove $buildDeps
 
 FROM production as staging
 # It's the same as production. At least for now.
