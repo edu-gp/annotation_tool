@@ -26,8 +26,8 @@ bp = Blueprint("models", __name__, url_prefix="/models")
 @dataclass
 class ModelDataRow:
     label: str
-    latest_version: int
-    deployed_version: int
+    latest_version: str
+    deployed_version: str
     num_of_data_points: int
     threshold: float
     majority_annotator: str
@@ -233,8 +233,10 @@ def _collect_model_data_rows():
 
         row = ModelDataRow(
             label=label,
-            latest_version=latest_model.version if latest_model else None,
-            deployed_version=deployed_model.version if deployed_model else None,
+            latest_version=latest_model.full_version_name if latest_model else None,
+            deployed_version=deployed_model.full_version_name
+            if deployed_model
+            else None,
             num_of_data_points=chosen_model.get_len_data() if chosen_model else None,
             threshold=threshold,
             majority_annotator=majority_annotator,
