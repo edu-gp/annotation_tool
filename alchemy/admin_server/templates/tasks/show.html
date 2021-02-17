@@ -379,7 +379,7 @@
                         <h5>
                           Version {{mv.version}}
                           ({{mv.created_at.strftime('%Y-%m-%d')}})
-                          <small class='text-muted ml-3'>{{mv.uuid[:7]}}</small>
+                          <small class='text-muted ml-3'>{{mv.short_uuid}}</small>
                         </h5>
 
                         {% if mv.is_ready() %}

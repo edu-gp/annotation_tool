@@ -435,6 +435,14 @@ class Model(Base):
     def __repr__(self):
         return f"<Model:{self.type}:{self.uuid}:{self.version}>"
 
+    @property
+    def short_uuid(self) -> str:
+        return self.uuid[:7]
+
+    @property
+    def full_version_name(self) -> str:
+        return f"{self.short_uuid}-V{self.version}"
+
     @staticmethod
     def get_latest_version(dbsession, uuid):
         res = (
@@ -680,7 +688,7 @@ class Task(Base):
 
     def get_annotation_link(self):
         # FIXME: SUCH A SMELLY WAY OF CREATING THE LINK!
-        return f'{Config.get_annotation_server()}/tasks/{self.id}'
+        return f"{Config.get_annotation_server()}/tasks/{self.id}"
 
     def __repr__(self):
         return "<Task with id {}, \nname {}, \ndefault_params {}>".format(

@@ -233,12 +233,8 @@ def _collect_model_data_rows():
 
         row = ModelDataRow(
             label=label,
-            latest_version=latest_model.uuid[:7] + "-V" + str(latest_model.version)
-            if latest_model
-            else None,
-            deployed_version=deployed_model.uuid[:7]
-            + "-V"
-            + str(deployed_model.version)
+            latest_version=latest_model.full_version_name if latest_model else None,
+            deployed_version=deployed_model.full_version_name
             if deployed_model
             else None,
             num_of_data_points=chosen_model.get_len_data() if chosen_model else None,
