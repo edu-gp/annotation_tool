@@ -117,7 +117,12 @@ def create():
         db.session.rollback()
         error = str(e)
         flash(error)
-        return render_template("tasks/new.html", data_fnames=data_fnames, users=users, annotators_set=annotators_set)
+        return render_template(
+            "tasks/new.html",
+            data_fnames=data_fnames,
+            users=users,
+            annotators_set=annotators_set,
+        )
 
 
 @bp.route("/<string:id>", methods=["GET"])
@@ -197,7 +202,14 @@ def show(id):
             .limit(10)
             .all()
         )
-        models_per_label[label] = models
+
+        models_by_uuid = {}
+        for mv in models:
+            if mv.uuid not in models_by_uuid:
+                models_by_uuid[mv.uuid] = []
+            models_by_uuid[mv.uuid].append(mv)
+        models_per_label[label] = models_by_uuid
+
         model_ids = [model.id for model in models]
         res = (
             db.session.query(
@@ -285,7 +297,10 @@ def update(id):
         error = str(e)
         flash(error)
         return render_template(
-            "tasks/edit.html", task=task, list_to_textarea=list_to_textarea, users=users,
+            "tasks/edit.html",
+            task=task,
+            list_to_textarea=list_to_textarea,
+            users=users,
             annotators_set=annotators_set,
         )
 
@@ -398,9 +413,7 @@ def download_prediction():
     )
 
     # Make sure the annotations are unique on (user, entity)
-    df_all_annos = df_all_annos.drop_duplicates(
-        ["username", "entity"], keep="first"
-    )
+    df_all_annos = df_all_annos.drop_duplicates(["username", "entity"], keep="first")
 
     # Make sure none of the entities are missing
     # (otherwise this will result in extra rows when merging)
@@ -493,9 +506,16 @@ def parse_labels(form):
 
 def parse_annotators(form):
     annotators = [int(uid) for uid in form.getlist("annotators[]")]
-    assert annotators and len(annotators) > 0, "You should select at least one person to annotate"
+    assert (
+        annotators and len(annotators) > 0
+    ), "You should select at least one person to annotate"
 
-    usernames = [username for username, in db.session.query(User.username).filter(User.id.in_(annotators)).all()]
+    usernames = [
+        username
+        for username, in db.session.query(User.username)
+        .filter(User.id.in_(annotators))
+        .all()
+    ]
     # If an invalid ID is supplied here it'll just ignore it.
 
     return usernames

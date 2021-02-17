@@ -365,258 +365,268 @@
 
         <div class="row">
           <div class="col-9">
-            {% for mv in models_per_label.get(label, []) %}
-
             <div class="card mt-4">
-              <div class="card-body">
-                <h5>
-                  Version {{mv.version}}
-                  ({{mv.created_at.strftime('%Y-%m-%d')}})
-                  <small class='text-muted ml-3'>{{mv.uuid}}</small>
-                </h5>
+                <div class="card-body">
+                {% set models_by_uuid = models_per_label.get(label, {})%}
+                {% for uuid in models_by_uuid %}
+                    <div>
+                        <h5>Model ID: {{ uuid[:7] }}</h5>
+                    </div>
+                    {% for mv in models_by_uuid.get(uuid, []) %}
 
-                {% if mv.is_ready() %}
+                    <div class="card mt-4">
+                      <div class="card-body">
+                        <h5>
+                          Version {{mv.version}}
+                          ({{mv.created_at.strftime('%Y-%m-%d')}})
+                          <small class='text-muted ml-3'>{{mv.uuid[:7]}}</small>
+                        </h5>
 
-                {% for fname in mv.get_inference_fnames() %}
-                <div class="row">
-                  <div class="col">
-                    Data File: <code>{{fname}}</code>
-                  </div>
-                  <table class="table">
-                    <tbody>
-                      <tr>
-                        <td>
-                          <form action="{{ url_for('tasks.download_prediction') }}" method="POST">
-                            <input type="hidden" name="model_id" value="{{mv.id}}">
-                            <input type="hidden" name="fname" value="{{fname}}">
-                            <input type="hidden" name="entity_type" value="{{task.get_entity_type()}}">
-                            <button type="submit" class="btn btn-dark">Download Prediction</button>
-                          </form>
-                        </td>
-                        <td>
-                          <!-- Button trigger modal -->
-                          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#training_data_modal_{{ mv.id }}">
-                            Export to new Data File
-                          </button>
-                        </td>
-                        <td>
-                          <form action="{{ url_for('tasks.download_training_data') }}" method="POST">
-                            <input type="hidden" name="model_id" value="{{mv.id}}">
-                            <button type="submit" class="btn btn-secondary">Download Training Data</button>
-                          </form>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                        {% if mv.is_ready() %}
 
-                  <!-- Modal -->
-                  <div class="modal fade" id="training_data_modal_{{ mv.id }}" tabindex="-1" role="dialog"
-                    aria-labelledby="training_data_modal_{{ mv.id }}_label" aria-hidden="true">
-                    <div class="modal-dialog" role="document">
-                      <div class="modal-content">
-                        <div class="modal-header">
-                          <h5 class="modal-title" id="#training_data_modal_{{ mv.id }}_label">Export to a new raw data file</h5>
-                          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                          </button>
+                        {% for fname in mv.get_inference_fnames() %}
+                        <div class="row">
+                          <div class="col">
+                            Data File: <code>{{fname}}</code>
+                          </div>
+                          <table class="table">
+                            <tbody>
+                              <tr>
+                                <td>
+                                  <form action="{{ url_for('tasks.download_prediction') }}" method="POST">
+                                    <input type="hidden" name="model_id" value="{{mv.id}}">
+                                    <input type="hidden" name="fname" value="{{fname}}">
+                                    <input type="hidden" name="entity_type" value="{{task.get_entity_type()}}">
+                                    <button type="submit" class="btn btn-dark">Download Prediction</button>
+                                  </form>
+                                </td>
+                                <td>
+                                  <!-- Button trigger modal -->
+                                  <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#training_data_modal_{{ mv.id }}">
+                                    Export to new Data File
+                                  </button>
+                                </td>
+                                <td>
+                                  <form action="{{ url_for('tasks.download_training_data') }}" method="POST">
+                                    <input type="hidden" name="model_id" value="{{mv.id}}">
+                                    <button type="submit" class="btn btn-secondary">Download Training Data</button>
+                                  </form>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+
+                          <!-- Modal -->
+                          <div class="modal fade" id="training_data_modal_{{ mv.id }}" tabindex="-1" role="dialog"
+                            aria-labelledby="training_data_modal_{{ mv.id }}_label" aria-hidden="true">
+                            <div class="modal-dialog" role="document">
+                              <div class="modal-content">
+                                <div class="modal-header">
+                                  <h5 class="modal-title" id="#training_data_modal_{{ mv.id }}_label">Export to a new raw data file</h5>
+                                  <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                  </button>
+                                </div>
+
+                                <form class="form-export-new-raw-data">
+                                  <div class="modal-body">
+
+                                    <input type="hidden" name="_url" value="{{ url_for('models.export_new_raw_data') }}">
+                                    <input type="hidden" name="model_id" value="{{mv.id}}">
+                                    <input type="hidden" name="data_fname" value="{{fname}}">
+
+                                    <div class="form-group">
+                                      <label>Output Filename</label>
+                                      <input class="form-control" type="text" name="output_fname" required>
+                                      <small class="form-text text-muted">
+                                        A filename ending in .jsonl
+                                      </small>
+                                    </div>
+                                    <div class="form-group">
+                                      <label>Cutoff</label>
+                                      <input class="form-control" type="text" name="cutoff" value="0.5" required>
+                                      <small class="form-text text-muted">
+                                        A value from 0.0 to 1.0
+                                      </small>
+                                    </div>
+
+                                  </div>
+                                  <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Export</button>
+                                  </div>
+                                </form>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        {% endfor %}
+
+                        <div class="row">
+                          <div class="col">
+                            {% for path in mv.get_url_encoded_plot_paths() %}
+                            <!-- Note: This uses the insecure way to get a file  -->
+                            <img style="max-width: 400px" src="/admin/file?f={{path}}" />
+                                {# TODO: replace with url_for #}
+                            {% endfor %}
+                          </div>
                         </div>
 
-                        <form class="form-export-new-raw-data">
-                          <div class="modal-body">
+                        <p>Trained on <b>{{ mv.get_len_data() }}</b> datapoints.</p>
 
-                            <input type="hidden" name="_url" value="{{ url_for('models.export_new_raw_data') }}">
-                            <input type="hidden" name="model_id" value="{{mv.id}}">
-                            <input type="hidden" name="data_fname" value="{{fname}}">
+                        {% set metrics = mv.compute_metrics() %}
 
-                            <div class="form-group">
-                              <label>Output Filename</label>
-                              <input class="form-control" type="text" name="output_fname" required>
-                              <small class="form-text text-muted">
-                                A filename ending in .jsonl
-                              </small>
-                            </div>
-                            <div class="form-group">
-                              <label>Cutoff</label>
-                              <input class="form-control" type="text" name="cutoff" value="0.5" required>
-                              <small class="form-text text-muted">
-                                A value from 0.0 to 1.0
-                              </small>
-                            </div>
-
+                        {% if metrics['not_found'] %}
+                        <div class="alert alert-warning">
+                          <div>
+                            <b>{{metrics['not_found'] | length}}</b> data points were not found when computing metrics.
+                            <button class="btn btn-sm btn-warning" type="button" data-toggle="collapse"
+                              data-target="#metrics-not-found-{{mv.id}}" aria-expanded="false" aria-controls="collapseExample">
+                              Show Samples
+                            </button>
                           </div>
-                          <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary">Export</button>
+                          <div class="collapse" id="metrics-not-found-{{mv.id}}">
+                            <pre>{% for el in metrics['not_found'][:100] %}
+        "{{el}}"{% endfor %}</pre>
                           </div>
-                        </form>
+                        </div>
+                        {% endif %}
+
+                        <table class="table table-sm table-bordered text-center">
+                          <tr class="font-weight-bold">
+                            <td rowspan="2"></td>
+                            <td colspan="6">Train</td>
+                            <td colspan="6">Test</td>
+                          </tr>
+                          <tr class="font-weight-bold">
+                            <td>N</td>
+                            <td>Pr</td>
+                            <td>Re</td>
+                            <td>F1</td>
+                            <td>ROC AUC</td>
+                              <td>AUPR</td>
+                            <td>N</td>
+                            <td>Pr</td>
+                            <td>Re</td>
+                            <td>F1</td>
+                            <td>ROC AUC</td>
+                            <td>AUPR</td>
+                          </tr>
+                          <tr>
+                            <td>Negative Class</td>
+
+                            <td>{{metrics['train']['su'][0]}}</td>
+                            <td>{{metrics['train']['pr'][0]}}</td>
+                            <td>{{metrics['train']['re'][0]}}</td>
+                            <td>{{metrics['train']['f1'][0]}}</td>
+                            <td>-</td>
+                            <td>-</td>
+
+                            <td>{{metrics['test']['su'][0]}}</td>
+                            <td>{{metrics['test']['pr'][0]}}</td>
+                            <td>{{metrics['test']['re'][0]}}</td>
+                            <td>{{metrics['test']['f1'][0]}}</td>
+                            <td>-</td>
+                            <td>-</td>
+                          </tr>
+                          <tr>
+                            <td>Positive Class</td>
+
+                            <td>{{metrics['train']['su'][1]}}</td>
+                            <td>{{metrics['train']['pr'][1]}}</td>
+                            <td>{{metrics['train']['re'][1]}}</td>
+                            <td>{{metrics['train']['f1'][1]}}</td>
+                            <td>{{metrics['train']['ro']}}</td>
+                            <td>{{metrics['train']['aupr']}}</td>
+
+                            <td>{{metrics['test']['su'][1]}}</td>
+                            <td>{{metrics['test']['pr'][1]}}</td>
+                            <td>{{metrics['test']['re'][1]}}</td>
+                            <td>{{metrics['test']['f1'][1]}}</td>
+                            <td>{{metrics['test']['ro']}}</td>
+                            <td>{{metrics['test']['aupr']}}</td>
+                          </tr>
+                        </table>
+
+                        <div class="row">
+                          <div class="col-6">
+                            <h6>Train</h6>
+                            <table class="table table-sm table-bordered text-center">
+                              <tr class="font-weight-bold">
+                                <td></td>
+                                <td>Predicted: No</td>
+                                <td>Predicted: Yes</td>
+                              </tr>
+                              <tr>
+                                <td class="font-weight-bold">Actual: No</td>
+                                <td>{{metrics['train']['tn']}}</td>
+                                <td>{{metrics['train']['fp']}}</td>
+                              </tr>
+                              <tr>
+                                <td class="font-weight-bold">Actual: Yes</td>
+                                <td>{{metrics['train']['fn']}}</td>
+                                <td>{{metrics['train']['tp']}}</td>
+                              </tr>
+                            </table>
+                          </div>
+                          <div class="col-6">
+                            <h6>Test</h6>
+                            <table class="table table-sm table-bordered text-center">
+                              <tr class="font-weight-bold">
+                                <td></td>
+                                <td>Predicted: No</td>
+                                <td>Predicted: Yes</td>
+                              </tr>
+                              <tr>
+                                <td class="font-weight-bold">Actual: No</td>
+                                <td>{{metrics['test']['tn']}}</td>
+                                <td>{{metrics['test']['fp']}}</td>
+                              </tr>
+                              <tr>
+                                <td class="font-weight-bold">Actual: Yes</td>
+                                <td>{{metrics['test']['fn']}}</td>
+                                <td>{{metrics['test']['tp']}}</td>
+                              </tr>
+                            </table>
+                          </div>
+                        </div>
+
+                        <!-- Extra info hidden by default -->
+
+                        <p>
+                          <button class="btn btn-secondary" type="button" data-toggle="collapse"
+                            data-target="#extra-info-{{mv.id}}" aria-expanded="false" aria-controls="collapseExample">
+                            More Details
+                          </button>
+                        </p>
+                        <div class="collapse" id="extra-info-{{mv.id}}">
+                          <div class="row" style="font-size: 0.2em">
+                            <div class="col">
+                              Config:
+                              <pre>
+                                {{- mv.get_config()|to_pretty_json -}}
+                              </pre>
+                            </div>
+                            <div class="col">
+                              Data Parser:
+                              <pre>
+                                {{- mv.get_data_parser()|to_pretty_json -}}
+                              </pre>
+                            </div>
+                          </div>
+                        </div>
+
+                        {% else %}
+                        <p>
+                          Not ready yet.
+                        </p>
+                        {% endif %}
                       </div>
                     </div>
-                  </div>
-                </div>
-                {% endfor %}
-
-                <div class="row">
-                  <div class="col">
-                    {% for path in mv.get_url_encoded_plot_paths() %}
-                    <!-- Note: This uses the insecure way to get a file  -->
-                    <img style="max-width: 400px" src="/admin/file?f={{path}}" />
-                        {# TODO: replace with url_for #}
                     {% endfor %}
+                {% endfor %}
                   </div>
-                </div>
-
-                <p>Trained on <b>{{ mv.get_len_data() }}</b> datapoints.</p>
-
-                {% set metrics = mv.compute_metrics() %}
-
-                {% if metrics['not_found'] %}
-                <div class="alert alert-warning">
-                  <div>
-                    <b>{{metrics['not_found'] | length}}</b> data points were not found when computing metrics.
-                    <button class="btn btn-sm btn-warning" type="button" data-toggle="collapse"
-                      data-target="#metrics-not-found-{{mv.id}}" aria-expanded="false" aria-controls="collapseExample">
-                      Show Samples
-                    </button>
-                  </div>
-                  <div class="collapse" id="metrics-not-found-{{mv.id}}">
-                    <pre>{% for el in metrics['not_found'][:100] %}
-"{{el}}"{% endfor %}</pre>
-                  </div>
-                </div>
-                {% endif %}
-
-                <table class="table table-sm table-bordered text-center">
-                  <tr class="font-weight-bold">
-                    <td rowspan="2"></td>
-                    <td colspan="6">Train</td>
-                    <td colspan="6">Test</td>
-                  </tr>
-                  <tr class="font-weight-bold">
-                    <td>N</td>
-                    <td>Pr</td>
-                    <td>Re</td>
-                    <td>F1</td>
-                    <td>ROC AUC</td>
-                      <td>AUPR</td>
-                    <td>N</td>
-                    <td>Pr</td>
-                    <td>Re</td>
-                    <td>F1</td>
-                    <td>ROC AUC</td>
-                    <td>AUPR</td>
-                  </tr>
-                  <tr>
-                    <td>Negative Class</td>
-
-                    <td>{{metrics['train']['su'][0]}}</td>
-                    <td>{{metrics['train']['pr'][0]}}</td>
-                    <td>{{metrics['train']['re'][0]}}</td>
-                    <td>{{metrics['train']['f1'][0]}}</td>
-                    <td>-</td>
-                    <td>-</td>
-
-                    <td>{{metrics['test']['su'][0]}}</td>
-                    <td>{{metrics['test']['pr'][0]}}</td>
-                    <td>{{metrics['test']['re'][0]}}</td>
-                    <td>{{metrics['test']['f1'][0]}}</td>
-                    <td>-</td>
-                    <td>-</td>
-                  </tr>
-                  <tr>
-                    <td>Positive Class</td>
-
-                    <td>{{metrics['train']['su'][1]}}</td>
-                    <td>{{metrics['train']['pr'][1]}}</td>
-                    <td>{{metrics['train']['re'][1]}}</td>
-                    <td>{{metrics['train']['f1'][1]}}</td>
-                    <td>{{metrics['train']['ro']}}</td>
-                    <td>{{metrics['train']['aupr']}}</td>
-
-                    <td>{{metrics['test']['su'][1]}}</td>
-                    <td>{{metrics['test']['pr'][1]}}</td>
-                    <td>{{metrics['test']['re'][1]}}</td>
-                    <td>{{metrics['test']['f1'][1]}}</td>
-                    <td>{{metrics['test']['ro']}}</td>
-                    <td>{{metrics['test']['aupr']}}</td>
-                  </tr>
-                </table>
-
-                <div class="row">
-                  <div class="col-6">
-                    <h6>Train</h6>
-                    <table class="table table-sm table-bordered text-center">
-                      <tr class="font-weight-bold">
-                        <td></td>
-                        <td>Predicted: No</td>
-                        <td>Predicted: Yes</td>
-                      </tr>
-                      <tr>
-                        <td class="font-weight-bold">Actual: No</td>
-                        <td>{{metrics['train']['tn']}}</td>
-                        <td>{{metrics['train']['fp']}}</td>
-                      </tr>
-                      <tr>
-                        <td class="font-weight-bold">Actual: Yes</td>
-                        <td>{{metrics['train']['fn']}}</td>
-                        <td>{{metrics['train']['tp']}}</td>
-                      </tr>
-                    </table>
-                  </div>
-                  <div class="col-6">
-                    <h6>Test</h6>
-                    <table class="table table-sm table-bordered text-center">
-                      <tr class="font-weight-bold">
-                        <td></td>
-                        <td>Predicted: No</td>
-                        <td>Predicted: Yes</td>
-                      </tr>
-                      <tr>
-                        <td class="font-weight-bold">Actual: No</td>
-                        <td>{{metrics['test']['tn']}}</td>
-                        <td>{{metrics['test']['fp']}}</td>
-                      </tr>
-                      <tr>
-                        <td class="font-weight-bold">Actual: Yes</td>
-                        <td>{{metrics['test']['fn']}}</td>
-                        <td>{{metrics['test']['tp']}}</td>
-                      </tr>
-                    </table>
-                  </div>
-                </div>
-
-                <!-- Extra info hidden by default -->
-
-                <p>
-                  <button class="btn btn-secondary" type="button" data-toggle="collapse"
-                    data-target="#extra-info-{{mv.id}}" aria-expanded="false" aria-controls="collapseExample">
-                    More Details
-                  </button>
-                </p>
-                <div class="collapse" id="extra-info-{{mv.id}}">
-                  <div class="row" style="font-size: 0.2em">
-                    <div class="col">
-                      Config:
-                      <pre>
-                        {{- mv.get_config()|to_pretty_json -}}
-                      </pre>
-                    </div>
-                    <div class="col">
-                      Data Parser:
-                      <pre>
-                        {{- mv.get_data_parser()|to_pretty_json -}}
-                      </pre>
-                    </div>
-                  </div>
-                </div>
-
-                {% else %}
-                <p>
-                  Not ready yet.
-                </p>
-                {% endif %}
-              </div>
             </div>
-            {% endfor %}
           </div>
           <div class="col mt-4">
 
@@ -637,60 +647,65 @@
                 <form action="{{ url_for('models.update_model_deployment_config') }}" method="POST">
                   <input type="hidden" name="label" value="{{ label }}" />
 
+                  {% set models_by_uuid = models_per_label.get(label, {})%}
+                  {% for uuid in models_by_uuid %}
                   <table class="table">
                     <tbody>
-                      {% for mv in models_per_label.get(label, []) %}
-                      {% if mv.is_ready() %}
-                      {% set deployment_config = deployment_configs_per_model[mv.id] %}
-                      <tr>
-                        <td>
-                          Version {{mv.version}} ({{mv.created_at.strftime('%Y-%m-%d')}})
+                      <div>
+                          <h5>Model ID: {{ uuid[:7] }}</h5>
+                      </div>
+                      {% for mv in models_by_uuid.get(uuid, []) %}
+                          {% if mv.is_ready() %}
+                          {% set deployment_config = deployment_configs_per_model[mv.id] %}
+                          <tr>
+                            <td>
+                              Version {{mv.version}} ({{mv.created_at.strftime('%Y-%m-%d')}})
 
-                          {% if deployment_config %}
-                          <div id="{{mv.id}}_div_threshold">
-                            <label for="threshold">Threshold</label>
-                            <input type="text" id="{{mv.id}}_input_threshold" name="{{mv.id}}_threshold"
-                              value="{{ deployment_config["threshold"] }}" />
-                          </div>
-                          {% else %}
-                          <div id="{{mv.id}}_div_threshold">
-                            <label for="threshold">Threshold</label>
-                            <input type="text" id="{{mv.id}}_input_threshold" name="{{mv.id}}_threshold" value="0.5" />
-                          </div>
-                          {% endif %}
-                        </td>
-                        <td>
-                          {% if deployment_config and deployment_config["is_approved"] %}
-                          <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}"
-                            checked="checked" onclick="displayRadioButton(this.id)" /> Approved
+                              {% if deployment_config %}
+                              <div id="{{mv.id}}_div_threshold">
+                                <label for="threshold">Threshold</label>
+                                <input type="text" id="{{mv.id}}_input_threshold" name="{{mv.id}}_threshold"
+                                  value="{{ deployment_config["threshold"] }}" />
+                              </div>
+                              {% else %}
+                              <div id="{{mv.id}}_div_threshold">
+                                <label for="threshold">Threshold</label>
+                                <input type="text" id="{{mv.id}}_input_threshold" name="{{mv.id}}_threshold" value="0.5" />
+                              </div>
+                              {% endif %}
+                            </td>
+                            <td>
+                              {% if deployment_config and deployment_config["is_approved"] %}
+                              <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}"
+                                checked="checked" onclick="displayRadioButton(this.id)" /> Approved
 
-                          {% if deployment_config["is_selected_for_deployment"] %}
-                          <div id="{{mv.id}}_div_radio">
-                            <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}"
-                              checked="checked" />
-                            <label for="selected_model_id">Selected for deployment</label>
-                          </div>
-                          {% else %}
-                          <div id="{{mv.id}}_div_radio">
-                            <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}" />
-                            <label for="selected_model_id">Selected for deployment</label>
-                          </div>
-                          {%  endif %}
-                          {% else %}
-                          <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}"
-                            onclick="displayRadioButton(this.id)" /> Approved
-                          <div id="{{mv.id}}_div_radio" style="display: none">
-                            <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}" />
-                            <label for="selected_model_id">Selected for deployment</label>
-                          </div>
+                              {% if deployment_config["is_selected_for_deployment"] %}
+                              <div id="{{mv.id}}_div_radio">
+                                <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}"
+                                  checked="checked" />
+                                <label for="selected_model_id">Selected for deployment</label>
+                              </div>
+                              {% else %}
+                              <div id="{{mv.id}}_div_radio">
+                                <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}" />
+                                <label for="selected_model_id">Selected for deployment</label>
+                              </div>
+                              {%  endif %}
+                              {% else %}
+                              <input type="checkbox" id="{{mv.id}}_checkbox" name="approved_model_id" value="{{mv.id}}"
+                                onclick="displayRadioButton(this.id)" /> Approved
+                              <div id="{{mv.id}}_div_radio" style="display: none">
+                                <input type="radio" id="{{mv.id}}_radio" name="selected_model_id" value="{{mv.id}}" />
+                                <label for="selected_model_id">Selected for deployment</label>
+                              </div>
+                              {% endif %}
+                            </td>
+                          </tr>
                           {% endif %}
-                        </td>
-                      </tr>
-                      {% endif %}
                       {% endfor %}
                     </tbody>
                   </table>
-
+                  {% endfor %}
                   <button type="submit" class="btn btn-primary">Save Deployment Config for "{{ label }}"</button>
                 </form>
               </div>
