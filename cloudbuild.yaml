@@ -68,7 +68,8 @@ steps:
   args:
     - "-c"
     - |
-      if [ "${_TARGET}" = "production" ] && [ -z ${_NO_DEPLOY} ]; then
+      # To enable auto deployment either unset _NO_DEPLOY var or set it to 0
+      if [ "${_TARGET}" = "production" ] && ( [ -z ${_NO_DEPLOY} ] || [ "${_NO_DEPLOY}" = "0" ] ); then
         # INSTANCES=$(gcloud compute instances list --filter="${_DEPLOY_FILTER}")
         echo "Updating the project"
         gcloud compute ssh \
