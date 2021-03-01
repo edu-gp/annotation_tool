@@ -88,6 +88,7 @@ else
 
   uwsgi --socket :$FLASK_RUN_PORT  \
         --master \
+        --workers 5 \
         --vacuum \
         --harakiri 20 \
         --max-requests 2000 \
