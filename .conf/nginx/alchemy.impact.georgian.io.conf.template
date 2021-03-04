@@ -17,7 +17,15 @@ server {
     include             /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
 
-    return 301 https://$1.georgian.io$request_uri;
+    location ^~ /.well-known/acme-challenge/ {
+      default_type "text/plain";
+      autoindex off;
+      root /var/www/letsencrypt;
+    }
+
+    location / {
+        return 301 https://$1.georgian.io$request_uri;
+    }
 }
 
 server {
