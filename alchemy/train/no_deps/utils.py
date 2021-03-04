@@ -166,12 +166,12 @@ def run_cmd(cmd: str):
     # check=True makes this function raise an Exception if the command fails.
     try:
         output = subprocess.run(shlex.split(cmd), check=True, capture_output=True)
-        print("stdout:", output.stdout)
-        print("stderr:", output.stderr)
+        print("stdout:", str(output.stdout, 'utf-8'))
+        print("stderr:", str(output.stderr, 'utf-8'))
         return output
     except subprocess.CalledProcessError as e:
-        print("stdout:", e.stdout)
-        print("stderr:", e.stderr)
+        print("stdout:", str(e.stdout, 'utf-8'))
+        print("stderr:", str(e.stderr, 'utf-8'))
         raise
 
 
