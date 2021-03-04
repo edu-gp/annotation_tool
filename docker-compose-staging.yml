@@ -8,7 +8,6 @@ volumes:
 x-logging: &gcp-logger
   driver: gcplogs
   options:
-    gcp-project: nlp-flywheel
     labels: 'service'
 
 
