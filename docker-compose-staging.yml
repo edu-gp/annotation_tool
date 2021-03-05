@@ -4,6 +4,13 @@ volumes:
   admin_static_files:
   annotation_static_files:
 
+
+x-logging: &gcp-logger
+  driver: gcplogs
+  options:
+    labels: 'service'
+
+
 services:
   admin_server:
     env_file: .env
@@ -26,6 +33,9 @@ services:
       - SCRIPT_NAME=/admin
     depends_on:
       - redis
+    logging: *gcp-logger
+    labels:
+      service: alchemy-admin-server
 
   annotation_server:
     env_file: .env
@@ -47,6 +57,9 @@ services:
     depends_on:
       - redis
       - admin_server
+    logging: *gcp-logger
+    labels:
+      service: alchemy-annotation-server
 
   ar_celery:
     env_file: .env
@@ -58,6 +71,9 @@ services:
     depends_on:
       - redis
       - admin_server
+    logging: *gcp-logger
+    labels:
+      service: alchemy-ar-celery
 
   train_celery:
     env_file: .env
@@ -69,6 +85,9 @@ services:
     depends_on:
       - redis
       - admin_server
+    logging: *gcp-logger
+    labels:
+      service: alchemy-train-celery
 
   gcp_celery:
     env_file: .env
@@ -80,6 +99,10 @@ services:
     depends_on:
       - redis
       - admin_server
+    logging: *gcp-logger
+    labels:
+      service: alchemy-gcp-celery
+
   nginx:
     env_file:
       - .env
@@ -108,6 +131,9 @@ services:
     ports:
     - "80:80"
     - "443:443"
+    logging: *gcp-logger
+    labels:
+      service: alchemy-nginx
 
   redis:
     image: "redis:alpine"
