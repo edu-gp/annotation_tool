@@ -67,7 +67,17 @@ services:
     volumes:
       - $GCLOUD_LOCAL_DIR:/root/.config/gcloud
       - $FILESTORE_LOCAL_DIR:/app/__filestore
-    entrypoint: ["celery", "--app=alchemy.ar.ar_celery", "worker", "-Q", "ar_celery", "-c", "2", "--autoscale=100,2", "-l", "info", "--max-tasks-per-child", "1", "-n", "ar_celery"]
+    entrypoint: ["celery"]
+    command: [
+        "--app=alchemy.ar.ar_celery",
+        "worker",
+        "-Q", "ar_celery",
+        "-c", "2",
+        "--autoscale=10,2",
+        "-l", "info",
+        "--max-tasks-per-child", "1",
+        "-n", "ar_celery%I"
+    ]
     depends_on:
       - redis
       - admin_server
@@ -81,7 +91,17 @@ services:
     volumes:
       - $GCLOUD_LOCAL_DIR:/root/.config/gcloud
       - $FILESTORE_LOCAL_DIR:/app/__filestore
-    entrypoint: ["celery", "--app=alchemy.train.train_celery", "worker", "-Q", "train_celery", "-c", "2", "--autoscale=100,2", "-l", "info", "--max-tasks-per-child", "1", "-n", "train_celery"]
+    entrypoint: ["celery"]
+    command: [
+        "--app=alchemy.train.train_celery",
+        "worker",
+        "-Q", "train_celery",
+        "-c", "2",
+        "--autoscale=10,2",
+        "-l", "info",
+        "--max-tasks-per-child", "1",
+        "-n", "train_celery%I"
+    ]
     depends_on:
       - redis
       - admin_server
@@ -95,7 +115,16 @@ services:
     volumes:
       - $GCLOUD_LOCAL_DIR:/root/.config/gcloud
       - $FILESTORE_LOCAL_DIR:/app/__filestore
-    entrypoint: ["celery", "--app=alchemy.train.gcp_celery", "worker", "-Q", "gcp_celery", "-c", "5", "--autoscale=100,2", "-l", "info", "-n", "gcp_celery"]
+    entrypoint: ["celery"]
+    command: [
+        "--app=alchemy.train.gcp_celery",
+        "worker",
+        "-Q", "gcp_celery",
+        "-c", "5",
+        "--autoscale=10,2",
+        "-l", "info",
+        "-n", "gcp_celery%I"
+    ]
     depends_on:
       - redis
       - admin_server
