@@ -31,6 +31,7 @@ services:
     ]
     environment:
       - SCRIPT_NAME=/admin
+    restart: on-failure
     depends_on:
       - redis
     logging: *gcp-logger
@@ -54,6 +55,7 @@ services:
         '--flask-port', '5001',
         'annotation_server'
     ]
+    restart: on-failure
     depends_on:
       - redis
       - admin_server
@@ -151,6 +153,7 @@ services:
         source: annotation_static_files
         target: /static_files/annotation_server
         read_only: true
+    restart: on-failure
     depends_on:
       - admin_server
       - annotation_server
